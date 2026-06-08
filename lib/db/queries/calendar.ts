@@ -1,0 +1,250 @@
+import { and, asc, eq, gte, lte, sql as dsql } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import * as schema from "../schema";
+import {
+  schoolDayCalendar,
+  calendarEvents,
+  mealCache,
+  teacherProfile,
+} from "../schema/misc";
+import type { NeisScheduleEntry, NeisMealEntry } from "@/lib/integrations/neis";
+
+/**
+ * 캘린더 sync 쿼리 계층 (계획 §3.3 E, §4 E). NEIS 학사일정·급식을
+ * school_day_calendar(수업일 단일 진실원)·calendar_events·meal_cache 로 멱등 upsert.
+ *
+ * 수업일 판정: 평일(월~금) ∧ NEIS 비수업일(공휴일/휴업일 등) 아님. 주말·휴업일=비수업일.
+ */
+type DB = PostgresJsDatabase<typeof schema>;
+
+export interface CalendarSyncResult {
+  schoolDays: number; // school_day_calendar upsert 행수
+  events: number; // calendar_events insert 행수
+  meals: number; // meal_cache upsert 행수
+}
+
+/** "YYYYMMDD" → UTC 자정 Date. */
+function ymdToDate(ymd: string): Date {
+  const y = +ymd.slice(0, 4);
+  const m = +ymd.slice(4, 6);
+  const d = +ymd.slice(6, 8);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+function fmt(date: Date): string {
+  return date.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+export async function syncSchoolCalendar(
+  db: DB,
+  ownerId: string,
+  fromYmd: string,
+  toYmd: string,
+  schedule: NeisScheduleEntry[],
+  meals: NeisMealEntry[],
+): Promise<CalendarSyncResult> {
+  const nonSchoolDates = new Set(
+    schedule.filter((e) => !e.isSchoolDay).map((e) => e.date),
+  );
+
+  // 1) school_day_calendar — 범위 전체 일자 생성(평일∧비휴일=수업일)
+  const dayRows: { ownerId: string; date: string; isSchoolDay: boolean }[] = [];
+  const from = ymdToDate(fromYmd);
+  const to = ymdToDate(toYmd);
+  for (let d = new Date(from); d <= to; d.setUTCDate(d.getUTCDate() + 1)) {
+    const date = fmt(d);
+    const weekday = d.getUTCDay(); // 0=일 .. 6=토
+    const isSchoolDay =
+      weekday >= 1 && weekday <= 5 && !nonSchoolDates.has(date);
+    dayRows.push({ ownerId, date, isSchoolDay });
+  }
+  if (dayRows.length > 0) {
+    await db
+      .insert(schoolDayCalendar)
+      .values(dayRows)
+      .onConflictDoUpdate({
+        target: [schoolDayCalendar.ownerId, schoolDayCalendar.date],
+        set: { isSchoolDay: dsql`excluded.is_school_day`, updatedAt: new Date() },
+      });
+  }
+
+  // 2) calendar_events(source=neis) — 범위 내 기존 neis 이벤트 교체
+  await db
+    .delete(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.ownerId, ownerId),
+        eq(calendarEvents.source, "neis"),
+        gte(calendarEvents.date, fmt(from)),
+        lte(calendarEvents.date, fmt(to)),
+      ),
+    );
+  const eventRows = schedule
+    .filter((e) => e.title.length > 0)
+    .map((e) => ({
+      ownerId,
+      date: e.date,
+      source: "neis" as const,
+      title: e.title,
+    }));
+  if (eventRows.length > 0) {
+    await db.insert(calendarEvents).values(eventRows);
+  }
+
+  // 3) meal_cache — 날짜별로 묶어 payload upsert
+  const byDate = new Map<string, NeisMealEntry[]>();
+  for (const m of meals) {
+    const arr = byDate.get(m.date) ?? [];
+    arr.push(m);
+    byDate.set(m.date, arr);
+  }
+  const mealRows = [...byDate.entries()].map(([date, items]) => ({
+    ownerId,
+    date,
+    payload: {
+      meals: items.map((i) => ({
+        mealType: i.mealType,
+        menu: i.menu,
+        calInfo: i.calInfo,
+      })),
+    },
+  }));
+  if (mealRows.length > 0) {
+    await db
+      .insert(mealCache)
+      .values(mealRows)
+      .onConflictDoUpdate({
+        target: [mealCache.ownerId, mealCache.date],
+        set: { payload: dsql`excluded.payload`, updatedAt: new Date() },
+      });
+  }
+
+  return {
+    schoolDays: dayRows.length,
+    events: eventRows.length,
+    meals: mealRows.length,
+  };
+}
+
+// ── 조회 ──
+
+export interface CalendarEventView {
+  date: string;
+  title: string;
+}
+
+/** from 이후 다가오는 학사일정 N건. */
+export async function getUpcomingEvents(
+  db: DB,
+  ownerId: string,
+  fromDate: string,
+  limit = 20,
+): Promise<CalendarEventView[]> {
+  return db
+    .select({ date: calendarEvents.date, title: calendarEvents.title })
+    .from(calendarEvents)
+    .where(
+      and(eq(calendarEvents.ownerId, ownerId), gte(calendarEvents.date, fromDate)),
+    )
+    .orderBy(asc(calendarEvents.date))
+    .limit(limit);
+}
+
+export interface MealView {
+  date: string;
+  payload: unknown;
+}
+
+export async function getMealsInRange(
+  db: DB,
+  ownerId: string,
+  fromDate: string,
+  toDate: string,
+): Promise<MealView[]> {
+  return db
+    .select({ date: mealCache.date, payload: mealCache.payload })
+    .from(mealCache)
+    .where(
+      and(
+        eq(mealCache.ownerId, ownerId),
+        gte(mealCache.date, fromDate),
+        lte(mealCache.date, toDate),
+      ),
+    )
+    .orderBy(asc(mealCache.date));
+}
+
+/** 범위 내 수업일 수(잔여차시·신고서 기한 계산 보조). */
+export async function countSchoolDays(
+  db: DB,
+  ownerId: string,
+  fromDate: string,
+  toDate: string,
+): Promise<number> {
+  const rows = await db
+    .select({ n: dsql<number>`count(*)::int` })
+    .from(schoolDayCalendar)
+    .where(
+      and(
+        eq(schoolDayCalendar.ownerId, ownerId),
+        eq(schoolDayCalendar.isSchoolDay, true),
+        gte(schoolDayCalendar.date, fromDate),
+        lte(schoolDayCalendar.date, toDate),
+      ),
+    );
+  return rows[0]?.n ?? 0;
+}
+
+// ── 교사 프로필(NEIS 설정) ──
+
+export interface TeacherNeisConfig {
+  neisOfficeCode: string | null;
+  neisSchoolCode: string | null;
+  neisSchoolName: string | null;
+  lastCalendarSyncAt: Date | null;
+}
+
+export async function getTeacherNeisConfig(
+  db: DB,
+  ownerId: string,
+): Promise<TeacherNeisConfig | null> {
+  const rows = await db
+    .select({
+      neisOfficeCode: teacherProfile.neisOfficeCode,
+      neisSchoolCode: teacherProfile.neisSchoolCode,
+      neisSchoolName: teacherProfile.neisSchoolName,
+      lastCalendarSyncAt: teacherProfile.lastCalendarSyncAt,
+    })
+    .from(teacherProfile)
+    .where(eq(teacherProfile.ownerId, ownerId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function upsertTeacherNeisConfig(
+  db: DB,
+  ownerId: string,
+  office: string,
+  school: string,
+  schoolName: string,
+  syncedAt: Date,
+): Promise<void> {
+  const existing = await db
+    .select({ id: teacherProfile.id })
+    .from(teacherProfile)
+    .where(eq(teacherProfile.ownerId, ownerId))
+    .limit(1);
+  const values = {
+    neisOfficeCode: office,
+    neisSchoolCode: school,
+    neisSchoolName: schoolName,
+    lastCalendarSyncAt: syncedAt,
+  };
+  if (existing.length) {
+    await db
+      .update(teacherProfile)
+      .set({ ...values, updatedAt: new Date() })
+      .where(eq(teacherProfile.ownerId, ownerId));
+  } else {
+    await db.insert(teacherProfile).values({ ownerId, ...values });
+  }
+}
