@@ -14,6 +14,7 @@ import {
   getStudentYearHistory,
   addClassRole,
   listClassRoles,
+  listClassRolesForStudents,
   deleteClassRole,
   isHomeroomStudent,
   issuePublicPageForHomeroom,
@@ -157,5 +158,19 @@ describe.skipIf(!RUN)("C4 학생 명단 — 매칭/상속/역할/담임/공개�
     await expect(
       issuePublicPageForHomeroom(db, owner, syN2026),
     ).rejects.toThrow("담임반");
+  });
+
+  it("P3 listClassRolesForStudents = 학생별 listClassRoles 합집합 동치 (AC-P3)", async () => {
+    // syH2026 은 앞 테스트에서 '회장' 보유. syN2026 에 역할 2건 추가(멀티 그룹 검증).
+    await addClassRole(db, owner, syN2026, "환경부장");
+    await addClassRole(db, owner, syN2026, "체육부장", "체육대회 준비");
+
+    const ids = [syH2026, syN2026];
+    const batch = await listClassRolesForStudents(db, owner, ids);
+    for (const id of ids) {
+      expect(batch.get(id) ?? []).toEqual(await listClassRoles(db, owner, id));
+    }
+    // 빈 입력 가드(SQL inArray 빈배열 회피)
+    expect((await listClassRolesForStudents(db, owner, [])).size).toBe(0);
   });
 });

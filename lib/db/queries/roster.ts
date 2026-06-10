@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lt, ne, isNull, sql as dsql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, ne, isNull, sql as dsql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import { persons, studentYears, yearLinks } from "../schema/identity";
@@ -385,6 +385,42 @@ export async function deleteClassRole(
   await db
     .delete(classRoles)
     .where(and(eq(classRoles.id, roleId), eq(classRoles.ownerId, ownerId)));
+}
+
+/**
+ * P3: studentYearId 집합의 학급역할 1회 조회 → studentYearId 그룹핑.
+ * 학생별 listClassRoles 루프(N+1)를 대체하며 단건 함수와 동치(createdAt 순).
+ */
+export async function listClassRolesForStudents(
+  db: DB,
+  ownerId: string,
+  studentYearIds: string[],
+): Promise<Map<string, ClassRoleRow[]>> {
+  const byStudent = new Map<string, ClassRoleRow[]>();
+  if (studentYearIds.length === 0) return byStudent;
+
+  const rows = await db
+    .select({
+      studentYearId: classRoles.studentYearId,
+      id: classRoles.id,
+      roleName: classRoles.roleName,
+      roleDesc: classRoles.roleDesc,
+    })
+    .from(classRoles)
+    .where(
+      and(
+        eq(classRoles.ownerId, ownerId),
+        inArray(classRoles.studentYearId, studentYearIds),
+      ),
+    )
+    .orderBy(asc(classRoles.studentYearId), asc(classRoles.createdAt));
+
+  for (const { studentYearId, ...rest } of rows) {
+    const arr = byStudent.get(studentYearId);
+    if (arr) arr.push(rest);
+    else byStudent.set(studentYearId, [rest]);
+  }
+  return byStudent;
 }
 
 // ── C4: 담임반 파생 + 공개링크 서버 게이팅 (AC-4.4, AC-4.6) ──

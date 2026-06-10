@@ -5,7 +5,7 @@ import {
   isStageComplete,
   listStudents,
   listPendingLinks,
-  listClassRoles,
+  listClassRolesForStudents,
   getTeacherSettings,
 } from "@/lib/db/queries";
 import { activeSchoolYear } from "@/lib/domain/school-year";
@@ -36,16 +36,20 @@ export default async function StudentsStagePage() {
       ? { grade: settings.homeroomGrade, classNo: settings.homeroomClassNo }
       : null;
 
-  const rows = await Promise.all(
-    students.map(async (s) => ({
-      ...s,
-      isHomeroom:
-        homeroom != null &&
-        s.grade === homeroom.grade &&
-        s.classNo === homeroom.classNo,
-      roles: await listClassRoles(db, ownerId, s.id),
-    })),
+  // P3: N+1 제거 — 학생 학급역할을 1회 배치 조회 후 메모리 그룹핑.
+  const rolesByStudent = await listClassRolesForStudents(
+    db,
+    ownerId,
+    students.map((s) => s.id),
   );
+  const rows = students.map((s) => ({
+    ...s,
+    isHomeroom:
+      homeroom != null &&
+      s.grade === homeroom.grade &&
+      s.classNo === homeroom.classNo,
+    roles: rolesByStudent.get(s.id) ?? [],
+  }));
 
   return (
     <div>

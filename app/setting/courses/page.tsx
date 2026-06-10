@@ -4,9 +4,9 @@ import {
   isStageUnlocked,
   isStageComplete,
   listSubjectsWithSections,
-  listEnrollments,
-  listSectionRoles,
-  listSubjectExams,
+  listEnrollmentsForYear,
+  listSectionRolesForEnrollments,
+  listSubjectExamsForYear,
   getTeacherTimetable,
   getTeacherProfile,
 } from "@/lib/db/queries";
@@ -32,25 +32,33 @@ export default async function CoursesStagePage() {
     getTeacherProfile(db, ownerId),
   ]);
 
-  const views: SubjectView[] = await Promise.all(
-    subjects.map(async (s) => ({
-      subjectId: s.subjectId,
-      subjectName: s.subjectName,
-      exams: await listSubjectExams(db, ownerId, s.subjectId),
-      sections: await Promise.all(
-        s.sections.map(async (sec) => ({
-          id: sec.id,
-          label: sec.label,
-          enrollments: await Promise.all(
-            (await listEnrollments(db, ownerId, sec.id)).map(async (e) => ({
-              ...e,
-              roles: await listSectionRoles(db, ownerId, e.enrollmentId),
-            })),
-          ),
-        })),
-      ),
-    })),
+  // P3: N+1 제거 — 연도·집합 단위 배치 조회 후 메모리 조립(쿼리 수 데이터 무관 상수).
+  const [examsBySubject, enrollmentsBySection] = await Promise.all([
+    listSubjectExamsForYear(db, ownerId, year),
+    listEnrollmentsForYear(db, ownerId, year),
+  ]);
+  const allEnrollmentIds = [...enrollmentsBySection.values()]
+    .flat()
+    .map((e) => e.enrollmentId);
+  const rolesByEnrollment = await listSectionRolesForEnrollments(
+    db,
+    ownerId,
+    allEnrollmentIds,
   );
+
+  const views: SubjectView[] = subjects.map((s) => ({
+    subjectId: s.subjectId,
+    subjectName: s.subjectName,
+    exams: examsBySubject.get(s.subjectId) ?? [],
+    sections: s.sections.map((sec) => ({
+      id: sec.id,
+      label: sec.label,
+      enrollments: (enrollmentsBySection.get(sec.id) ?? []).map((e) => ({
+        ...e,
+        roles: rolesByEnrollment.get(e.enrollmentId) ?? [],
+      })),
+    })),
+  }));
 
   return (
     <div>

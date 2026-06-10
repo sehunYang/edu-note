@@ -607,3 +607,116 @@ export async function listSubjectsWithSections(
   }
   return [...bySubject.values()];
 }
+
+// ── P3: N+1 제거용 배치 쿼리(집합 단위 1회 + 메모리 그룹핑) ──
+//
+// 화면(courses/students)에서 행 단위 루프로 호출하던 listSubjectExams /
+// listEnrollments / listSectionRoles / listClassRoles 를 연도·집합 단위 1회 조회로
+// 대체한다. 결과는 단건 함수와 **동치**(같은 그룹화·정렬)이며 동치성은 통합테스트가 잠근다.
+
+export type SubjectExamRow = {
+  semester: number;
+  ordinal: number;
+  date: string | null;
+  enabled: boolean;
+};
+
+/** 연도 전 과목 시험일 1회 조회 → subjectId 그룹핑(단건 listSubjectExams 동치). */
+export async function listSubjectExamsForYear(
+  db: DB,
+  ownerId: string,
+  schoolYear: number,
+): Promise<Map<string, SubjectExamRow[]>> {
+  const rows = await db
+    .select({
+      subjectId: subjectExams.subjectId,
+      semester: subjectExams.semester,
+      ordinal: subjectExams.ordinal,
+      date: subjectExams.date,
+      enabled: subjectExams.enabled,
+    })
+    .from(subjectExams)
+    .innerJoin(subjects, eq(subjects.id, subjectExams.subjectId))
+    .where(
+      and(eq(subjectExams.ownerId, ownerId), eq(subjects.schoolYear, schoolYear)),
+    )
+    .orderBy(asc(subjectExams.semester), asc(subjectExams.ordinal));
+
+  const bySubject = new Map<string, SubjectExamRow[]>();
+  for (const { subjectId, ...rest } of rows) {
+    const arr = bySubject.get(subjectId);
+    if (arr) arr.push(rest);
+    else bySubject.set(subjectId, [rest]);
+  }
+  return bySubject;
+}
+
+export type EnrollmentRow = {
+  enrollmentId: string;
+  studentYearId: string;
+  name: string;
+};
+
+/** 연도 전 분반 수강생 1회 조회 → sectionId 그룹핑(단건 listEnrollments 동치, sid순). */
+export async function listEnrollmentsForYear(
+  db: DB,
+  ownerId: string,
+  schoolYear: number,
+): Promise<Map<string, EnrollmentRow[]>> {
+  const rows = await db
+    .select({
+      sectionId: enrollments.sectionId,
+      enrollmentId: enrollments.id,
+      studentYearId: enrollments.studentYearId,
+      name: studentYears.name,
+    })
+    .from(enrollments)
+    .innerJoin(studentYears, eq(studentYears.id, enrollments.studentYearId))
+    .innerJoin(courseSections, eq(courseSections.id, enrollments.sectionId))
+    .innerJoin(subjects, eq(subjects.id, courseSections.subjectId))
+    .where(
+      and(eq(enrollments.ownerId, ownerId), eq(subjects.schoolYear, schoolYear)),
+    )
+    .orderBy(asc(enrollments.sectionId), asc(studentYears.sid));
+
+  const bySection = new Map<string, EnrollmentRow[]>();
+  for (const { sectionId, ...rest } of rows) {
+    const arr = bySection.get(sectionId);
+    if (arr) arr.push(rest);
+    else bySection.set(sectionId, [rest]);
+  }
+  return bySection;
+}
+
+/** enrollmentId 집합의 분반 역할 1회 조회 → enrollmentId 그룹핑(단건 listSectionRoles 동치). */
+export async function listSectionRolesForEnrollments(
+  db: DB,
+  ownerId: string,
+  enrollmentIds: string[],
+): Promise<Map<string, SectionRoleRow[]>> {
+  const byEnrollment = new Map<string, SectionRoleRow[]>();
+  if (enrollmentIds.length === 0) return byEnrollment;
+
+  const rows = await db
+    .select({
+      id: sectionRoles.id,
+      enrollmentId: sectionRoles.enrollmentId,
+      title: sectionRoles.title,
+      description: sectionRoles.description,
+    })
+    .from(sectionRoles)
+    .where(
+      and(
+        eq(sectionRoles.ownerId, ownerId),
+        inArray(sectionRoles.enrollmentId, enrollmentIds),
+      ),
+    )
+    .orderBy(asc(sectionRoles.enrollmentId), asc(sectionRoles.createdAt));
+
+  for (const r of rows) {
+    const arr = byEnrollment.get(r.enrollmentId);
+    if (arr) arr.push(r);
+    else byEnrollment.set(r.enrollmentId, [r]);
+  }
+  return byEnrollment;
+}

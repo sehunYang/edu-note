@@ -32,6 +32,9 @@ import {
   deleteSectionRole,
   setPerformanceDate,
   listPerformanceDates,
+  listSubjectExamsForYear,
+  listEnrollmentsForYear,
+  listSectionRolesForEnrollments,
 } from "./timetable";
 
 /**
@@ -257,5 +260,43 @@ describe.skipIf(!RUN_DB)("C5 수업 관리 — 평가/등록/시험일/역할", 
     await setPerformanceDate(db5, o, physicsSection, item.id, "2098-05-20");
     dates = await listPerformanceDates(db5, o, physicsSection);
     expect(dates).toEqual([{ performanceItemId: item.id, date: "2098-05-20" }]);
+  });
+
+  it("P3 배치 쿼리 = 단건 함수 결과 동치 (AC-P3)", async () => {
+    // 동치 검증용으로 여러 분반/수강생/역할 상태를 추가 구성:
+    // 지구과학 분반에 2-8 2명 등록, physics 첫 수강생에 역할 1건 추가.
+    await bulkEnroll(db5, o, earthSection, { schoolYear: Y5, grade: 2, classNo: 8 });
+    const [pEnr] = await listEnrollments(db5, o, physicsSection);
+    await addSectionRole(db5, o, pEnr.enrollmentId, "조장");
+
+    // ① 시험일: 연도 배치 그룹 == 과목별 단건
+    const examsBatch = await listSubjectExamsForYear(db5, o, Y5);
+    expect(examsBatch.get(physicsId) ?? []).toEqual(
+      await listSubjectExams(db5, o, physicsId),
+    );
+    expect(examsBatch.get(earthId) ?? []).toEqual(
+      await listSubjectExams(db5, o, earthId),
+    );
+
+    // ② 수강생: 연도 배치 그룹 == 분반별 단건(sid 순)
+    const enrollBatch = await listEnrollmentsForYear(db5, o, Y5);
+    expect(enrollBatch.get(physicsSection) ?? []).toEqual(
+      await listEnrollments(db5, o, physicsSection),
+    );
+    expect(enrollBatch.get(earthSection) ?? []).toEqual(
+      await listEnrollments(db5, o, earthSection),
+    );
+
+    // ③ 분반역할: enrollmentId 집합 배치 == enrollment별 단건
+    const enrIds = [...enrollBatch.values()].flat().map((e) => e.enrollmentId);
+    expect(enrIds.length).toBeGreaterThan(0);
+    const rolesBatch = await listSectionRolesForEnrollments(db5, o, enrIds);
+    for (const id of enrIds) {
+      expect(rolesBatch.get(id) ?? []).toEqual(
+        await listSectionRoles(db5, o, id),
+      );
+    }
+    // 빈 입력 가드(SQL inArray 빈배열 회피)
+    expect((await listSectionRolesForEnrollments(db5, o, [])).size).toBe(0);
   });
 });
