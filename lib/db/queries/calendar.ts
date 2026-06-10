@@ -8,6 +8,10 @@ import {
   teacherProfile,
 } from "../schema/misc";
 import type { NeisScheduleEntry, NeisMealEntry } from "@/lib/integrations/neis";
+import {
+  classifyEvent,
+  type EventKind,
+} from "@/lib/domain/calendar-keywords";
 
 /**
  * 캘린더 sync 쿼리 계층 (계획 §3.3 E, §4 E). NEIS 학사일정·급식을
@@ -80,12 +84,19 @@ export async function syncSchoolCalendar(
     );
   const eventRows = schedule
     .filter((e) => e.title.length > 0)
-    .map((e) => ({
-      ownerId,
-      date: e.date,
-      source: "neis" as const,
-      title: e.title,
-    }));
+    .map((e) => {
+      // 키워드 자동 분류(best-effort) — 교사 보정 UI 가 최종 진실원
+      const c = classifyEvent(e.title);
+      return {
+        ownerId,
+        date: e.date,
+        source: "neis" as const,
+        title: e.title,
+        eventKind: c.eventKind,
+        examSemester: c.examSemester ?? null,
+        examOrdinal: c.examOrdinal ?? null,
+      };
+    });
   if (eventRows.length > 0) {
     await db.insert(calendarEvents).values(eventRows);
   }
@@ -147,6 +158,74 @@ export async function getUpcomingEvents(
     )
     .orderBy(asc(calendarEvents.date))
     .limit(limit);
+}
+
+// ── 학사일정 속성(키워드 분류) 조회·보정 (QC v1 C3) ──
+
+export interface CalendarEventAttrView {
+  id: string;
+  date: string;
+  title: string;
+  eventKind: EventKind;
+  examSemester: number | null;
+  examOrdinal: number | null;
+}
+
+/** 범위 내 이벤트 + 분류 속성(보정 UI 용). */
+export async function getEventsWithAttrs(
+  db: DB,
+  ownerId: string,
+  fromDate: string,
+  toDate: string,
+): Promise<CalendarEventAttrView[]> {
+  return db
+    .select({
+      id: calendarEvents.id,
+      date: calendarEvents.date,
+      title: calendarEvents.title,
+      eventKind: calendarEvents.eventKind,
+      examSemester: calendarEvents.examSemester,
+      examOrdinal: calendarEvents.examOrdinal,
+    })
+    .from(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.ownerId, ownerId),
+        gte(calendarEvents.date, fromDate),
+        lte(calendarEvents.date, toDate),
+      ),
+    )
+    .orderBy(asc(calendarEvents.date));
+}
+
+export interface UpdateEventAttrsInput {
+  eventKind: EventKind;
+  examSemester?: number | null;
+  examOrdinal?: number | null;
+}
+
+/**
+ * 자동 분류 보정(AC-3.3). 교사가 event_kind/시험 학기·회차를 교정한다. exam 이 아니면
+ * 학기/회차를 null 로 강제(모순 방지). owner 가드로 타 소유 이벤트는 수정 불가.
+ */
+export async function updateEventAttributes(
+  db: DB,
+  ownerId: string,
+  eventId: string,
+  input: UpdateEventAttrsInput,
+): Promise<void> {
+  const isExam = input.eventKind === "exam";
+  await db
+    .update(calendarEvents)
+    .set({
+      eventKind: input.eventKind,
+      examSemester: isExam ? (input.examSemester ?? null) : null,
+      examOrdinal: isExam ? (input.examOrdinal ?? null) : null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(eq(calendarEvents.id, eventId), eq(calendarEvents.ownerId, ownerId)),
+    );
 }
 
 export interface MealView {

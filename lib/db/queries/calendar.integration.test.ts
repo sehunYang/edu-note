@@ -14,7 +14,10 @@ import {
   syncSchoolCalendar,
   getUpcomingEvents,
   countSchoolDays,
+  getEventsWithAttrs,
+  updateEventAttributes,
 } from "./calendar";
+import type { NeisScheduleEntry, NeisMealEntry } from "@/lib/integrations/neis";
 
 /**
  * 캘린더 sync 실DB+라이브 NEIS 통합 테스트.
@@ -122,5 +125,100 @@ describe.skipIf(!RUN)("캘린더 sync — 라이브 NEIS → DB", () => {
       .from(schoolDayCalendar)
       .where(eq(schoolDayCalendar.ownerId, owner));
     expect(rows.length).toBe(30); // 두 번 sync 해도 30일 유지
+  });
+});
+
+// ── C3: 키워드 자동 분류 + 보정 (합성 schedule, NEIS 키 불필요) ──
+const RUN_DB = process.env.RUN_DB_ITEST === "1" && !!process.env.DATABASE_URL;
+
+function sched(date: string, title: string): NeisScheduleEntry {
+  return { date, title, content: null, isSchoolDay: true, dayCategory: null };
+}
+
+describe.skipIf(!RUN_DB)("학사일정 키워드 분류·보정 — 합성 schedule", () => {
+  let sql2: ReturnType<typeof postgres>;
+  let db2: PostgresJsDatabase<typeof schema>;
+  const owner2 = randomUUID();
+
+  beforeAll(() => {
+    sql2 = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    db2 = drizzle(sql2, { schema, casing: "snake_case" });
+  });
+
+  afterAll(async () => {
+    await db2.delete(schoolDayCalendar).where(eq(schoolDayCalendar.ownerId, owner2));
+    await db2.delete(calendarEvents).where(eq(calendarEvents.ownerId, owner2));
+    await sql2.end();
+  });
+
+  const FROM = "20260601";
+  const TO = "20260630";
+  const meals: NeisMealEntry[] = [];
+
+  it("sync 시 exam/vacation/club 자동 태깅(AC-3.1)", async () => {
+    await syncSchoolCalendar(db2, owner2, FROM, TO, [
+      sched("2026-06-10", "1학기 중간고사"),
+      sched("2026-06-20", "동아리 한마당"),
+      sched("2026-06-25", "여름방학식"),
+      sched("2026-06-05", "졸업앨범 촬영"),
+    ], meals);
+
+    const events = await getEventsWithAttrs(db2, owner2, "2026-06-01", "2026-06-30");
+    const byTitle = Object.fromEntries(events.map((e) => [e.title, e]));
+    expect(byTitle["1학기 중간고사"]).toMatchObject({
+      eventKind: "exam",
+      examSemester: 1,
+      examOrdinal: 1,
+    });
+    expect(byTitle["동아리 한마당"].eventKind).toBe("club");
+    expect(byTitle["여름방학식"].eventKind).toBe("vacation_start");
+    expect(byTitle["졸업앨범 촬영"]).toMatchObject({
+      eventKind: "none",
+      examSemester: null,
+      examOrdinal: null,
+    });
+  });
+
+  it("교사 보정: none→exam 으로 교정 + exam 아님 시 학기/회차 null 강제(AC-3.3)", async () => {
+    const before = await getEventsWithAttrs(db2, owner2, "2026-06-05", "2026-06-05");
+    const target = before.find((e) => e.title === "졸업앨범 촬영")!;
+    // none → exam 으로 교정
+    await updateEventAttributes(db2, owner2, target.id, {
+      eventKind: "exam",
+      examSemester: 2,
+      examOrdinal: 1,
+    });
+    let after = await getEventsWithAttrs(db2, owner2, "2026-06-05", "2026-06-05");
+    expect(after[0]).toMatchObject({
+      eventKind: "exam",
+      examSemester: 2,
+      examOrdinal: 1,
+    });
+
+    // exam → club 으로 재교정 시 학기/회차 null 강제
+    await updateEventAttributes(db2, owner2, target.id, {
+      eventKind: "club",
+      examSemester: 2,
+      examOrdinal: 1,
+    });
+    after = await getEventsWithAttrs(db2, owner2, "2026-06-05", "2026-06-05");
+    expect(after[0]).toMatchObject({
+      eventKind: "club",
+      examSemester: null,
+      examOrdinal: null,
+    });
+  });
+
+  it("재sync 멱등: 범위 내 neis 이벤트 교체(중복 없음·태깅 유지) (AC-3.4)", async () => {
+    await syncSchoolCalendar(db2, owner2, FROM, TO, [
+      sched("2026-06-10", "1학기 중간고사"),
+      sched("2026-06-20", "동아리 한마당"),
+      sched("2026-06-25", "여름방학식"),
+      sched("2026-06-05", "졸업앨범 촬영"),
+    ], meals);
+    const events = await getEventsWithAttrs(db2, owner2, "2026-06-01", "2026-06-30");
+    expect(events.length).toBe(4); // 교체 → 중복 없음(보정값은 재sync 로 초기화됨)
+    const exam = events.find((e) => e.title === "1학기 중간고사")!;
+    expect(exam).toMatchObject({ eventKind: "exam", examSemester: 1, examOrdinal: 1 });
   });
 });

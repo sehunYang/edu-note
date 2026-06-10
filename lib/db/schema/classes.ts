@@ -6,6 +6,7 @@ import {
   date,
   numeric,
   jsonb,
+  boolean,
   unique,
 } from "drizzle-orm/pg-core";
 import { pk, ownerId, timestamps } from "./_shared";
@@ -65,10 +66,31 @@ export const subjects = pgTable("subjects", {
   evalMethod: evalMethod("eval_method"),
   jipilMidWeight: numeric("jipil_mid_weight"),
   jipilFinalWeight: numeric("jipil_final_weight"),
+  // 지필 시행 여부 (QC v1 C5, AC-5.x) — 미시행이면 비율 0 강제·시험경계 제외
+  jipilMidEnabled: boolean("jipil_mid_enabled").notNull().default(true),
+  jipilFinalEnabled: boolean("jipil_final_enabled").notNull().default(true),
   achievementCuts: jsonb("achievement_cuts"),
   examBoundaryDate: date("exam_boundary_date"),
   ...timestamps(),
 });
+
+// 과목별 시험일 (C3 태깅 calendarEvents 로부터 C5 에서 파생). 읽기시점 examBoundaryDate 산출.
+export const subjectExams = pgTable(
+  "subject_exams",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    semester: integer("semester").notNull(), // 1 | 2
+    ordinal: integer("ordinal").notNull(), // 1=중간 | 2=기말
+    date: date("date"), // 미정 가능
+    enabled: boolean("enabled").notNull().default(true),
+    ...timestamps(),
+  },
+  (t) => [unique("uq_subject_exams").on(t.subjectId, t.semester, t.ordinal)],
+);
 
 // 수행평가 요소(복수) + 반영비율
 export const performanceItems = pgTable("performance_items", {
@@ -110,6 +132,38 @@ export const enrollments = pgTable(
   },
   (t) => [unique("uq_enrollments").on(t.sectionId, t.studentYearId)],
 );
+
+// 분반별 수행평가 시행일 (QC v1 C5)
+export const sectionPerformanceDates = pgTable(
+  "section_performance_dates",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    sectionId: uuid("section_id")
+      .notNull()
+      .references(() => courseSections.id, { onDelete: "cascade" }),
+    performanceItemId: uuid("performance_item_id")
+      .notNull()
+      .references(() => performanceItems.id, { onDelete: "cascade" }),
+    date: date("date"),
+    ...timestamps(),
+  },
+  (t) => [
+    unique("uq_section_performance_dates").on(t.sectionId, t.performanceItemId),
+  ],
+);
+
+// 분반 내 학생 역할 (QC v1 C5) — 수강(enrollment) 단위
+export const sectionRoles = pgTable("section_roles", {
+  id: pk(),
+  ownerId: ownerId(),
+  enrollmentId: uuid("enrollment_id")
+    .notNull()
+    .references(() => enrollments.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  ...timestamps(),
+});
 
 // 시간표 슬롯 (컴시간 sync 또는 수기)
 export const timetableSlots = pgTable("timetable_slots", {

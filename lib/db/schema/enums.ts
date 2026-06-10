@@ -108,3 +108,12 @@ export const ccaArea = pgEnum("cca_area", [
   "career", // 진로
   "volunteer", // 봉사
 ]);
+
+// calendar_events.event_kind: 키워드 자동 분류(QC v1 C3) — 시험/방학식/개학식/동아리
+export const eventKind = pgEnum("event_kind", [
+  "exam", // 지필평가/고사 (examSemester·examOrdinal 동반)
+  "vacation_start", // 방학식
+  "vacation_end", // 개학식
+  "club", // 동아리 활동
+  "none", // 미분류(기본)
+]);

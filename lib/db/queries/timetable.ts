@@ -1,8 +1,27 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gte,
+  inArray,
+  isNotNull,
+  sql as dsql,
+} from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
-import { subjects, courseSections, timetableSlots } from "../schema/classes";
-import { teacherProfile } from "../schema/misc";
+import {
+  subjects,
+  courseSections,
+  timetableSlots,
+  performanceItems,
+  enrollments,
+  subjectExams,
+  sectionPerformanceDates,
+  sectionRoles,
+} from "../schema/classes";
+import { studentYears } from "../schema/identity";
+import { teacherProfile, calendarEvents } from "../schema/misc";
+import { validateEvalWeights } from "@/lib/domain/eval-weight";
 import type { TimetableSlot } from "@/lib/integrations/comcigan";
 
 /**
@@ -212,4 +231,379 @@ export async function upsertTeacherComciganConfig(
       lastTimetableSyncAt: syncedAt,
     });
   }
+}
+
+// ── C5: 평가 설정(100% 검증) (AC-5.1) ──
+
+export interface PerformanceWeight {
+  name: string;
+  weight: number;
+}
+
+export interface SaveEvalInput {
+  performance: PerformanceWeight[];
+  jipilMid: number;
+  jipilFinal: number;
+  midEnabled: boolean;
+  finalEnabled: boolean;
+}
+
+/**
+ * 과목 평가설정 저장(AC-5.1). validateEvalWeights 100% 검증 통과 시에만 저장한다 —
+ * 실패 시 throw(부분 저장 없음). performance_items 를 통째로 교체한다.
+ */
+export async function saveEvalSettings(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  input: SaveEvalInput,
+): Promise<void> {
+  const v = validateEvalWeights({
+    performance: input.performance.map((p) => p.weight),
+    jipilMid: input.jipilMid,
+    jipilFinal: input.jipilFinal,
+    midEnabled: input.midEnabled,
+    finalEnabled: input.finalEnabled,
+  });
+  if (!v.ok) throw new Error(v.errors.join(" "));
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(subjects)
+      .set({
+        jipilMidWeight: String(input.jipilMid),
+        jipilFinalWeight: String(input.jipilFinal),
+        jipilMidEnabled: input.midEnabled,
+        jipilFinalEnabled: input.finalEnabled,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(subjects.id, subjectId), eq(subjects.ownerId, ownerId)));
+
+    await tx
+      .delete(performanceItems)
+      .where(
+        and(
+          eq(performanceItems.ownerId, ownerId),
+          eq(performanceItems.subjectId, subjectId),
+        ),
+      );
+    if (input.performance.length > 0) {
+      await tx.insert(performanceItems).values(
+        input.performance.map((p) => ({
+          ownerId,
+          subjectId,
+          name: p.name,
+          weight: String(p.weight),
+        })),
+      );
+    }
+  });
+}
+
+// ── C5: 수강 등록(필터·일괄) (AC-5.x) ──
+
+export interface EnrollFilter {
+  schoolYear: number;
+  grade?: number;
+  classNo?: number;
+}
+
+/**
+ * 분반 수강 일괄 등록(AC-5.x). studentYears 의 grade/classNo 컬럼 기준으로 필터하고
+ * (sid 문자열 파싱 금지) 전체선택 등록한다. 중복 등록은 무시(unique 충돌 skip).
+ */
+export async function bulkEnroll(
+  db: DB,
+  ownerId: string,
+  sectionId: string,
+  filter: EnrollFilter,
+): Promise<number> {
+  const conds = [
+    eq(studentYears.ownerId, ownerId),
+    eq(studentYears.schoolYear, filter.schoolYear),
+  ];
+  if (filter.grade != null) conds.push(eq(studentYears.grade, filter.grade));
+  if (filter.classNo != null)
+    conds.push(eq(studentYears.classNo, filter.classNo));
+
+  const matched = await db
+    .select({ id: studentYears.id })
+    .from(studentYears)
+    .where(and(...conds));
+  if (matched.length === 0) return 0;
+
+  const inserted = await db
+    .insert(enrollments)
+    .values(matched.map((m) => ({ ownerId, sectionId, studentYearId: m.id })))
+    .onConflictDoNothing({
+      target: [enrollments.sectionId, enrollments.studentYearId],
+    })
+    .returning({ id: enrollments.id });
+  return inserted.length;
+}
+
+export async function listEnrollments(
+  db: DB,
+  ownerId: string,
+  sectionId: string,
+): Promise<{ enrollmentId: string; studentYearId: string; name: string }[]> {
+  return db
+    .select({
+      enrollmentId: enrollments.id,
+      studentYearId: enrollments.studentYearId,
+      name: studentYears.name,
+    })
+    .from(enrollments)
+    .innerJoin(studentYears, eq(studentYears.id, enrollments.studentYearId))
+    .where(
+      and(
+        eq(enrollments.ownerId, ownerId),
+        eq(enrollments.sectionId, sectionId),
+      ),
+    )
+    .orderBy(asc(studentYears.sid));
+}
+
+// ── C5: 수행평가 시행일 CRUD (AC-5.x) ──
+
+export async function setPerformanceDate(
+  db: DB,
+  ownerId: string,
+  sectionId: string,
+  performanceItemId: string,
+  date: string | null,
+): Promise<void> {
+  await db
+    .insert(sectionPerformanceDates)
+    .values({ ownerId, sectionId, performanceItemId, date })
+    .onConflictDoUpdate({
+      target: [
+        sectionPerformanceDates.sectionId,
+        sectionPerformanceDates.performanceItemId,
+      ],
+      set: { date: dsql`excluded.date`, updatedAt: new Date() },
+    });
+}
+
+export async function listPerformanceDates(
+  db: DB,
+  ownerId: string,
+  sectionId: string,
+): Promise<{ performanceItemId: string; date: string | null }[]> {
+  return db
+    .select({
+      performanceItemId: sectionPerformanceDates.performanceItemId,
+      date: sectionPerformanceDates.date,
+    })
+    .from(sectionPerformanceDates)
+    .where(
+      and(
+        eq(sectionPerformanceDates.ownerId, ownerId),
+        eq(sectionPerformanceDates.sectionId, sectionId),
+      ),
+    );
+}
+
+// ── C5: 분반 역할 CRUD (AC-5.x) ──
+
+export interface SectionRoleRow {
+  id: string;
+  enrollmentId: string;
+  title: string;
+  description: string | null;
+}
+
+export async function addSectionRole(
+  db: DB,
+  ownerId: string,
+  enrollmentId: string,
+  title: string,
+  description?: string | null,
+): Promise<string> {
+  const [row] = await db
+    .insert(sectionRoles)
+    .values({ ownerId, enrollmentId, title, description: description ?? null })
+    .returning({ id: sectionRoles.id });
+  return row.id;
+}
+
+export async function listSectionRoles(
+  db: DB,
+  ownerId: string,
+  enrollmentId: string,
+): Promise<SectionRoleRow[]> {
+  return db
+    .select({
+      id: sectionRoles.id,
+      enrollmentId: sectionRoles.enrollmentId,
+      title: sectionRoles.title,
+      description: sectionRoles.description,
+    })
+    .from(sectionRoles)
+    .where(
+      and(
+        eq(sectionRoles.ownerId, ownerId),
+        eq(sectionRoles.enrollmentId, enrollmentId),
+      ),
+    )
+    .orderBy(asc(sectionRoles.createdAt));
+}
+
+export async function deleteSectionRole(
+  db: DB,
+  ownerId: string,
+  roleId: string,
+): Promise<void> {
+  await db
+    .delete(sectionRoles)
+    .where(and(eq(sectionRoles.id, roleId), eq(sectionRoles.ownerId, ownerId)));
+}
+
+// ── C5: 시험일 파생(C3 태깅 calendarEvents → subject_exams) + 시험경계 (AC-5.4) ──
+
+/**
+ * C3 에서 태깅된 exam calendarEvents 로부터 과목별 시험일을 파생 생성한다(AC-5.4).
+ * (학기, 회차)별 최소 날짜를 취해 모든 과목에 upsert — ordinal 1=중간(midEnabled),
+ * 2=기말(finalEnabled) 시행여부로 enabled 를 결정한다. 멱등(unique 충돌 시 갱신).
+ */
+export async function materializeSubjectExams(
+  db: DB,
+  ownerId: string,
+  schoolYear: number,
+): Promise<number> {
+  const examDates = await db
+    .select({
+      semester: calendarEvents.examSemester,
+      ordinal: calendarEvents.examOrdinal,
+      date: dsql<string>`min(${calendarEvents.date})`,
+    })
+    .from(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.ownerId, ownerId),
+        eq(calendarEvents.eventKind, "exam"),
+        isNotNull(calendarEvents.examSemester),
+        isNotNull(calendarEvents.examOrdinal),
+      ),
+    )
+    .groupBy(calendarEvents.examSemester, calendarEvents.examOrdinal);
+  if (examDates.length === 0) return 0;
+
+  const subs = await db
+    .select({
+      id: subjects.id,
+      midEnabled: subjects.jipilMidEnabled,
+      finalEnabled: subjects.jipilFinalEnabled,
+    })
+    .from(subjects)
+    .where(and(eq(subjects.ownerId, ownerId), eq(subjects.schoolYear, schoolYear)));
+
+  let count = 0;
+  for (const sub of subs) {
+    for (const e of examDates) {
+      if (e.semester == null || e.ordinal == null) continue;
+      const enabled = e.ordinal === 1 ? sub.midEnabled : sub.finalEnabled;
+      await db
+        .insert(subjectExams)
+        .values({
+          ownerId,
+          subjectId: sub.id,
+          semester: e.semester,
+          ordinal: e.ordinal,
+          date: e.date,
+          enabled,
+        })
+        .onConflictDoUpdate({
+          target: [subjectExams.subjectId, subjectExams.semester, subjectExams.ordinal],
+          set: { date: dsql`excluded.date`, enabled: dsql`excluded.enabled`, updatedAt: new Date() },
+        });
+      count += 1;
+    }
+  }
+  return count;
+}
+
+/**
+ * 시험경계일 읽기시점 파생(AC-5.4). 저장 컬럼 의존 대신 subject_exams 중 enabled=true
+ * 이고 오늘 이후인 최소 날짜를 매 호출 산출한다(cron 부재로 staleness 방지).
+ */
+export async function deriveExamBoundaryDate(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  today: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ next: dsql<string | null>`min(${subjectExams.date})` })
+    .from(subjectExams)
+    .where(
+      and(
+        eq(subjectExams.ownerId, ownerId),
+        eq(subjectExams.subjectId, subjectId),
+        eq(subjectExams.enabled, true),
+        isNotNull(subjectExams.date),
+        gte(subjectExams.date, today),
+      ),
+    );
+  return row?.next ?? null;
+}
+
+export async function listSubjectExams(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+): Promise<
+  { semester: number; ordinal: number; date: string | null; enabled: boolean }[]
+> {
+  return db
+    .select({
+      semester: subjectExams.semester,
+      ordinal: subjectExams.ordinal,
+      date: subjectExams.date,
+      enabled: subjectExams.enabled,
+    })
+    .from(subjectExams)
+    .where(
+      and(
+        eq(subjectExams.ownerId, ownerId),
+        eq(subjectExams.subjectId, subjectId),
+      ),
+    )
+    .orderBy(asc(subjectExams.semester), asc(subjectExams.ordinal));
+}
+
+export interface SubjectSectionView {
+  subjectId: string;
+  subjectName: string;
+  sections: { id: string; label: string }[];
+}
+
+/** 화면용: 과목 + 분반 목록(분반 상세 진입). */
+export async function listSubjectsWithSections(
+  db: DB,
+  ownerId: string,
+  schoolYear: number,
+): Promise<SubjectSectionView[]> {
+  const rows = await db
+    .select({
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      sectionId: courseSections.id,
+      label: courseSections.label,
+    })
+    .from(subjects)
+    .leftJoin(courseSections, eq(courseSections.subjectId, subjects.id))
+    .where(and(eq(subjects.ownerId, ownerId), eq(subjects.schoolYear, schoolYear)))
+    .orderBy(asc(subjects.name), asc(courseSections.label));
+
+  const bySubject = new Map<string, SubjectSectionView>();
+  for (const r of rows) {
+    let s = bySubject.get(r.subjectId);
+    if (!s) {
+      s = { subjectId: r.subjectId, subjectName: r.subjectName, sections: [] };
+      bySubject.set(r.subjectId, s);
+    }
+    if (r.sectionId) s.sections.push({ id: r.sectionId, label: r.label! });
+  }
+  return [...bySubject.values()];
 }

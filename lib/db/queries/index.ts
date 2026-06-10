@@ -3,6 +3,9 @@
  * 인증 세션 연결(서버액션)은 이 위에 추후 얹는다.
  */
 export * from "./roster";
+export * from "./setup-state";
+export * from "./lifecycle";
+export * from "./profile";
 export * from "./public-page";
 export * from "./audit";
 export * from "./timetable";

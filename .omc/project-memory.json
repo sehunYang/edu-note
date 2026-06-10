@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1780820960443,
+  "lastScanned": 1781013588058,
   "projectRoot": "C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note",
   "techStack": {
     "languages": [
@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note\" && node --env-file=.env.local -e \"\nconst fs=require('fs'),postgres=require('postgres');\n(async()=>{const sql=postgres(process.env.DATABASE_URL,{prepare:false,max:1});\ntry{await sql.unsafe(fs.readFileSync('lib/db/migrations/0008_public_weektodos_source_allowlist.sql','utf8'));\nconsole.log('0008 적용 완료');}catch(e){console.error('실패:',e.message);process.exit(1);}finally{await sql.end();}})();\n\" 2>&1 | head; echo \"APPLY: ${PIPESTATUS[0]}\" && npx tsc --noEmit 2>&1 | head; echo \"TSC: ${PIPESTATUS[0]}\" && node --env-file=.env.local -e \"process.env.RUN_DB_ITEST='1'; require('child_process').execSync('npx vitest run lib/db/queries/notice.integration.test.ts', {stdio:'inherit', env: process.env})\" 2>&1 | tail -10; echo \"ITEST: ${PIPESTATUS[0]}\"",
-    "testCommand": "cd \"C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note\" && npm test 2>&1 | tail -5; echo \"EXIT: ${PIPESTATUS[0]}\"",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -45",
+    "testCommand": "cd \"C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run lib/db/queries/setup-state.integration.test.ts lib/db/queries/lifecycle.integration.test.ts lib/db/queries/profile.integration.test.ts lib/db/queries/roster.integration.test.ts 2>&1 | tail -8",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -59,6 +59,7 @@
       "typecheck": "tsc --noEmit",
       "test": "vitest run",
       "test:watch": "vitest",
+      "scan:secrets": "node scripts/scan-client-secrets.mjs",
       "db:generate": "drizzle-kit generate",
       "db:migrate": "drizzle-kit migrate",
       "db:studio": "drizzle-kit studio"
@@ -86,11 +87,12 @@
     "app": {
       "path": "app",
       "purpose": "Application code",
-      "fileCount": 3,
-      "lastAccessed": 1780820960292,
+      "fileCount": 4,
+      "lastAccessed": 1781013587926,
       "keyFiles": [
         "globals.css",
         "layout.tsx",
+        "nudge-banner.tsx",
         "page.tsx"
       ]
     },
@@ -98,7 +100,7 @@
       "path": "content",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1780820960337,
+      "lastAccessed": 1781013587955,
       "keyFiles": [
         "세특 작성 지침.md"
       ]
@@ -106,9 +108,10 @@
     "docs": {
       "path": "docs",
       "purpose": "Documentation",
-      "fileCount": 2,
-      "lastAccessed": 1780820960340,
+      "fileCount": 3,
+      "lastAccessed": 1781013587959,
       "keyFiles": [
+        "DEPLOY_MANUAL.md",
         "GOOGLE_OAUTH_SETUP.md",
         "SUPABASE_SETUP.md"
       ]
@@ -117,30 +120,31 @@
       "path": "lib",
       "purpose": "Library code",
       "fileCount": 0,
-      "lastAccessed": 1780820960345,
+      "lastAccessed": 1781013587960,
       "keyFiles": []
     },
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
-      "fileCount": 1,
-      "lastAccessed": 1780820960348,
+      "fileCount": 2,
+      "lastAccessed": 1781013587962,
       "keyFiles": [
-        "comcigan-probe.mjs"
+        "comcigan-probe.mjs",
+        "scan-client-secrets.mjs"
       ]
     },
     "app\\api": {
       "path": "app\\api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1780820960356,
+      "lastAccessed": 1781013587963,
       "keyFiles": []
     },
     "lib\\public": {
       "path": "lib\\public",
       "purpose": "Public files",
       "fileCount": 4,
-      "lastAccessed": 1780820960365,
+      "lastAccessed": 1781013587966,
       "keyFiles": [
         "dto.test.ts",
         "dto.ts",
@@ -151,7 +155,7 @@
       "path": "lib\\test",
       "purpose": "Test files",
       "fileCount": 1,
-      "lastAccessed": 1780820960369,
+      "lastAccessed": 1781013587968,
       "keyFiles": [
         "server-only-stub.ts"
       ]
@@ -160,26 +164,38 @@
   "hotPaths": [
     {
       "path": "PROGRESS.md",
-      "accessCount": 25,
-      "lastAccessed": 1780916578022,
-      "type": "file"
-    },
-    {
-      "path": "app\\page.tsx",
-      "accessCount": 21,
-      "lastAccessed": 1780915924353,
+      "accessCount": 28,
+      "lastAccessed": 1781021152733,
       "type": "file"
     },
     {
       "path": "lib\\db\\queries\\index.ts",
-      "accessCount": 20,
-      "lastAccessed": 1780915923002,
+      "accessCount": 26,
+      "lastAccessed": 1781053823034,
+      "type": "file"
+    },
+    {
+      "path": "app\\page.tsx",
+      "accessCount": 23,
+      "lastAccessed": 1781048756453,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\schema\\misc.ts",
+      "accessCount": 19,
+      "lastAccessed": 1781053814743,
       "type": "file"
     },
     {
       "path": "lib\\db\\queries\\audit.ts",
-      "accessCount": 11,
-      "lastAccessed": 1780915893581,
+      "accessCount": 14,
+      "lastAccessed": 1781051756227,
+      "type": "file"
+    },
+    {
+      "path": "lib\\integrations\\neis.ts",
+      "accessCount": 12,
+      "lastAccessed": 1781052335035,
       "type": "file"
     },
     {
@@ -189,9 +205,9 @@
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\misc.ts",
+      "path": "lib\\db\\schema\\classes.ts",
       "accessCount": 10,
-      "lastAccessed": 1780915892639,
+      "lastAccessed": 1781053815016,
       "type": "file"
     },
     {
@@ -201,39 +217,51 @@
       "type": "file"
     },
     {
+      "path": "lib\\db\\queries\\roster.ts",
+      "accessCount": 8,
+      "lastAccessed": 1781053806709,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\queries\\public-page.ts",
+      "accessCount": 8,
+      "lastAccessed": 1781053901069,
+      "type": "file"
+    },
+    {
       "path": "lib\\public\\dto.ts",
       "accessCount": 7,
       "lastAccessed": 1780915871984,
       "type": "file"
     },
     {
-      "path": "lib\\integrations\\neis.ts",
-      "accessCount": 6,
-      "lastAccessed": 1780766436652,
-      "type": "file"
-    },
-    {
       "path": "lib\\db\\index.ts",
-      "accessCount": 6,
-      "lastAccessed": 1780915891752,
-      "type": "file"
-    },
-    {
-      "path": "lib\\db\\queries\\public-page.ts",
-      "accessCount": 6,
-      "lastAccessed": 1780915899642,
+      "accessCount": 7,
+      "lastAccessed": 1781048545060,
       "type": "file"
     },
     {
       "path": "lib\\integrations\\comcigan.ts",
-      "accessCount": 5,
-      "lastAccessed": 1780754599203,
+      "accessCount": 7,
+      "lastAccessed": 1781051780876,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\schema\\identity.ts",
+      "accessCount": 7,
+      "lastAccessed": 1781052662711,
+      "type": "file"
+    },
+    {
+      "path": "lib\\integrations\\neis-client.ts",
+      "accessCount": 6,
+      "lastAccessed": 1781051739599,
       "type": "file"
     },
     {
       "path": "lib\\integrations\\comcigan.test.ts",
-      "accessCount": 5,
-      "lastAccessed": 1780754699847,
+      "accessCount": 6,
+      "lastAccessed": 1781051967612,
       "type": "file"
     },
     {
@@ -255,21 +283,27 @@
       "type": "file"
     },
     {
+      "path": "lib\\db\\schema\\records.ts",
+      "accessCount": 5,
+      "lastAccessed": 1781053841224,
+      "type": "file"
+    },
+    {
       "path": "scripts\\comcigan-probe.mjs",
       "accessCount": 4,
       "lastAccessed": 1780732758620,
       "type": "file"
     },
     {
-      "path": "lib\\integrations\\neis-client.ts",
-      "accessCount": 4,
-      "lastAccessed": 1780766462872,
-      "type": "file"
-    },
-    {
       "path": "lib\\setech\\prompt.ts",
       "accessCount": 4,
       "lastAccessed": 1780877930555,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\schema\\_shared.ts",
+      "accessCount": 4,
+      "lastAccessed": 1781053125559,
       "type": "file"
     },
     {
@@ -309,15 +343,9 @@
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\records.ts",
+      "path": ".env.example",
       "accessCount": 3,
-      "lastAccessed": 1780898729387,
-      "type": "file"
-    },
-    {
-      "path": "lib\\db\\schema\\identity.ts",
-      "accessCount": 3,
-      "lastAccessed": 1780900231512,
+      "lastAccessed": 1780917706284,
       "type": "file"
     },
     {
@@ -345,33 +373,21 @@
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\classes.ts",
-      "accessCount": 2,
-      "lastAccessed": 1780877918402,
-      "type": "file"
-    },
-    {
-      "path": "lib\\db\\queries\\roster.ts",
-      "accessCount": 2,
-      "lastAccessed": 1780877945817,
-      "type": "file"
-    },
-    {
       "path": "lib\\domain\\index.ts",
       "accessCount": 2,
       "lastAccessed": 1780878442879,
       "type": "file"
     },
     {
-      "path": ".env.example",
+      "path": "lib\\db\\queries\\integration.test.ts",
       "accessCount": 2,
-      "lastAccessed": 1780888622089,
+      "lastAccessed": 1781048361632,
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\_shared.ts",
+      "path": "lib\\integrations\\comcigan-client.ts",
       "accessCount": 2,
-      "lastAccessed": 1780902112614,
+      "lastAccessed": 1781051739900,
       "type": "file"
     },
     {
@@ -435,12 +451,6 @@
       "type": "file"
     },
     {
-      "path": "lib\\integrations\\comcigan-client.ts",
-      "accessCount": 1,
-      "lastAccessed": 1780732488092,
-      "type": "file"
-    },
-    {
       "path": "drizzle.config.ts",
       "accessCount": 1,
       "lastAccessed": 1780732876213,
@@ -450,12 +460,6 @@
       "path": "docs\\SUPABASE_SETUP.md",
       "accessCount": 1,
       "lastAccessed": 1780732954321,
-      "type": "file"
-    },
-    {
-      "path": "lib\\db\\queries\\integration.test.ts",
-      "accessCount": 1,
-      "lastAccessed": 1780748069489,
       "type": "file"
     }
   ],

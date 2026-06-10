@@ -42,7 +42,21 @@ export type AuditEvent =
   | "expense_delete"
   | "notice_upsert"
   | "notice_delete"
-  | "public_message_set";
+  | "public_message_set"
+  // QC v1 세팅실
+  | "setup_stage_complete"
+  | "setup_stage_reopen"
+  | "year_delete"
+  | "profile_upsert"
+  | "calendar_attr_update"
+  | "inheritance_resolve"
+  | "homeroom_role_upsert"
+  | "homeroom_role_delete"
+  | "eval_weights_save"
+  | "enrollment_bulk"
+  | "section_role_upsert"
+  | "section_role_delete"
+  | "subject_exam_materialize";
 
 export async function writeAudit(
   db: DB,

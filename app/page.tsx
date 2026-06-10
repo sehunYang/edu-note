@@ -61,6 +61,11 @@ export default async function Home() {
 
       <section className="mt-10 grid gap-3">
         <DashCard
+          href="/setting"
+          title="⚙️ 세팅실"
+          desc="학년도·교사·학사일정·학생·수업을 순서대로 설정합니다(기초 환경)."
+        />
+        <DashCard
           href="/today"
           title="오늘의 학교"
           desc="오늘 시간표·급식·학사일정과 해야 할 일(넛지)을 한눈에 봅니다."

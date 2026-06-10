@@ -1,0 +1,161 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { randomUUID } from "node:crypto";
+import postgres from "postgres";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { eq } from "drizzle-orm";
+import * as schema from "../schema";
+import { persons, studentYears, yearLinks } from "../schema/identity";
+import { classRoles } from "../schema/records";
+import { teacherProfile, publicPages } from "../schema/misc";
+import {
+  linkYearStudents,
+  listPendingLinks,
+  resolveInheritance,
+  getStudentYearHistory,
+  addClassRole,
+  listClassRoles,
+  deleteClassRole,
+  isHomeroomStudent,
+  issuePublicPageForHomeroom,
+} from "./roster";
+
+/**
+ * C4 학생 명단 실DB 통합 테스트 (AC-4.1~4.6). RUN_DB_ITEST=1 + DATABASE_URL 시 실행.
+ * 동명이인 매칭(auto_linked/pending/new_person) · 상속 해소 · 학급역할 · 담임반 파생 ·
+ * 공개링크 서버 게이팅. owner=uuid 격리, afterAll FK 순서대로 정리.
+ */
+const RUN = process.env.RUN_DB_ITEST === "1" && !!process.env.DATABASE_URL;
+
+let sql: ReturnType<typeof postgres>;
+let db: PostgresJsDatabase<typeof schema>;
+const owner = randomUUID();
+
+// 영속학생 + 연도학적 직접 생성 헬퍼
+async function mkPerson(name: string): Promise<string> {
+  const [p] = await db
+    .insert(persons)
+    .values({ ownerId: owner, displayName: name })
+    .returning({ id: persons.id });
+  return p.id;
+}
+async function mkYear(
+  personId: string,
+  year: number,
+  sid: string,
+  grade: number,
+  classNo: number,
+  number: number,
+  name: string,
+): Promise<string> {
+  const [sy] = await db
+    .insert(studentYears)
+    .values({ ownerId: owner, personId, schoolYear: year, sid, grade, classNo, number, name })
+    .returning({ id: studentYears.id });
+  return sy.id;
+}
+
+let personA = "";
+let personB = "";
+let syH2026 = "";
+let syN2026 = "";
+
+describe.skipIf(!RUN)("C4 학생 명단 — 매칭/상속/역할/담임/공개링크", () => {
+  beforeAll(async () => {
+    sql = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    db = drizzle(sql, { schema, casing: "snake_case" });
+
+    // 담임: 1학년 3반
+    await db.insert(teacherProfile).values({
+      ownerId: owner,
+      name: "담임T",
+      isHomeroom: true,
+      homeroomGrade: 1,
+      homeroomClassNo: 3,
+    });
+
+    // 과거 2025
+    personA = await mkPerson("홍길동");
+    personB = await mkPerson("김철수");
+    const personC = await mkPerson("김철수"); // 동명 → 다건
+    await mkYear(personA, 2025, "10301", 1, 3, 1, "홍길동");
+    await mkYear(personB, 2025, "20105", 2, 1, 5, "김철수");
+    await mkYear(personC, 2025, "10502", 1, 5, 2, "김철수");
+
+    // 신규 2026(import 모사: 각자 새 person)
+    const personH = await mkPerson("홍길동");
+    const personK = await mkPerson("김철수");
+    const personN = await mkPerson("신입생");
+    syH2026 = await mkYear(personH, 2026, "10301", 1, 3, 1, "홍길동");
+    await mkYear(personK, 2026, "10302", 1, 3, 2, "김철수");
+    syN2026 = await mkYear(personN, 2026, "20401", 2, 4, 1, "신입생");
+  });
+
+  afterAll(async () => {
+    await db.delete(publicPages).where(eq(publicPages.ownerId, owner));
+    await db.delete(classRoles).where(eq(classRoles.ownerId, owner));
+    await db.delete(yearLinks).where(eq(yearLinks.ownerId, owner));
+    await db.delete(studentYears).where(eq(studentYears.ownerId, owner));
+    await db.delete(persons).where(eq(persons.ownerId, owner));
+    await db.delete(teacherProfile).where(eq(teacherProfile.ownerId, owner));
+    await sql.end();
+  });
+
+  it("linkYearStudents: 유일=auto_linked, 다건=pending, 0건=new_person (AC-4.1)", async () => {
+    const res = await linkYearStudents(db, owner, 2026);
+    expect(res).toEqual({ autoLinked: 1, pending: 1, newPerson: 1 });
+  });
+
+  it("유일매칭 홍길동은 과거 영속학생으로 즉시 상속(personId 재지정) (AC-4.2)", async () => {
+    const [sy] = await db
+      .select({ personId: studentYears.personId })
+      .from(studentYears)
+      .where(eq(studentYears.id, syH2026));
+    expect(sy.personId).toBe(personA);
+    // 이력 = 2026 + 2025 = 2건
+    const hist = await getStudentYearHistory(db, owner, personA);
+    expect(hist.map((h) => h.schoolYear)).toEqual([2026, 2025]);
+  });
+
+  it("멱등: 재실행 시 새 링크 0건", async () => {
+    const res = await linkYearStudents(db, owner, 2026);
+    expect(res).toEqual({ autoLinked: 0, pending: 0, newPerson: 0 });
+  });
+
+  it("pending 큐 + 상속 해소(후보 선택) → 과거 기록 조회 (AC-4.3)", async () => {
+    const pend = await listPendingLinks(db, owner, 2026);
+    expect(pend).toHaveLength(1);
+    expect(pend[0].displayName).toBe("김철수");
+    expect(pend[0].candidates.length).toBe(2); // B, C 후보
+
+    await resolveInheritance(db, owner, pend[0].yearLinkId, personB);
+    // 해소 후 신규 김철수 학적이 personB 로 연결 → 이력 2건
+    const hist = await getStudentYearHistory(db, owner, personB);
+    expect(hist.map((h) => h.schoolYear)).toEqual([2026, 2025]);
+    // 큐에서 사라짐
+    expect(await listPendingLinks(db, owner, 2026)).toHaveLength(0);
+  });
+
+  it("학급역할 복수 CRUD (class_roles 재사용, AC-4.5)", async () => {
+    await addClassRole(db, owner, syH2026, "회장");
+    const r2 = await addClassRole(db, owner, syH2026, "도서부장", "도서관 정리");
+    let roles = await listClassRoles(db, owner, syH2026);
+    expect(roles.map((r) => r.roleName)).toEqual(["회장", "도서부장"]);
+
+    await deleteClassRole(db, owner, r2);
+    roles = await listClassRoles(db, owner, syH2026);
+    expect(roles.map((r) => r.roleName)).toEqual(["회장"]);
+  });
+
+  it("담임반 파생 true/false (grade/classNo 기준, AC-4.4)", async () => {
+    expect(await isHomeroomStudent(db, owner, syH2026)).toBe(true); // 1-3
+    expect(await isHomeroomStudent(db, owner, syN2026)).toBe(false); // 2-4
+  });
+
+  it("공개링크 서버 게이팅: 담임반만 발급, 비담임 거부 (AC-4.6)", async () => {
+    const issued = await issuePublicPageForHomeroom(db, owner, syH2026);
+    expect(issued.token).toMatch(/^[0-9a-f]+$/);
+    await expect(
+      issuePublicPageForHomeroom(db, owner, syN2026),
+    ).rejects.toThrow("담임반");
+  });
+});

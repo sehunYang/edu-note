@@ -1,0 +1,40 @@
+# QC v1 세팅실 — Ralph 진행 로그
+
+## 검증 게이트 (확정)
+- DB 도달 확인됨(Supabase pooler, public 37 tables). DATABASE_URL in .env.local.
+- itest 실행: `RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>`
+- migrate 실행: `node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs migrate` (generate: ./node_modules/drizzle-kit/bin.cjs generate)
+- 단위테스트: `npm test` (vitest, include lib/**/*.test.ts, server-only stub alias)
+
+## 코드베이스 패턴
+- 쿼리: lib/db/queries/*.ts, DB=PostgresJsDatabase<typeof schema>, ownerId 인자. index.ts 에서 export *.
+- 스키마: lib/db/schema/{enums,identity,classes,misc,records,attendance,_shared}.ts. _shared: pk()/ownerId()/timestamps(). casing snake_case.
+- itest 패턴: postgres(DATABASE_URL,{prepare:false,max:1}) + drizzle(sql,{schema,casing:'snake_case'}), owner=randomUUID(), afterAll 정리. describe.skipIf(!RUN).
+- teacherProfile 단일행(ownerId unique). setupState(owner,feature,completedAt) unique(owner,feature).
+- calendarEvents: 기존 source(neis/manual/personal/task)+ccaArea+title+date. (eventKind 등은 C3에서 추가)
+- studentYears: sid char(5), grade/classNo/number 컬럼 이미 존재. persons↔studentYears, yearLinks(linkStatus,candidatePersonId,resolvedAt).
+- subjects: jipilMid/FinalWeight numeric, examBoundaryDate date, performanceItems(name,weight). courseSections(label,examBoundaryDate), enrollments unique(section,studentYear).
+
+## 학습/주의
+- classRoles 테이블(records.ts) 이미 존재: studentYearId+roleName+roleDesc+serviceTimeFlag. C4 학급역할은 이걸 재사용(신규 homeroomRoles 불필요).
+- writeAudit 는 AuditEvent 유니온 타입. 새 이벤트는 lib/db/queries/audit.ts 에 추가 필요(세팅실용 13종 추가 완료).
+- ⚠ 마이그레이션 주의(C2 발견): drizzle 저널(meta/_journal.json)은 0000_init 만 추적. 0002~0009 는 **커스텀 SQL(저널 외)** — `drizzle-kit generate` 는 stale 0000 스냅샷과 diff 해 이미 존재하는 컬럼까지 재추가하는 잘못된 마이그레이션을 만든다(절대 migrate 하지 말 것). **올바른 절차: 손으로 `00NN_name.sql`(헤더 주석 + `add column/table if not exists`) 작성 → `node --env-file=.env.local scripts/apply-sql.mjs <file>` 로 DB 직접 적용.** C3(enums/calendarEvents 컬럼)·C5(subjects/신규테이블)도 동일.
+
+## 단계 상태
+- [x] S0 단계0 — 완료(school-year unit + setup-state itest + typecheck + build exit0 + unit 130 green). app/setting 셸+게이팅+홈카드.
+- [x] C1 — 완료(lifecycle.ts: listSchoolYears/deleteSchoolYear 참조보존. itest 5 green. year 페이지 레거시연도 조회+삭제 UI(year_delete audit). typecheck+build exit0).
+- [x] C2 — 완료. migration 0009_teacher_homeroom.sql(school_name/is_homeroom/homeroom_grade/homeroom_class_no, idempotent 직접적용). profile.ts(getTeacherSettings/upsertTeacherSettings, isHomeroom=false→담임null강제, neis/comcigan 부분upsert보존)+index 재노출. school-resolve.ts(resolveSchool: NEIS searchSchoolInfo+comcigan searchSchools 병렬 동시해석, matchStatus 0/1/다건). school-resolve.test.ts 7 green(파서 단일/다건/0건). profile.integration.test.ts 3 green. app/setting/profile 폼(이름/학교명/담임체크→담임반 조건부, 학교검색 picker, 숨김코드)+saveProfileAction/resolveSchoolAction(getOwnerId 가드+profile_upsert audit). typecheck+unit137+itest13+build exit0.
+- [x] C3 — 완료. migration 0010_calendar_event_kind.sql(event_kind enum DO블록 + calendarEvents event_kind/exam_semester/exam_ordinal). lib/domain/calendar-keywords.ts classifyEvent(시험→exam+학기/회차, 방학식→vacation_start, 개학식→vacation_end, 동아리→club, 수행평가 제외) + 단위 10 green. calendar.ts: syncSchoolCalendar insert 시 자동태깅, updateEventAttributes(보정, exam아님→학기/회차 null강제), getEventsWithAttrs. calendar.integration.test.ts 합성 schedule 블록(RUN_DB 게이트, NEIS키 불필요) 3 green(태깅/보정/재sync멱등). app/setting/calendar: 동기화 버튼(calendarSyncAction, sync_neis audit) + 인라인 보정표(updateEventAttrsAction, calendar_attr_update audit). typecheck+unit147+build exit0.
+- [x] C4 — 완료. **마이그레이션 없음**: AC 문구는 homeroomRoles 신규였으나 계획(line163)+메모리 결정대로 기존 class_roles(records.ts) 재사용. roster.ts 확장: linkYearStudents(유일=auto_linked 즉시상속+고아 person 제거, 다건=pending, 0건=new_person, 멱등), listPendingLinks(후보 과거학적), resolveInheritance(후보선택→personId 재지정+resolvedAt 기록=C1 보존술어 기준), getStudentYearHistory, addClassRole/listClassRoles/deleteClassRole, isHomeroomStudent(grade/classNo==homeroom 파생, sid파싱 금지), issuePublicPageForHomeroom(서버게이팅: 비담임 거부). roster.integration.test.ts 7 green. app/setting/students: 매칭실행+보류큐 해소+학급역할CRUD+담임반🏠+공개링크(담임만). 서버액션 audit(inheritance_resolve/homeroom_role_*/token_issue). typecheck+unit147+build exit0.
+- [x] C5 — 완료. migration 0011_course_eval.sql(subjects jipil_mid/final_enabled + subject_exams unique(subj,sem,ord) + section_performance_dates + section_roles). lib/domain/eval-weight.ts validateEvalWeights(Σ수행+지필1+지필2=100, 미시행0강제, 수행≤5) 단위 6 green. timetable.ts 확장: saveEvalSettings(100%검증 통과시만 저장, 실패 throw), bulkEnroll(grade/classNo 컬럼 필터+멱등), listEnrollments, set/listPerformanceDates, add/list/deleteSectionRole, materializeSubjectExams(C3 exam calendarEvents→subject_exams, ordinal1=mid/2=final enabled), deriveExamBoundaryDate(읽기시점 min enabled date≥today), listSubjectExams, listSubjectsWithSections. timetable.integration.test.ts C5 블록(RUN_DB, 합성) 4 green(평가통과/실패, 일괄등록필터+독립, 시험일파생+경계, 분반역할). app/setting/courses: 시험일반영+과목평가설정+분반 일괄등록+수강역할. 서버액션 audit(eval_weights_save/enrollment_bulk/subject_exam_materialize/section_role_*). typecheck+unit153+build exit0.
+
+## 전체 단계 완료 (S0·C1·C2·C3·C4·C5 모두 passes:true)
+- DB 일시 outage(ECONNREFUSED/ETIMEDOUT) 관측됨(2026-06-10 실행 중) — 코드결함 아님, 재시도로 그린 확인. itest 재실행 시 일시 실패하면 재시도.
+
+## 다음 세션 재개 지점
+- C2부터: teacherProfile 마이그레이션(isHomeroom/homeroomGrade/homeroomClassNo/schoolName) → profile.ts 쿼리 → neis/comcigan 동시 학교해석 → profile.integration.test.ts → app/setting/profile 폼.
+- 마이그레이션 적용 명령: node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs generate 후 ... migrate.
+- [ ] C2
+- [ ] C3
+- [ ] C4
+- [ ] C5

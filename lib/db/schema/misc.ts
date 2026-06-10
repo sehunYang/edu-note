@@ -14,7 +14,7 @@ import { sql } from "drizzle-orm";
 import { pk, ownerId, timestamps } from "./_shared";
 import { studentYears } from "./identity";
 import { subjects } from "./classes";
-import { counselTarget, calendarSource, ccaArea } from "./enums";
+import { counselTarget, calendarSource, ccaArea, eventKind } from "./enums";
 
 /**
  * 기타 (계획 §3.3): 동아리, 상담, 업무/예산, 캘린더, 수업일 캘린더,
@@ -98,6 +98,10 @@ export const calendarEvents = pgTable("calendar_events", {
   source: calendarSource("source").notNull(),
   ccaArea: ccaArea("cca_area"),
   title: text("title").notNull(),
+  // 키워드 자동 분류 + 시험 학기/회차 (QC v1 C3, AC-3.1~3.4)
+  eventKind: eventKind("event_kind").notNull().default("none"),
+  examSemester: integer("exam_semester"),
+  examOrdinal: integer("exam_ordinal"),
   ...timestamps(),
 });
 
@@ -154,6 +158,11 @@ export const teacherProfile = pgTable("teacher_profile", {
   ownerId: ownerId().unique(),
   name: text("name"),
   subjectsTaught: text("subjects_taught"),
+  // 교사 기본 설정 (QC v1 C2, AC-2.1~2.2)
+  schoolName: text("school_name"),
+  isHomeroom: boolean("is_homeroom").notNull().default(false),
+  homeroomGrade: integer("homeroom_grade"),
+  homeroomClassNo: integer("homeroom_class_no"),
   // 컴시간 시간표 sync 설정 (계획 §3.3 B, migration 0003)
   comciganSchool: text("comcigan_school"),
   comciganTeacher: text("comcigan_teacher"),

@@ -157,7 +157,8 @@
 - 사용법: 홈→동아리(부원·희망진로)/상담(일지)/교무실(업무·예산)/통계실(현황)/인쇄실(명렬표 PDF)/공지실(공개페이지 한마디·할일).
 
 #### 🔍 정식 리뷰 패스 (2026-06-08, Phase 4)
-- ⚠ OMC 보안·코드 리뷰어 서브에이전트가 보고 본문을 반환 못함(출력 0바이트, 하네스 이슈) + git 부재로 네이티브 diff 리뷰 불가 → 직접 정식 패스 수행.
+- ⚠ (당시) OMC 보안·코드 리뷰어 서브에이전트가 보고 본문을 반환 못함(출력 0바이트, 하네스 이슈) + git 부재로 네이티브 diff 리뷰 불가 → 직접 정식 패스 수행.
+  - ✅ **해결됨(2026-06-10)**: omc 플러그인 업데이트 + ruby 설치 후 리뷰어 서브에이전트가 본문을 정상 반환함(스모크 테스트 확인). git도 초기화(branch main)되어 네이티브 `/code-review`·`/security-review`도 사용 가능. 이후 리뷰는 서브에이전트로 정상 진행 가능.
 - **보안**: CRITICAL/HIGH 없음. owner 스코핑 27곳·서버액션 getOwnerId 16/16·allowlist DTO 불변·audit 민감본문 제외 전수 확인.
 - **MEDIUM-1 수정 완료** → `0008_public_weektodos_source_allowlist.sql`: `get_public_page` weekTodos가 calendar_events 전 소스를 노출하던 것을 **`source in ('manual','neis')` 화이트리스트**로 제한(personal=개인일정·task=업무마감의 잠재 누출 차단, §3.2 allowlist 원칙). 라이브 적용·회귀 테스트(personal/task 제외 단언) 추가·그린.
 - **방어심화**(리뷰 중 선반영): `listBudgets`/`listClubs` 집계 leftJoin에 owner 조건 추가.
