@@ -1,11 +1,10 @@
 "use client";
 import { useRef, useState, useActionState, type ChangeEvent } from "react";
-import { importRosterAction, type ImportState } from "./actions";
+import { importRosterAction, type ImportState } from "./import-actions";
 
 /**
- * CSV 임포트 폼 (계획 §4 A). 붙여넣기 + 파일 업로드 둘 다 지원.
- * 한글 Excel CSV 는 보통 EUC-KR(CP949)이라, 파일은 UTF-8 우선 시도 후 실패 시
- * EUC-KR 로 디코딩해 textarea 에 채운다(서버는 textarea 의 csv 만 읽음).
+ * CSV 임포트 폼 (C4 세팅실). 붙여넣기 + 파일 업로드 지원. 한글 Excel CSV(EUC-KR)는
+ * UTF-8 우선 시도 후 실패 시 EUC-KR 로 디코딩해 textarea 에 채운다(서버는 csv 만 읽음).
  */
 export function ImportForm({ defaultYear }: { defaultYear: number }) {
   const [state, action, pending] = useActionState<ImportState, FormData>(
@@ -21,7 +20,6 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
     if (!file) return;
     setFileName(file.name);
     setCsv(await readCsvFile(file));
-    // 같은 파일 다시 선택 가능하도록 input 리셋(textarea 값은 유지)
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -47,14 +45,12 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
             className="hidden"
           />
         </label>
-        {fileName && (
-          <span className="text-xs text-neutral-500">{fileName}</span>
-        )}
+        {fileName && <span className="text-xs text-neutral-500">{fileName}</span>}
       </div>
 
       <textarea
         name="csv"
-        rows={6}
+        rows={5}
         value={csv}
         onChange={(e) => setCsv(e.target.value)}
         placeholder={"여기에 붙여넣거나 위에서 CSV 파일을 선택하세요.\n학번,이름,연락처\n10101,홍길동,010-1234-5678"}
@@ -101,7 +97,6 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
 async function readCsvFile(file: File): Promise<string> {
   const buf = await file.arrayBuffer();
   const bytes = new Uint8Array(buf);
-  // UTF-8 BOM
   if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
     return new TextDecoder("utf-8").decode(buf);
   }
@@ -111,7 +106,6 @@ async function readCsvFile(file: File): Promise<string> {
     try {
       return new TextDecoder("euc-kr").decode(buf);
     } catch {
-      // euc-kr 미지원 환경 fallback
       return new TextDecoder("utf-8").decode(buf);
     }
   }

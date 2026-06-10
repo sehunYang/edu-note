@@ -7,11 +7,15 @@ import {
   listEnrollments,
   listSectionRoles,
   listSubjectExams,
+  getTeacherTimetable,
+  getTeacherProfile,
 } from "@/lib/db/queries";
 import { activeSchoolYear } from "@/lib/domain/school-year";
 import { StageGate } from "../stage-gate";
 import { LockedNotice } from "../locked-notice";
 import { CoursesManager, type SubjectView } from "./courses-manager";
+import { TimetableSync } from "./timetable-sync";
+import { WeeklyGrid } from "./weekly-grid";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +25,11 @@ export default async function CoursesStagePage() {
   const db = getDb();
   if (!(await isStageUnlocked(db, ownerId, "courses"))) return <LockedNotice />;
   const year = activeSchoolYear(new Date());
-  const [completed, subjects] = await Promise.all([
+  const [completed, subjects, slots, profile] = await Promise.all([
     isStageComplete(db, ownerId, "courses"),
     listSubjectsWithSections(db, ownerId, year),
+    getTeacherTimetable(db, ownerId, year),
+    getTeacherProfile(db, ownerId),
   ]);
 
   const views: SubjectView[] = await Promise.all(
@@ -53,6 +59,21 @@ export default async function CoursesStagePage() {
         분반별 평가설정(100% 검증)·수강 일괄등록·시험일·역할을 관리합니다. ({year}
         학년도)
       </p>
+
+      <section className="mt-5 rounded-lg border border-neutral-200 p-4">
+        <h3 className="text-sm font-semibold text-neutral-700">컴시간 시간표 동기화</h3>
+        <p className="mt-1 text-xs text-neutral-400">
+          컴시간알리미 학교·교사명으로 본인 시간표를 가져와 과목·분반을 생성합니다.
+        </p>
+        <div className="mt-3">
+          <TimetableSync
+            defaultSchool={profile?.comciganSchool ?? ""}
+            defaultTeacher={profile?.comciganTeacher ?? ""}
+          />
+        </div>
+        <WeeklyGrid slots={slots} />
+      </section>
+
       <CoursesManager subjects={views} />
       <StageGate stage="courses" completed={completed} />
     </div>

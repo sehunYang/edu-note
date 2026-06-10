@@ -1,16 +1,14 @@
 "use client";
 import { useActionState } from "react";
-import { syncTimetableAction, type SyncState } from "./actions";
+import { syncTimetableAction, type SyncState } from "./timetable-actions";
 
-/** 컴시간 동기화 폼 (계획 §4 B). 학교명·교사명 입력 → sync. 결과를 그 자리에 표시. */
-export function SyncForm({
+/** 컴시간 동기화 폼 (C5 세팅실). 학교명·교사명 → 시간표 sync(과목/분반 생성). */
+export function TimetableSync({
   defaultSchool,
   defaultTeacher,
-  year,
 }: {
   defaultSchool: string;
   defaultTeacher: string;
-  year: number;
 }) {
   const [state, action, pending] = useActionState<SyncState, FormData>(
     syncTimetableAction,
@@ -19,7 +17,6 @@ export function SyncForm({
 
   return (
     <form action={action} className="space-y-3">
-      <input type="hidden" name="year" value={year} />
       <div className="flex flex-wrap gap-3">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-neutral-500">학교명</label>
@@ -51,7 +48,7 @@ export function SyncForm({
 
       {state && state.ok && (
         <p className="rounded border border-green-200 bg-green-50 p-3 text-sm">
-          ✅ {state.teacher} 시간표 동기화 완료 — 과목 {state.subjects} · 분반{" "}
+          ✅ {state.teacher} 시간표 동기화 — 과목 {state.subjects} · 분반{" "}
           {state.sections} · 수업 {state.slots}개
         </p>
       )}

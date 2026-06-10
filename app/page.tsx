@@ -71,14 +71,14 @@ export default async function Home() {
           desc="오늘 시간표·급식·학사일정과 해야 할 일(넛지)을 한눈에 봅니다."
         />
         <DashCard
-          href="/students"
+          href="/setting/students"
           title="학생 명단"
           desc="CSV로 학생 명단을 올리고, 학생별 공개 링크를 발급합니다."
         />
         <DashCard
-          href="/timetable"
-          title="시간표"
-          desc="컴시간알리미에서 본인 시간표를 동기화해 봅니다."
+          href="/setting/courses"
+          title="시간표 · 수업"
+          desc="컴시간알리미에서 본인 시간표를 동기화하고 수업을 관리합니다."
         />
         <DashCard
           href="/sessions"
@@ -86,7 +86,7 @@ export default async function Home() {
           desc="시험 날짜를 정하고 과목별 남은 차시를 계산·관리합니다."
         />
         <DashCard
-          href="/calendar"
+          href="/setting/calendar"
           title="학사일정 · 급식"
           desc="NEIS에서 학사일정(수업일)과 급식을 동기화합니다."
         />

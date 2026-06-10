@@ -12,6 +12,7 @@ import { activeSchoolYear } from "@/lib/domain/school-year";
 import { StageGate } from "../stage-gate";
 import { LockedNotice } from "../locked-notice";
 import { StudentRoster } from "./student-roster";
+import { ImportForm } from "./import-form";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,18 @@ export default async function StudentsStagePage() {
       <p className="mt-1 text-sm text-neutral-500">
         명단 임포트·동명이인 상속·학급역할·공개 링크를 관리합니다. ({year}학년도)
       </p>
+
+      <section className="mt-5 rounded-lg border border-neutral-200 p-4">
+        <h3 className="text-sm font-semibold text-neutral-700">CSV 명단 임포트</h3>
+        <p className="mt-1 text-xs text-neutral-400">
+          헤더에 <code>학번</code>·<code>이름</code> 필수. 학번 5자리에서 학년/반/번호가
+          자동 산출됩니다. 임포트 후 아래에서 동명이인 매칭을 실행하세요.
+        </p>
+        <div className="mt-3">
+          <ImportForm defaultYear={year} />
+        </div>
+      </section>
+
       <StudentRoster students={rows} pending={pending} />
       <StageGate stage="students" completed={completed} />
     </div>
