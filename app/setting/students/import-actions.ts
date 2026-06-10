@@ -33,7 +33,7 @@ export async function importRosterAction(
       updated: res.updated,
       errorRows: parsed.errors.length,
     });
-    revalidatePath("/setting", "layout");
+    revalidatePath("/setting/students");
     return {
       ok: true,
       created: res.created,

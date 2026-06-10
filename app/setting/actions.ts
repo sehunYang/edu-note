@@ -137,7 +137,7 @@ export async function saveProfileAction(
       comciganTeacher: textOrNull(formData.get("comciganTeacher")),
     });
     await writeAudit(db, ownerId, "profile_upsert", null, { isHomeroom });
-    revalidatePath("/setting", "layout");
+    revalidatePath("/setting/profile");
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "저장 실패" };
@@ -206,7 +206,7 @@ export async function calendarSyncAction(
       schoolDays: res.schoolDays,
       events: res.events,
     });
-    revalidatePath("/setting", "layout");
+    revalidatePath("/setting/calendar");
     return { ok: true, schoolDays: res.schoolDays, events: res.events };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "동기화 실패" };
@@ -246,7 +246,7 @@ export async function updateEventAttrsAction(
       examOrdinal: intOrNull(formData.get("examOrdinal")),
     });
     await writeAudit(db, ownerId, "calendar_attr_update", eventId, { kind });
-    revalidatePath("/setting", "layout");
+    revalidatePath("/setting/calendar");
     return { ok: true, eventId };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "보정 실패" };
@@ -274,7 +274,7 @@ export async function linkStudentsAction(
       bulk: true,
       ...res,
     });
-    revalidatePath("/setting", "layout");
+    revalidatePath("/setting/students");
     return { ok: true, ...res };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "매칭 실패" };
@@ -301,7 +301,7 @@ export async function resolveInheritanceAction(
     const db = getDb();
     await resolveInheritance(db, ownerId, yearLinkId, personId);
     await writeAudit(db, ownerId, "inheritance_resolve", yearLinkId, { personId });
-    revalidatePath("/setting", "layout");
+    revalidatePath("/setting/students");
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "해소 실패" };
@@ -316,7 +316,7 @@ export async function addClassRoleAction(formData: FormData): Promise<void> {
   const db = getDb();
   await addClassRole(db, ownerId, studentYearId, roleName, textOrNull(formData.get("roleDesc")));
   await writeAudit(db, ownerId, "homeroom_role_upsert", studentYearId, { roleName });
-  revalidatePath("/setting", "layout");
+  revalidatePath("/setting/students");
 }
 
 export async function deleteClassRoleAction(formData: FormData): Promise<void> {
@@ -326,7 +326,7 @@ export async function deleteClassRoleAction(formData: FormData): Promise<void> {
   const db = getDb();
   await deleteClassRole(db, ownerId, roleId);
   await writeAudit(db, ownerId, "homeroom_role_delete", roleId);
-  revalidatePath("/setting", "layout");
+  revalidatePath("/setting/students");
 }
 
 export type IssueLinkState =
@@ -346,7 +346,7 @@ export async function issuePublicLinkAction(
     const db = getDb();
     const issued = await issuePublicPageForHomeroom(db, ownerId, studentYearId);
     await writeAudit(db, ownerId, "token_issue", studentYearId);
-    revalidatePath("/setting", "layout");
+    revalidatePath("/setting/students");
     return { ok: true, studentYearId, token: issued.token };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "발급 실패" };
@@ -390,7 +390,7 @@ export async function saveEvalAction(
       finalEnabled,
     });
     await writeAudit(db, ownerId, "eval_weights_save", subjectId);
-    revalidatePath("/setting", "layout");
+    revalidatePath("/setting/courses");
     return { ok: true, subjectId };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "저장 실패" };
@@ -418,7 +418,7 @@ export async function bulkEnrollAction(
       classNo: intOrNull(formData.get("classNo")) ?? undefined,
     });
     await writeAudit(db, ownerId, "enrollment_bulk", sectionId, { count });
-    revalidatePath("/setting", "layout");
+    revalidatePath("/setting/courses");
     return { ok: true, sectionId, count };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "등록 실패" };
@@ -444,7 +444,7 @@ export async function materializeExamsAction(
       activeSchoolYear(new Date()),
     );
     await writeAudit(db, ownerId, "subject_exam_materialize", null, { count });
-    revalidatePath("/setting", "layout");
+    revalidatePath("/setting/courses");
     return { ok: true, count };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "파생 실패" };
@@ -459,7 +459,7 @@ export async function addSectionRoleAction(formData: FormData): Promise<void> {
   const db = getDb();
   await addSectionRole(db, ownerId, enrollmentId, title, textOrNull(formData.get("description")));
   await writeAudit(db, ownerId, "section_role_upsert", enrollmentId, { title });
-  revalidatePath("/setting", "layout");
+  revalidatePath("/setting/courses");
 }
 
 export async function deleteSectionRoleAction(formData: FormData): Promise<void> {
@@ -469,5 +469,5 @@ export async function deleteSectionRoleAction(formData: FormData): Promise<void>
   const db = getDb();
   await deleteSectionRole(db, ownerId, roleId);
   await writeAudit(db, ownerId, "section_role_delete", roleId);
-  revalidatePath("/setting", "layout");
+  revalidatePath("/setting/courses");
 }

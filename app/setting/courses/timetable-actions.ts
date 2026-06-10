@@ -52,7 +52,7 @@ export async function syncTimetableAction(
       year,
       ...sync,
     });
-    revalidatePath("/setting", "layout");
+    revalidatePath("/setting/courses");
     return { ok: true, teacher, ...sync };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "동기화 실패" };
