@@ -16,6 +16,7 @@ import {
   countSchoolDays,
   getEventsWithAttrs,
   updateEventAttributes,
+  bulkUpdateEventAttrs,
 } from "./calendar";
 import type { NeisScheduleEntry, NeisMealEntry } from "@/lib/integrations/neis";
 
@@ -128,14 +129,19 @@ describe.skipIf(!RUN)("캘린더 sync — 라이브 NEIS → DB", () => {
   });
 });
 
-// ── C3: 키워드 자동 분류 + 보정 (합성 schedule, NEIS 키 불필요) ──
+// ── QC v2 2-1 B: context-aware 분류(방학구간·휴업일·수능·미분류·일괄저장) ──
+// (합성 schedule, NEIS 키 불필요)
 const RUN_DB = process.env.RUN_DB_ITEST === "1" && !!process.env.DATABASE_URL;
 
-function sched(date: string, title: string): NeisScheduleEntry {
-  return { date, title, content: null, isSchoolDay: true, dayCategory: null };
+function sched(
+  date: string,
+  title: string,
+  isSchoolDay = true,
+): NeisScheduleEntry {
+  return { date, title, content: null, isSchoolDay, dayCategory: null };
 }
 
-describe.skipIf(!RUN_DB)("학사일정 키워드 분류·보정 — 합성 schedule", () => {
+describe.skipIf(!RUN_DB)("학사일정 context-aware 분류·보정 — 합성 schedule (AC-B)", () => {
   let sql2: ReturnType<typeof postgres>;
   let db2: PostgresJsDatabase<typeof schema>;
   const owner2 = randomUUID();
@@ -151,57 +157,110 @@ describe.skipIf(!RUN_DB)("학사일정 키워드 분류·보정 — 합성 sched
     await sql2.end();
   });
 
-  const FROM = "20260601";
-  const TO = "20260630";
+  // 학년도 1회 동기화(양 학기 포함) 가정 — 7~9월 범위(방학식~개학식·광복절·수능 포함).
+  const FROM = "20260701";
+  const TO = "20260930";
   const meals: NeisMealEntry[] = [];
 
-  it("sync 시 exam/vacation/club 자동 태깅(AC-3.1)", async () => {
-    await syncSchoolCalendar(db2, owner2, FROM, TO, [
-      sched("2026-06-10", "1학기 중간고사"),
-      sched("2026-06-20", "동아리 한마당"),
-      sched("2026-06-25", "여름방학식"),
-      sched("2026-06-05", "졸업앨범 촬영"),
-    ], meals);
+  function entries() {
+    return [
+      sched("2026-07-10", "1학기 기말고사"), // exam 학기1 회차2
+      sched("2026-07-20", "여름방학식"), // vacation(구간 시작)
+      sched("2026-07-26", "체험학습", false), // 방학 구간 내 비수업일 → vacation(방학 우선)
+      sched("2026-08-15", "광복절", false), // 방학 구간 내 비수업일 → vacation(방학 우선, AC-B4)
+      sched("2026-08-18", "2학기 개학식"), // 방학 구간 종료(당일은 vacation 아님)
+      sched("2026-09-03", "전국연합학력평가"), // mock_exam(exam 아님)
+      sched("2026-09-10", "동아리 한마당"), // club
+      sched("2026-09-15", "학생자치회의"), // 미분류 → self_activity + needsReview
+      sched("2026-09-25", "개교기념일", false), // 방학 밖 비수업일·키워드 없음 → holiday(AC-B5)
+      sched("2026-09-20", "토요휴업일", false), // sync 가 제외(미생성)
+    ];
+  }
 
-    const events = await getEventsWithAttrs(db2, owner2, "2026-06-01", "2026-06-30");
+  it("sync 시 context-aware 자동 태깅(방학구간·휴업일·수능·미분류·토요휴업일 제외) (AC-B2~B8)", async () => {
+    await syncSchoolCalendar(db2, owner2, FROM, TO, entries(), meals);
+    const events = await getEventsWithAttrs(db2, owner2, "2026-07-01", "2026-09-30");
     const byTitle = Object.fromEntries(events.map((e) => [e.title, e]));
-    expect(byTitle["1학기 중간고사"]).toMatchObject({
+
+    // 지필: 학기2 자동 아님 — 7월은 1학기(제목 명시 없어도 8/15 이전)
+    expect(byTitle["1학기 기말고사"]).toMatchObject({
       eventKind: "exam",
       examSemester: 1,
-      examOrdinal: 1,
+      examOrdinal: 2,
     });
+    // 방학 구간
+    expect(byTitle["여름방학식"].eventKind).toBe("vacation");
+    expect(byTitle["체험학습"].eventKind).toBe("vacation"); // 방학 우선(비수업일이어도)
+    expect(byTitle["2학기 개학식"].eventKind).not.toBe("vacation");
+    // 방학 우선: 방학 구간 내 비수업일(광복절)은 holiday 아닌 vacation(AC-B4)
+    expect(byTitle["광복절"].eventKind).toBe("vacation");
+    // 휴업일 자동탐지: 방학 밖 비수업일 ∧ 키워드 없음 → holiday(AC-B5)
+    expect(byTitle["개교기념일"].eventKind).toBe("holiday");
+    expect(byTitle["개교기념일"].needsReview).toBe(false);
+    // 수능·모의고사
+    expect(byTitle["전국연합학력평가"].eventKind).toBe("mock_exam");
     expect(byTitle["동아리 한마당"].eventKind).toBe("club");
-    expect(byTitle["여름방학식"].eventKind).toBe("vacation_start");
-    expect(byTitle["졸업앨범 촬영"]).toMatchObject({
-      eventKind: "none",
+    // 미분류 fallback → self_activity + needsReview
+    expect(byTitle["학생자치회의"]).toMatchObject({
+      eventKind: "self_activity",
+      needsReview: true,
+    });
+    // 토요휴업일은 생성하지 않음(AC-B7)
+    expect(byTitle["토요휴업일"]).toBeUndefined();
+  });
+
+  it("일괄 저장: 다건 보정 + needsReview 일괄 해제(AC-B9)", async () => {
+    const before = await getEventsWithAttrs(db2, owner2, "2026-07-01", "2026-09-30");
+    expect(before.some((e) => e.needsReview)).toBe(true);
+    // 미분류 항목을 career_activity 로 보정 + exam 항목 학기/회차 유지
+    const target = before.find((e) => e.title === "학생자치회의")!;
+    const count = await bulkUpdateEventAttrs(db2, owner2, [
+      { eventId: target.id, eventKind: "career_activity" },
+    ]);
+    expect(count).toBe(1);
+    const after = await getEventsWithAttrs(db2, owner2, "2026-07-01", "2026-09-30");
+    const fixed = after.find((e) => e.id === target.id)!;
+    expect(fixed.eventKind).toBe("career_activity");
+    expect(fixed.needsReview).toBe(false); // 일괄저장이 검토완료 처리
+  });
+
+  it("수동 재분류 라운드트립: 신규 EventKind(holiday) 저장·재조회 (EVENT_KINDS 회귀 가드)", async () => {
+    // 광복절을 holiday→self_activity 로, 다시 holiday 로 — 신규 enum 값 저장 성공 단언.
+    const events = await getEventsWithAttrs(db2, owner2, "2026-08-15", "2026-08-15");
+    const target = events[0];
+    await updateEventAttributes(db2, owner2, target.id, { eventKind: "self_activity" });
+    let after = await getEventsWithAttrs(db2, owner2, "2026-08-15", "2026-08-15");
+    expect(after[0].eventKind).toBe("self_activity");
+    await updateEventAttributes(db2, owner2, target.id, { eventKind: "holiday" });
+    after = await getEventsWithAttrs(db2, owner2, "2026-08-15", "2026-08-15");
+    expect(after[0]).toMatchObject({
+      eventKind: "holiday",
       examSemester: null,
       examOrdinal: null,
+      needsReview: false,
     });
   });
 
-  it("교사 보정: none→exam 으로 교정 + exam 아님 시 학기/회차 null 강제(AC-3.3)", async () => {
-    const before = await getEventsWithAttrs(db2, owner2, "2026-06-05", "2026-06-05");
-    const target = before.find((e) => e.title === "졸업앨범 촬영")!;
-    // none → exam 으로 교정
+  it("교사 보정: self_activity→exam 교정 + exam 아님 시 학기/회차 null 강제(AC-3.3)", async () => {
+    const before = await getEventsWithAttrs(db2, owner2, "2026-09-15", "2026-09-15");
+    const target = before.find((e) => e.title === "학생자치회의")!;
     await updateEventAttributes(db2, owner2, target.id, {
       eventKind: "exam",
       examSemester: 2,
       examOrdinal: 1,
     });
-    let after = await getEventsWithAttrs(db2, owner2, "2026-06-05", "2026-06-05");
+    let after = await getEventsWithAttrs(db2, owner2, "2026-09-15", "2026-09-15");
     expect(after[0]).toMatchObject({
       eventKind: "exam",
       examSemester: 2,
       examOrdinal: 1,
     });
-
-    // exam → club 으로 재교정 시 학기/회차 null 강제
     await updateEventAttributes(db2, owner2, target.id, {
       eventKind: "club",
       examSemester: 2,
       examOrdinal: 1,
     });
-    after = await getEventsWithAttrs(db2, owner2, "2026-06-05", "2026-06-05");
+    after = await getEventsWithAttrs(db2, owner2, "2026-09-15", "2026-09-15");
     expect(after[0]).toMatchObject({
       eventKind: "club",
       examSemester: null,
@@ -209,16 +268,11 @@ describe.skipIf(!RUN_DB)("학사일정 키워드 분류·보정 — 합성 sched
     });
   });
 
-  it("재sync 멱등: 범위 내 neis 이벤트 교체(중복 없음·태깅 유지) (AC-3.4)", async () => {
-    await syncSchoolCalendar(db2, owner2, FROM, TO, [
-      sched("2026-06-10", "1학기 중간고사"),
-      sched("2026-06-20", "동아리 한마당"),
-      sched("2026-06-25", "여름방학식"),
-      sched("2026-06-05", "졸업앨범 촬영"),
-    ], meals);
-    const events = await getEventsWithAttrs(db2, owner2, "2026-06-01", "2026-06-30");
-    expect(events.length).toBe(4); // 교체 → 중복 없음(보정값은 재sync 로 초기화됨)
-    const exam = events.find((e) => e.title === "1학기 중간고사")!;
-    expect(exam).toMatchObject({ eventKind: "exam", examSemester: 1, examOrdinal: 1 });
+  it("재sync 멱등: 범위 내 neis 이벤트 교체(중복 없음·태깅 유지·토요휴업일 제외) (AC-3.4)", async () => {
+    await syncSchoolCalendar(db2, owner2, FROM, TO, entries(), meals);
+    const events = await getEventsWithAttrs(db2, owner2, "2026-07-01", "2026-09-30");
+    expect(events.length).toBe(9); // 10건 입력 − 토요휴업일 1 = 9(중복 없음·보정 초기화)
+    const exam = events.find((e) => e.title === "1학기 기말고사")!;
+    expect(exam).toMatchObject({ eventKind: "exam", examSemester: 1, examOrdinal: 2 });
   });
 });

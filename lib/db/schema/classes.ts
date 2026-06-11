@@ -61,6 +61,10 @@ export const subjects = pgTable("subjects", {
   ownerId: ownerId(),
   name: text("name").notNull(),
   schoolYear: integer("school_year").notNull(),
+  // 학기(QC v2 2-1 A). 1·2학기 과목은 별도 행 — 재동기화 시 활성 학기로 새 행.
+  semester: integer("semester").notNull().default(1),
+  // 교실 2-2 연간 과목 링크 선설치(2-1 미사용). normalize(name)+'_'+schoolYear.
+  yearCourseKey: text("year_course_key"),
   // 2022 개정 교과군. 값 미열거 → text(프리셋 시드에서 채움).
   curriculumCategory: text("curriculum_category"),
   evalMethod: evalMethod("eval_method"),

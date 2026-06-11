@@ -18,7 +18,21 @@ describe("parseStudentRoster", () => {
       parentName: null,
       parentPhone: null,
       career: null,
+      roles: [],
     });
+  });
+
+  it("역할 컬럼: 쉼표 구분 복수 파싱(공란 제외) (AC-C5)", () => {
+    // 한 셀에 복수 역할 → CSV 따옴표로 감싼다("반장, 환경부장").
+    const csv = '학번,이름,역할\n10101,이영희,"반장, 환경부장 "';
+    const { rows } = parseStudentRoster(csv);
+    expect(rows[0].roles).toEqual(["반장", "환경부장"]);
+    // 역할 컬럼 없으면 빈 배열
+    expect(parseStudentRoster("학번,이름\n10101,이영희").rows[0].roles).toEqual([]);
+    // 역할 셀 공란이면 빈 배열
+    expect(
+      parseStudentRoster("학번,이름,역할\n10101,이영희,").rows[0].roles,
+    ).toEqual([]);
   });
 
   it("학번 5자리 끝 = 번호 두자리(앞자리 0 보존)", () => {

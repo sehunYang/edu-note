@@ -18,6 +18,8 @@ export interface StudentRosterRow {
   parentName: string | null;
   parentPhone: string | null;
   career: string | null;
+  // 역할(쉼표 구분 복수). import 시 class_roles 로 생성(QC v2 C, AC-C5).
+  roles: string[];
 }
 
 /** 한 필드에 허용되는 헤더 별칭(앞이 우선). 모두 trim 후 비교. */
@@ -31,6 +33,7 @@ const HEADER_ALIASES = {
   parentName: ["보호자", "보호자명", "보호자 성명"],
   parentPhone: ["보호자연락처", "보호자 연락처", "보호자전화", "보호자 전화번호"],
   career: ["진로", "희망진로", "진로희망"],
+  role: ["역할", "역할명", "학급역할"],
 } as const;
 
 const SID_RE = /^[0-9]{5}$/;
@@ -66,6 +69,7 @@ export function parseStudentRoster(input: string): ImportResult<StudentRosterRow
     parentName: resolveColumn(headers, HEADER_ALIASES.parentName),
     parentPhone: resolveColumn(headers, HEADER_ALIASES.parentPhone),
     career: resolveColumn(headers, HEADER_ALIASES.career),
+    role: resolveColumn(headers, HEADER_ALIASES.role),
   };
 
   // 필수 헤더(학번·이름) 부재는 파일 차원 오류.
@@ -145,6 +149,11 @@ export function parseStudentRoster(input: string): ImportResult<StudentRosterRow
 
     // 통과 행만 중복 추적에 등록(중복 판정은 최초 유효 행 기준)
     seenSid.set(sid, rec.rowNumber);
+    // 역할 셀: 쉼표 구분 복수 → trim·공란 제외(AC-C5).
+    const roles = get(cols.role)
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
     rows.push({
       sid,
       name,
@@ -155,6 +164,7 @@ export function parseStudentRoster(input: string): ImportResult<StudentRosterRow
       parentName: optional(get(cols.parentName)),
       parentPhone,
       career: optional(get(cols.career)),
+      roles,
     });
   }
 

@@ -3,7 +3,9 @@ import { getDb } from "@/lib/db";
 import {
   isStageUnlocked,
   isStageComplete,
-  listStudents,
+  listStudentRoster,
+  listPriorSidsForStudents,
+  listSubjectsForStudentYears,
   listPendingLinks,
   listClassRolesForStudents,
   getTeacherSettings,
@@ -25,7 +27,7 @@ export default async function StudentsStagePage() {
   const [completed, settings, students, pending] = await Promise.all([
     isStageComplete(db, ownerId, "students"),
     getTeacherSettings(db, ownerId),
-    listStudents(db, ownerId, year),
+    listStudentRoster(db, ownerId, year),
     listPendingLinks(db, ownerId, year),
   ]);
 
@@ -36,19 +38,33 @@ export default async function StudentsStagePage() {
       ? { grade: settings.homeroomGrade, classNo: settings.homeroomClassNo }
       : null;
 
-  // P3: N+1 제거 — 학생 학급역할을 1회 배치 조회 후 메모리 그룹핑.
-  const rolesByStudent = await listClassRolesForStudents(
-    db,
-    ownerId,
-    students.map((s) => s.id),
-  );
+  // P3: N+1 제거 — 학급역할·수강중인수업·과거학번을 1회 배치 조회 후 메모리 그룹핑.
+  const ids = students.map((s) => s.id);
+  const [rolesByStudent, subjectsByStudent, priorByStudent] = await Promise.all([
+    listClassRolesForStudents(db, ownerId, ids),
+    listSubjectsForStudentYears(db, ownerId, ids, year),
+    listPriorSidsForStudents(db, ownerId, ids, year),
+  ]);
   const rows = students.map((s) => ({
-    ...s,
+    id: s.id,
+    sid: s.sid,
+    name: s.name,
+    grade: s.grade,
+    classNo: s.classNo,
+    number: s.number,
+    phone: s.phone,
+    career: s.career,
     isHomeroom:
       homeroom != null &&
       s.grade === homeroom.grade &&
       s.classNo === homeroom.classNo,
     roles: rolesByStudent.get(s.id) ?? [],
+    subjects: (subjectsByStudent.get(s.id) ?? []).map(
+      (x) => `${x.semester}학기 ${x.subjectName}`,
+    ),
+    priorSids: (priorByStudent.get(s.id) ?? []).map(
+      (p) => `${p.schoolYear} ${p.sid}`,
+    ),
   }));
 
   return (

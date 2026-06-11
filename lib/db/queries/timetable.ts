@@ -37,10 +37,16 @@ export interface TimetableSyncResult {
   slots: number;
 }
 
+/** 공백 제거 정규화(연간 과목 링크 키 — 교실 2-2 대비). */
+function normalizeSubjectName(name: string): string {
+  return name.replace(/\s+/g, "");
+}
+
 async function getOrCreateSubject(
   db: DB,
   ownerId: string,
   schoolYear: number,
+  semester: number,
   name: string,
 ): Promise<string> {
   const found = await db
@@ -50,6 +56,7 @@ async function getOrCreateSubject(
       and(
         eq(subjects.ownerId, ownerId),
         eq(subjects.schoolYear, schoolYear),
+        eq(subjects.semester, semester),
         eq(subjects.name, name),
       ),
     )
@@ -57,7 +64,13 @@ async function getOrCreateSubject(
   if (found.length) return found[0].id;
   const [row] = await db
     .insert(subjects)
-    .values({ ownerId, schoolYear, name })
+    .values({
+      ownerId,
+      schoolYear,
+      semester,
+      name,
+      yearCourseKey: `${normalizeSubjectName(name)}_${schoolYear}`,
+    })
     .returning({ id: subjects.id });
   return row.id;
 }
@@ -91,13 +104,14 @@ export async function syncTeacherTimetable(
   db: DB,
   ownerId: string,
   schoolYear: number,
+  semester: number,
   slots: TimetableSlot[],
 ): Promise<TimetableSyncResult> {
   const subjectIdByName = new Map<string, string>();
   for (const name of new Set(slots.map((s) => s.subject))) {
     subjectIdByName.set(
       name,
-      await getOrCreateSubject(db, ownerId, schoolYear, name),
+      await getOrCreateSubject(db, ownerId, schoolYear, semester, name),
     );
   }
 
@@ -156,6 +170,7 @@ export async function getTeacherTimetable(
   db: DB,
   ownerId: string,
   schoolYear: number,
+  semester: number,
 ): Promise<TimetableViewSlot[]> {
   return db
     .select({
@@ -171,6 +186,7 @@ export async function getTeacherTimetable(
       and(
         eq(timetableSlots.ownerId, ownerId),
         eq(subjects.schoolYear, schoolYear),
+        eq(subjects.semester, semester),
       ),
     )
     .orderBy(asc(timetableSlots.weekday), asc(timetableSlots.period));
@@ -364,6 +380,224 @@ export async function listEnrollments(
     .orderBy(asc(studentYears.sid));
 }
 
+// ── QC v2 2-1 D: 개별 수강 등록/삭제 + 수강중인수업 파생 + 평가 prefill (AC-D1~D4) ──
+
+/**
+ * 개별 수강 등록(AC-D2). 학번/이름 검색으로 고른 학생 1명을 분반에 추가한다.
+ * 고교학점제 → 반 무관 cross-class 허용. 중복은 무시(unique 충돌 skip). 등록된 enrollmentId 반환(중복 시 null).
+ */
+export async function enrollOne(
+  db: DB,
+  ownerId: string,
+  sectionId: string,
+  studentYearId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .insert(enrollments)
+    .values({ ownerId, sectionId, studentYearId })
+    .onConflictDoNothing({
+      target: [enrollments.sectionId, enrollments.studentYearId],
+    })
+    .returning({ id: enrollments.id });
+  return row?.id ?? null;
+}
+
+/** 수강 개별 삭제(AC-D3). owner 가드로 타 소유 수강은 삭제 불가. */
+export async function unenroll(
+  db: DB,
+  ownerId: string,
+  enrollmentId: string,
+): Promise<void> {
+  await db
+    .delete(enrollments)
+    .where(
+      and(eq(enrollments.id, enrollmentId), eq(enrollments.ownerId, ownerId)),
+    );
+}
+
+export interface StudentSubjectView {
+  subjectId: string;
+  subjectName: string;
+  semester: number;
+  sectionLabel: string;
+}
+
+/**
+ * 수강 중인 수업 파생(AC-D4). 별도 저장 없이 enrollments→sections→subjects 로 산출한다.
+ * 학기 구분을 위해 과목 학기를 함께 반환(같은 이름이라도 1·2학기 분리). 학년도 필터.
+ */
+export async function listSubjectsForStudentYear(
+  db: DB,
+  ownerId: string,
+  studentYearId: string,
+  schoolYear: number,
+): Promise<StudentSubjectView[]> {
+  return db
+    .select({
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      semester: subjects.semester,
+      sectionLabel: courseSections.label,
+    })
+    .from(enrollments)
+    .innerJoin(courseSections, eq(courseSections.id, enrollments.sectionId))
+    .innerJoin(subjects, eq(subjects.id, courseSections.subjectId))
+    .where(
+      and(
+        eq(enrollments.ownerId, ownerId),
+        eq(enrollments.studentYearId, studentYearId),
+        eq(subjects.schoolYear, schoolYear),
+      ),
+    )
+    .orderBy(asc(subjects.semester), asc(subjects.name));
+}
+
+/**
+ * 학년도 전 수강생의 수강 과목 1회 조회 → studentYearId 그룹핑(명단 화면 N+1 제거,
+ * 단건 listSubjectsForStudentYear 동치). 학기 구분 과목명 목록 파생용.
+ */
+export async function listSubjectsForStudentYears(
+  db: DB,
+  ownerId: string,
+  studentYearIds: string[],
+  schoolYear: number,
+): Promise<Map<string, StudentSubjectView[]>> {
+  const byStudent = new Map<string, StudentSubjectView[]>();
+  if (studentYearIds.length === 0) return byStudent;
+
+  const rows = await db
+    .select({
+      studentYearId: enrollments.studentYearId,
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      semester: subjects.semester,
+      sectionLabel: courseSections.label,
+    })
+    .from(enrollments)
+    .innerJoin(courseSections, eq(courseSections.id, enrollments.sectionId))
+    .innerJoin(subjects, eq(subjects.id, courseSections.subjectId))
+    .where(
+      and(
+        eq(enrollments.ownerId, ownerId),
+        inArray(enrollments.studentYearId, studentYearIds),
+        eq(subjects.schoolYear, schoolYear),
+      ),
+    )
+    .orderBy(asc(subjects.semester), asc(subjects.name));
+
+  for (const { studentYearId, ...rest } of rows) {
+    const arr = byStudent.get(studentYearId);
+    if (arr) arr.push(rest);
+    else byStudent.set(studentYearId, [rest]);
+  }
+  return byStudent;
+}
+
+export interface EvalSettingsView {
+  performance: { name: string; weight: number }[];
+  jipilMid: number;
+  jipilFinal: number;
+  midEnabled: boolean;
+  finalEnabled: boolean;
+}
+
+/**
+ * 과목 평가설정 조회(AC-D1 폼 prefill). 저장된 수행항목·비율·지필설정을 화면 표시용으로
+ * 돌려준다. 미설정 과목은 빈 수행 + 비율 0 + 지필 시행 기본값.
+ */
+export async function getEvalSettings(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+): Promise<EvalSettingsView> {
+  const [sub] = await db
+    .select({
+      jipilMid: subjects.jipilMidWeight,
+      jipilFinal: subjects.jipilFinalWeight,
+      midEnabled: subjects.jipilMidEnabled,
+      finalEnabled: subjects.jipilFinalEnabled,
+    })
+    .from(subjects)
+    .where(and(eq(subjects.id, subjectId), eq(subjects.ownerId, ownerId)))
+    .limit(1);
+  const items = await db
+    .select({ name: performanceItems.name, weight: performanceItems.weight })
+    .from(performanceItems)
+    .where(
+      and(
+        eq(performanceItems.ownerId, ownerId),
+        eq(performanceItems.subjectId, subjectId),
+      ),
+    )
+    .orderBy(asc(performanceItems.createdAt));
+  return {
+    performance: items.map((i) => ({ name: i.name, weight: Number(i.weight ?? 0) })),
+    jipilMid: Number(sub?.jipilMid ?? 0),
+    jipilFinal: Number(sub?.jipilFinal ?? 0),
+    midEnabled: sub?.midEnabled ?? true,
+    finalEnabled: sub?.finalEnabled ?? true,
+  };
+}
+
+/** 학년도 전 과목 평가설정 1회 조회 → subjectId 그룹핑(courses 화면 prefill 배치). */
+export async function getEvalSettingsForYear(
+  db: DB,
+  ownerId: string,
+  schoolYear: number,
+  semester: number,
+): Promise<Map<string, EvalSettingsView>> {
+  const subs = await db
+    .select({
+      id: subjects.id,
+      jipilMid: subjects.jipilMidWeight,
+      jipilFinal: subjects.jipilFinalWeight,
+      midEnabled: subjects.jipilMidEnabled,
+      finalEnabled: subjects.jipilFinalEnabled,
+    })
+    .from(subjects)
+    .where(
+      and(
+        eq(subjects.ownerId, ownerId),
+        eq(subjects.schoolYear, schoolYear),
+        eq(subjects.semester, semester),
+      ),
+    );
+  const items = await db
+    .select({
+      subjectId: performanceItems.subjectId,
+      name: performanceItems.name,
+      weight: performanceItems.weight,
+    })
+    .from(performanceItems)
+    .innerJoin(subjects, eq(subjects.id, performanceItems.subjectId))
+    .where(
+      and(
+        eq(performanceItems.ownerId, ownerId),
+        eq(subjects.schoolYear, schoolYear),
+        eq(subjects.semester, semester),
+      ),
+    )
+    .orderBy(asc(performanceItems.createdAt));
+
+  const perfBySubject = new Map<string, { name: string; weight: number }[]>();
+  for (const it of items) {
+    const arr = perfBySubject.get(it.subjectId) ?? [];
+    arr.push({ name: it.name, weight: Number(it.weight ?? 0) });
+    perfBySubject.set(it.subjectId, arr);
+  }
+  const out = new Map<string, EvalSettingsView>();
+  for (const s of subs) {
+    out.set(s.id, {
+      performance: perfBySubject.get(s.id) ?? [],
+      jipilMid: Number(s.jipilMid ?? 0),
+      jipilFinal: Number(s.jipilFinal ?? 0),
+      midEnabled: s.midEnabled,
+      finalEnabled: s.finalEnabled,
+    });
+  }
+  return out;
+}
+
 // ── C5: 수행평가 시행일 CRUD (AC-5.x) ──
 
 export async function setPerformanceDate(
@@ -492,6 +726,7 @@ export async function materializeSubjectExams(
   const subs = await db
     .select({
       id: subjects.id,
+      semester: subjects.semester,
       midEnabled: subjects.jipilMidEnabled,
       finalEnabled: subjects.jipilFinalEnabled,
     })
@@ -502,6 +737,8 @@ export async function materializeSubjectExams(
   for (const sub of subs) {
     for (const e of examDates) {
       if (e.semester == null || e.ordinal == null) continue;
+      // 과목이 학기별이므로 해당 과목 학기의 시험 이벤트만 파생(QC v2 2-1 A).
+      if (e.semester !== sub.semester) continue;
       const enabled = e.ordinal === 1 ? sub.midEnabled : sub.finalEnabled;
       await db
         .insert(subjectExams)
@@ -583,6 +820,7 @@ export async function listSubjectsWithSections(
   db: DB,
   ownerId: string,
   schoolYear: number,
+  semester: number,
 ): Promise<SubjectSectionView[]> {
   const rows = await db
     .select({
@@ -593,7 +831,13 @@ export async function listSubjectsWithSections(
     })
     .from(subjects)
     .leftJoin(courseSections, eq(courseSections.subjectId, subjects.id))
-    .where(and(eq(subjects.ownerId, ownerId), eq(subjects.schoolYear, schoolYear)))
+    .where(
+      and(
+        eq(subjects.ownerId, ownerId),
+        eq(subjects.schoolYear, schoolYear),
+        eq(subjects.semester, semester),
+      ),
+    )
     .orderBy(asc(subjects.name), asc(courseSections.label));
 
   const bySubject = new Map<string, SubjectSectionView>();
@@ -626,6 +870,7 @@ export async function listSubjectExamsForYear(
   db: DB,
   ownerId: string,
   schoolYear: number,
+  semester: number,
 ): Promise<Map<string, SubjectExamRow[]>> {
   const rows = await db
     .select({
@@ -638,7 +883,11 @@ export async function listSubjectExamsForYear(
     .from(subjectExams)
     .innerJoin(subjects, eq(subjects.id, subjectExams.subjectId))
     .where(
-      and(eq(subjectExams.ownerId, ownerId), eq(subjects.schoolYear, schoolYear)),
+      and(
+        eq(subjectExams.ownerId, ownerId),
+        eq(subjects.schoolYear, schoolYear),
+        eq(subjects.semester, semester),
+      ),
     )
     .orderBy(asc(subjectExams.semester), asc(subjectExams.ordinal));
 
@@ -662,6 +911,7 @@ export async function listEnrollmentsForYear(
   db: DB,
   ownerId: string,
   schoolYear: number,
+  semester: number,
 ): Promise<Map<string, EnrollmentRow[]>> {
   const rows = await db
     .select({
@@ -675,7 +925,11 @@ export async function listEnrollmentsForYear(
     .innerJoin(courseSections, eq(courseSections.id, enrollments.sectionId))
     .innerJoin(subjects, eq(subjects.id, courseSections.subjectId))
     .where(
-      and(eq(enrollments.ownerId, ownerId), eq(subjects.schoolYear, schoolYear)),
+      and(
+        eq(enrollments.ownerId, ownerId),
+        eq(subjects.schoolYear, schoolYear),
+        eq(subjects.semester, semester),
+      ),
     )
     .orderBy(asc(enrollments.sectionId), asc(studentYears.sid));
 

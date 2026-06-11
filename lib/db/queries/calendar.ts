@@ -9,7 +9,7 @@ import {
 } from "../schema/misc";
 import type { NeisScheduleEntry, NeisMealEntry } from "@/lib/integrations/neis";
 import {
-  classifyEvent,
+  classifySchedule,
   type EventKind,
 } from "@/lib/domain/calendar-keywords";
 
@@ -82,21 +82,27 @@ export async function syncSchoolCalendar(
         lte(calendarEvents.date, fmt(to)),
       ),
     );
-  const eventRows = schedule
-    .filter((e) => e.title.length > 0)
-    .map((e) => {
-      // 키워드 자동 분류(best-effort) — 교사 보정 UI 가 최종 진실원
-      const c = classifyEvent(e.title);
-      return {
-        ownerId,
-        date: e.date,
-        source: "neis" as const,
-        title: e.title,
-        eventKind: c.eventKind,
-        examSemester: c.examSemester ?? null,
-        examOrdinal: c.examOrdinal ?? null,
-      };
-    });
+  // 토요휴업일은 누락(QC v2 B). context-aware 분류(방학구간·휴업일·지필학기·미분류 경고).
+  const filtered = schedule.filter(
+    (e) => e.title.length > 0 && !/토요휴업일/.test(e.title.replace(/\s+/g, "")),
+  );
+  const classified = classifySchedule(
+    filtered.map((e) => ({
+      date: e.date,
+      title: e.title,
+      isSchoolDay: e.isSchoolDay,
+    })),
+  );
+  const eventRows = classified.map((c) => ({
+    ownerId,
+    date: c.date,
+    source: "neis" as const,
+    title: c.title,
+    eventKind: c.eventKind,
+    examSemester: c.examSemester,
+    examOrdinal: c.examOrdinal,
+    needsReview: c.needsReview,
+  }));
   if (eventRows.length > 0) {
     await db.insert(calendarEvents).values(eventRows);
   }
@@ -169,6 +175,7 @@ export interface CalendarEventAttrView {
   eventKind: EventKind;
   examSemester: number | null;
   examOrdinal: number | null;
+  needsReview: boolean;
 }
 
 /** 범위 내 이벤트 + 분류 속성(보정 UI 용). */
@@ -186,6 +193,7 @@ export async function getEventsWithAttrs(
       eventKind: calendarEvents.eventKind,
       examSemester: calendarEvents.examSemester,
       examOrdinal: calendarEvents.examOrdinal,
+      needsReview: calendarEvents.needsReview,
     })
     .from(calendarEvents)
     .where(
@@ -221,11 +229,49 @@ export async function updateEventAttributes(
       eventKind: input.eventKind,
       examSemester: isExam ? (input.examSemester ?? null) : null,
       examOrdinal: isExam ? (input.examOrdinal ?? null) : null,
+      needsReview: false, // 교사가 분류를 확정 → 경고 해제 (QC v2 B)
       updatedAt: new Date(),
     })
     .where(
       and(eq(calendarEvents.id, eventId), eq(calendarEvents.ownerId, ownerId)),
     );
+}
+
+export interface BulkEventAttrUpdate extends UpdateEventAttrsInput {
+  eventId: string;
+}
+
+/**
+ * 일괄 저장(QC v2 B, AC-B9). 보정 화면의 변경을 한 트랜잭션으로 반영하고 needs_review 를
+ * 모두 해제한다(검토 완료 처리). exam 이 아니면 학기/회차 null 강제(모순 방지).
+ */
+export async function bulkUpdateEventAttrs(
+  db: DB,
+  ownerId: string,
+  updates: BulkEventAttrUpdate[],
+): Promise<number> {
+  if (updates.length === 0) return 0;
+  await db.transaction(async (tx) => {
+    for (const u of updates) {
+      const isExam = u.eventKind === "exam";
+      await tx
+        .update(calendarEvents)
+        .set({
+          eventKind: u.eventKind,
+          examSemester: isExam ? (u.examSemester ?? null) : null,
+          examOrdinal: isExam ? (u.examOrdinal ?? null) : null,
+          needsReview: false,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(calendarEvents.id, u.eventId),
+            eq(calendarEvents.ownerId, ownerId),
+          ),
+        );
+    }
+  });
+  return updates.length;
 }
 
 export interface MealView {

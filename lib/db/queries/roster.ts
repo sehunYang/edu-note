@@ -43,6 +43,7 @@ export async function importStudentRoster(
       )
       .limit(1);
 
+    let studentYearId: string;
     if (existing.length > 0) {
       await db
         .update(studentYears)
@@ -58,30 +59,154 @@ export async function importStudentRoster(
           updatedAt: new Date(),
         })
         .where(eq(studentYears.id, existing[0].id));
+      studentYearId = existing[0].id;
       updated += 1;
     } else {
       const [person] = await db
         .insert(persons)
         .values({ ownerId, displayName: r.name })
         .returning({ id: persons.id });
-      await db.insert(studentYears).values({
-        ownerId,
-        personId: person.id,
-        schoolYear,
-        sid: r.sid,
-        grade: r.grade,
-        classNo: r.classNo,
-        number: r.number,
-        name: r.name,
-        phone: r.phone,
-        parentName: r.parentName,
-        parentPhone: r.parentPhone,
-        career: r.career,
-      });
+      const [sy] = await db
+        .insert(studentYears)
+        .values({
+          ownerId,
+          personId: person.id,
+          schoolYear,
+          sid: r.sid,
+          grade: r.grade,
+          classNo: r.classNo,
+          number: r.number,
+          name: r.name,
+          phone: r.phone,
+          parentName: r.parentName,
+          parentPhone: r.parentPhone,
+          career: r.career,
+        })
+        .returning({ id: studentYears.id });
+      studentYearId = sy.id;
       created += 1;
+    }
+
+    // 역할 셀 → class_roles 생성(AC-C5). 재임포트 중복 방지: 동일 roleName 있으면 skip(create-only).
+    if (r.roles.length > 0) {
+      const existingRoles = await db
+        .select({ roleName: classRoles.roleName })
+        .from(classRoles)
+        .where(
+          and(
+            eq(classRoles.ownerId, ownerId),
+            eq(classRoles.studentYearId, studentYearId),
+          ),
+        );
+      const have = new Set(existingRoles.map((x) => x.roleName));
+      const toAdd = r.roles.filter((name) => !have.has(name));
+      if (toAdd.length > 0) {
+        await db.insert(classRoles).values(
+          toAdd.map((roleName) => ({ ownerId, studentYearId, roleName })),
+        );
+      }
     }
   }
   return { created, updated };
+}
+
+// ── QC v2 2-1 C: 학생 하드삭제 + 인라인 속성 수정 (AC-C2~C3) ──
+
+export interface DeleteStudentResult {
+  removedStudentYear: boolean;
+  removedPerson: boolean;
+}
+
+/**
+ * 현재 연도 학적 하드삭제(AC-C3). studentYear 삭제 시 연관 행(enrollments·classRoles·
+ * sectionRoles·observations·homeroomMembers·publicPages·yearLinks 등)은 FK cascade 로
+ * 자동 정리된다(수동 yearLinks 삭제 불필요). 삭제 후 잔여 학적이 0이면 고아 person 도 제거 —
+ * 다른 연도 학적이 있으면 person 과 과거 이력은 보존한다.
+ */
+export async function deleteStudentYear(
+  db: DB,
+  ownerId: string,
+  studentYearId: string,
+): Promise<DeleteStudentResult> {
+  return db.transaction(async (tx) => {
+    const [sy] = await tx
+      .select({ personId: studentYears.personId })
+      .from(studentYears)
+      .where(
+        and(
+          eq(studentYears.id, studentYearId),
+          eq(studentYears.ownerId, ownerId),
+        ),
+      )
+      .limit(1);
+    if (!sy) return { removedStudentYear: false, removedPerson: false };
+
+    await tx
+      .delete(studentYears)
+      .where(
+        and(
+          eq(studentYears.id, studentYearId),
+          eq(studentYears.ownerId, ownerId),
+        ),
+      );
+
+    const remaining = await tx
+      .select({ n: dsql<number>`count(*)::int` })
+      .from(studentYears)
+      .where(
+        and(
+          eq(studentYears.ownerId, ownerId),
+          eq(studentYears.personId, sy.personId),
+        ),
+      );
+    const removedPerson = (remaining[0]?.n ?? 0) === 0;
+    if (removedPerson) {
+      await tx
+        .delete(persons)
+        .where(and(eq(persons.ownerId, ownerId), eq(persons.id, sy.personId)));
+    }
+    return { removedStudentYear: true, removedPerson };
+  });
+}
+
+export interface UpdateStudentAttrsInput {
+  name?: string | null;
+  phone?: string | null;
+  career?: string | null;
+}
+
+/**
+ * 인라인 속성 수정(AC-C2). 연락처·희망진로·이름만 편집 가능(학번/학년/반/번호는 키라 불변).
+ * undefined 필드는 미변경. owner 가드. 이름 변경 시 person.displayName 도 동기화한다.
+ */
+export async function updateStudentAttrs(
+  db: DB,
+  ownerId: string,
+  studentYearId: string,
+  input: UpdateStudentAttrsInput,
+): Promise<void> {
+  const set: Record<string, unknown> = { updatedAt: new Date() };
+  if (input.name !== undefined) set.name = input.name;
+  if (input.phone !== undefined) set.phone = input.phone;
+  if (input.career !== undefined) set.career = input.career;
+  await db.transaction(async (tx) => {
+    const [sy] = await tx
+      .update(studentYears)
+      .set(set)
+      .where(
+        and(
+          eq(studentYears.id, studentYearId),
+          eq(studentYears.ownerId, ownerId),
+        ),
+      )
+      .returning({ personId: studentYears.personId });
+    if (sy && input.name != null && input.name.length > 0) {
+      await tx
+        .update(persons)
+        .set({ displayName: input.name, updatedAt: new Date() })
+        .where(and(eq(persons.id, sy.personId), eq(persons.ownerId, ownerId)));
+    }
+  });
 }
 
 // ── C4: 동명이인 매칭 + 상속 (AC-4.1~4.3) ──

@@ -18,7 +18,12 @@ import {
   deleteClassRole,
   isHomeroomStudent,
   issuePublicPageForHomeroom,
+  importStudentRoster,
+  deleteStudentYear,
+  updateStudentAttrs,
 } from "./roster";
+import { listStudentRoster, listPriorSidsForStudents } from "./students";
+import { enrollments, courseSections, subjects } from "../schema/classes";
 
 /**
  * C4 학생 명단 실DB 통합 테스트 (AC-4.1~4.6). RUN_DB_ITEST=1 + DATABASE_URL 시 실행.
@@ -172,5 +177,146 @@ describe.skipIf(!RUN)("C4 학생 명단 — 매칭/상속/역할/담임/공개�
     }
     // 빈 입력 가드(SQL inArray 빈배열 회피)
     expect((await listClassRolesForStudents(db, owner, [])).size).toBe(0);
+  });
+});
+
+// ── QC v2 2-1 C: 하드삭제(과거/고아 보존)·인라인 수정·CSV 역할 import (AC-C1~C5) ──
+const RUN_C = process.env.RUN_DB_ITEST === "1" && !!process.env.DATABASE_URL;
+describe.skipIf(!RUN_C)("학생 명단 C — 삭제·수정·CSV역할·과거학번", () => {
+  let sqlC: ReturnType<typeof postgres>;
+  let dbC: PostgresJsDatabase<typeof schema>;
+  const o = randomUUID();
+
+  beforeAll(() => {
+    sqlC = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    dbC = drizzle(sqlC, { schema, casing: "snake_case" });
+  });
+  afterAll(async () => {
+    await dbC.delete(enrollments).where(eq(enrollments.ownerId, o));
+    await dbC.delete(courseSections).where(eq(courseSections.ownerId, o));
+    await dbC.delete(subjects).where(eq(subjects.ownerId, o));
+    await dbC.delete(classRoles).where(eq(classRoles.ownerId, o));
+    await dbC.delete(yearLinks).where(eq(yearLinks.ownerId, o));
+    await dbC.delete(studentYears).where(eq(studentYears.ownerId, o));
+    await dbC.delete(persons).where(eq(persons.ownerId, o));
+    await sqlC.end();
+  });
+
+  it("CSV 역할 import → class_roles 생성 + 재임포트 중복 방지(create-only) (AC-C5)", async () => {
+    const rows = [
+      {
+        sid: "10101",
+        name: "역할이",
+        grade: 1,
+        classNo: 1,
+        number: 1,
+        phone: "010-1111-2222",
+        parentName: null,
+        parentPhone: null,
+        career: "교사",
+        roles: ["반장", "환경부장"],
+      },
+    ];
+    await importStudentRoster(dbC, o, 2030, rows);
+    const [sy] = await dbC
+      .select({ id: studentYears.id })
+      .from(studentYears)
+      .where(eq(studentYears.ownerId, o));
+    let roles = await listClassRoles(dbC, o, sy.id);
+    expect(roles.map((r) => r.roleName).sort()).toEqual(["반장", "환경부장"]);
+
+    // 재임포트(같은 역할 + 새 역할) → 기존은 중복 생성 안 하고 새 역할만 추가
+    await importStudentRoster(dbC, o, 2030, [{ ...rows[0], roles: ["반장", "총무"] }]);
+    roles = await listClassRoles(dbC, o, sy.id);
+    expect(roles.map((r) => r.roleName).sort()).toEqual(["반장", "총무", "환경부장"]);
+  });
+
+  it("updateStudentAttrs: 이름/연락처/희망진로 수정 + person.displayName 동기화 (AC-C2)", async () => {
+    const [sy] = await dbC
+      .select({ id: studentYears.id, personId: studentYears.personId })
+      .from(studentYears)
+      .where(eq(studentYears.ownerId, o));
+    await updateStudentAttrs(dbC, o, sy.id, {
+      name: "새이름",
+      phone: "010-9999-0000",
+      career: "의사",
+    });
+    const roster = await listStudentRoster(dbC, o, 2030);
+    expect(roster[0]).toMatchObject({
+      name: "새이름",
+      phone: "010-9999-0000",
+      career: "의사",
+    });
+    const [p] = await dbC
+      .select({ displayName: persons.displayName })
+      .from(persons)
+      .where(eq(persons.id, sy.personId));
+    expect(p.displayName).toBe("새이름");
+  });
+
+  it("deleteStudentYear: 과거 학적·person 보존(다년) → 고아 person 삭제(단년) (AC-C3)", async () => {
+    // person1: 2029·2030 두 학적 → 2030 삭제 시 person·2029 보존
+    const [p1] = await dbC
+      .insert(persons)
+      .values({ ownerId: o, displayName: "이년생" })
+      .returning({ id: persons.id });
+    const [sy29] = await dbC
+      .insert(studentYears)
+      .values({ ownerId: o, personId: p1.id, schoolYear: 2029, sid: "10102", grade: 1, classNo: 1, number: 2, name: "이년생" })
+      .returning({ id: studentYears.id });
+    const [sy30] = await dbC
+      .insert(studentYears)
+      .values({ ownerId: o, personId: p1.id, schoolYear: 2030, sid: "20102", grade: 2, classNo: 1, number: 2, name: "이년생" })
+      .returning({ id: studentYears.id });
+
+    const r1 = await deleteStudentYear(dbC, o, sy30.id);
+    expect(r1).toEqual({ removedStudentYear: true, removedPerson: false });
+    // 과거 학적·person 보존
+    const hist = await getStudentYearHistory(dbC, o, p1.id);
+    expect(hist.map((h) => h.schoolYear)).toEqual([2029]);
+    const stillPerson = await dbC
+      .select({ id: persons.id })
+      .from(persons)
+      .where(eq(persons.id, p1.id));
+    expect(stillPerson).toHaveLength(1);
+
+    // person2: 단년 학적 → 삭제 시 고아 person 제거
+    const [p2] = await dbC
+      .insert(persons)
+      .values({ ownerId: o, displayName: "단년생" })
+      .returning({ id: persons.id });
+    const [syOnly] = await dbC
+      .insert(studentYears)
+      .values({ ownerId: o, personId: p2.id, schoolYear: 2030, sid: "20103", grade: 2, classNo: 1, number: 3, name: "단년생" })
+      .returning({ id: studentYears.id });
+    const r2 = await deleteStudentYear(dbC, o, syOnly.id);
+    expect(r2).toEqual({ removedStudentYear: true, removedPerson: true });
+    const goneP2 = await dbC
+      .select({ id: persons.id })
+      .from(persons)
+      .where(eq(persons.id, p2.id));
+    expect(goneP2).toHaveLength(0);
+
+    // 정리용으로 sy29 도 삭제(고아 p1 제거)
+    await deleteStudentYear(dbC, o, sy29.id);
+  });
+
+  it("listPriorSidsForStudents: 같은 person 직전 연도 학번 파생 (AC-C1)", async () => {
+    // person: 2029(10104) → 2030(20104) 연속 학적
+    const [p] = await dbC
+      .insert(persons)
+      .values({ ownerId: o, displayName: "연속생" })
+      .returning({ id: persons.id });
+    await dbC
+      .insert(studentYears)
+      .values({ ownerId: o, personId: p.id, schoolYear: 2029, sid: "10104", grade: 1, classNo: 1, number: 4, name: "연속생" });
+    const [cur] = await dbC
+      .insert(studentYears)
+      .values({ ownerId: o, personId: p.id, schoolYear: 2030, sid: "20104", grade: 2, classNo: 1, number: 4, name: "연속생" })
+      .returning({ id: studentYears.id });
+
+    const prior = await listPriorSidsForStudents(dbC, o, [cur.id], 2030);
+    expect(prior.get(cur.id)).toEqual([{ schoolYear: 2029, sid: "10104" }]);
+    expect((await listPriorSidsForStudents(dbC, o, [], 2030)).size).toBe(0);
   });
 });

@@ -46,6 +46,13 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
           />
         </label>
         {fileName && <span className="text-xs text-neutral-500">{fileName}</span>}
+        <button
+          type="button"
+          onClick={downloadCsvExample}
+          className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-50"
+        >
+          ⬇ CSV 예시 다운로드
+        </button>
       </div>
 
       <textarea
@@ -91,6 +98,22 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
       )}
     </form>
   );
+}
+
+/** CSV 예시 템플릿 다운로드(AC-C4). 헤더: 학번·이름·연락처·역할·희망진로. 필수=학번·이름. */
+function downloadCsvExample(): void {
+  const sample =
+    "학번,이름,연락처,역할,희망진로\n" +
+    "10101,홍길동,010-1234-5678,반장,교사\n" +
+    "10102,김영희,,환경부장,간호사\n";
+  // 한글 Excel 호환을 위해 UTF-8 BOM 부착.
+  const blob = new Blob(["﻿" + sample], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "학생명단_예시.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 /** 파일을 UTF-8 우선, 실패 시 EUC-KR(한글 Excel) 로 디코딩. */

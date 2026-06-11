@@ -35,6 +35,12 @@ import {
   listSubjectExamsForYear,
   listEnrollmentsForYear,
   listSectionRolesForEnrollments,
+  listSubjectsWithSections,
+  enrollOne,
+  unenroll,
+  listSubjectsForStudentYear,
+  listSubjectsForStudentYears,
+  getEvalSettings,
 } from "./timetable";
 
 /**
@@ -76,7 +82,7 @@ describe.skipIf(!RUN)("시간표 sync — 컴시간 라이브 → DB", () => {
     expect(subjectSet).toContain("물Ⅱ"); // 반을 섞는 선택과목(이전엔 누락)
     expect(subjectSet).toContain("생과");
 
-    const sync = await syncTeacherTimetable(db, owner, YEAR, slots);
+    const sync = await syncTeacherTimetable(db, owner, YEAR, 1, slots);
     expect(sync.subjects).toBeGreaterThanOrEqual(3); // 물리·물Ⅱ·생과
     expect(sync.slots).toBe(slots.length);
     expect(sync.sections).toBeGreaterThanOrEqual(3);
@@ -91,7 +97,7 @@ describe.skipIf(!RUN)("시간표 sync — 컴시간 라이브 → DB", () => {
     expect(savedNames).toContain("물Ⅱ");
     expect(savedNames).toContain("생과");
 
-    const view = await getTeacherTimetable(db, owner, YEAR);
+    const view = await getTeacherTimetable(db, owner, YEAR, 1);
     expect(view.length).toBe(slots.length);
     expect(view[0]).toHaveProperty("weekday");
   });
@@ -101,8 +107,8 @@ describe.skipIf(!RUN)("시간표 sync — 컴시간 라이브 → DB", () => {
     if (!res.ok) return;
     const slots = teacherSlots(res.data, "양세훈");
 
-    await syncTeacherTimetable(db, owner, YEAR, slots);
-    const view = await getTeacherTimetable(db, owner, YEAR);
+    await syncTeacherTimetable(db, owner, YEAR, 1, slots);
+    const view = await getTeacherTimetable(db, owner, YEAR, 1);
     expect(view.length).toBe(slots.length); // 두 번 sync 해도 동일 개수
   });
 });
@@ -138,7 +144,7 @@ describe.skipIf(!RUN_DB)("C5 수업 관리 — 평가/등록/시험일/역할", 
     db5 = drizzle(sql5, { schema, casing: "snake_case" });
 
     // 시간표 sync 재사용 → 물리(2-7), 지구과학(2-7) 분반 생성
-    await syncTeacherTimetable(db5, o, Y5, [
+    await syncTeacherTimetable(db5, o, Y5, 1, [
       slot("물리", 2, 7, 1),
       slot("지구과학", 2, 7, 2),
     ]);
@@ -270,7 +276,7 @@ describe.skipIf(!RUN_DB)("C5 수업 관리 — 평가/등록/시험일/역할", 
     await addSectionRole(db5, o, pEnr.enrollmentId, "조장");
 
     // ① 시험일: 연도 배치 그룹 == 과목별 단건
-    const examsBatch = await listSubjectExamsForYear(db5, o, Y5);
+    const examsBatch = await listSubjectExamsForYear(db5, o, Y5, 1);
     expect(examsBatch.get(physicsId) ?? []).toEqual(
       await listSubjectExams(db5, o, physicsId),
     );
@@ -279,7 +285,7 @@ describe.skipIf(!RUN_DB)("C5 수업 관리 — 평가/등록/시험일/역할", 
     );
 
     // ② 수강생: 연도 배치 그룹 == 분반별 단건(sid 순)
-    const enrollBatch = await listEnrollmentsForYear(db5, o, Y5);
+    const enrollBatch = await listEnrollmentsForYear(db5, o, Y5, 1);
     expect(enrollBatch.get(physicsSection) ?? []).toEqual(
       await listEnrollments(db5, o, physicsSection),
     );
@@ -298,5 +304,184 @@ describe.skipIf(!RUN_DB)("C5 수업 관리 — 평가/등록/시험일/역할", 
     }
     // 빈 입력 가드(SQL inArray 빈배열 회피)
     expect((await listSectionRolesForEnrollments(db5, o, [])).size).toBe(0);
+  });
+});
+
+// ── QC v2 2-1 단계 A: 학기 모델(과목 학기별 분리·활성학기 필터) ──
+const RUN_SEM = process.env.RUN_DB_ITEST === "1" && !!process.env.DATABASE_URL;
+describe.skipIf(!RUN_SEM)("학기 모델 — 과목 학기별 행 분리·활성학기 필터 (AC-A3~A6)", () => {
+  let sqlS: ReturnType<typeof postgres>;
+  let dbS: PostgresJsDatabase<typeof schema>;
+  const o = randomUUID();
+  const Y = 2097;
+
+  beforeAll(() => {
+    sqlS = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    dbS = drizzle(sqlS, { schema, casing: "snake_case" });
+  });
+  afterAll(async () => {
+    await dbS.delete(timetableSlots).where(eq(timetableSlots.ownerId, o));
+    await dbS.delete(courseSections).where(eq(courseSections.ownerId, o));
+    await dbS.delete(subjects).where(eq(subjects.ownerId, o));
+    await sqlS.end();
+  });
+
+  it("동명 과목을 1·2학기 각각 sync → 별도 subject 행 2개 공존", async () => {
+    await syncTeacherTimetable(dbS, o, Y, 1, [slot("물리", 2, 7, 1)]);
+    await syncTeacherTimetable(dbS, o, Y, 2, [slot("물리", 2, 8, 2)]);
+
+    const rows = await dbS
+      .select({
+        semester: subjects.semester,
+        yck: subjects.yearCourseKey,
+      })
+      .from(subjects)
+      .where(and(eq(subjects.ownerId, o), eq(subjects.name, "물리")));
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((r) => r.semester))).toEqual(new Set([1, 2]));
+    // 연간 링크 키는 학기 무관 동일(교실 2-2 대비)
+    expect(new Set(rows.map((r) => r.yck))).toEqual(new Set([`물리_${Y}`]));
+  });
+
+  it("활성학기 필터: listSubjectsWithSections·getTeacherTimetable 가 학기별 분리", async () => {
+    const s1 = await listSubjectsWithSections(dbS, o, Y, 1);
+    const s2 = await listSubjectsWithSections(dbS, o, Y, 2);
+    expect(s1).toHaveLength(1);
+    expect(s2).toHaveLength(1);
+    expect(s1[0].sections.map((x) => x.label)).toEqual(["2-7"]);
+    expect(s2[0].sections.map((x) => x.label)).toEqual(["2-8"]);
+
+    const t1 = await getTeacherTimetable(dbS, o, Y, 1);
+    const t2 = await getTeacherTimetable(dbS, o, Y, 2);
+    expect(t1.map((x) => x.label)).toEqual(["2-7"]);
+    expect(t2.map((x) => x.label)).toEqual(["2-8"]);
+  });
+
+  it("같은 학기 재sync 멱등(과목 행 증가 없음)", async () => {
+    await syncTeacherTimetable(dbS, o, Y, 1, [slot("물리", 2, 7, 1)]);
+    const rows = await dbS
+      .select({ id: subjects.id })
+      .from(subjects)
+      .where(and(eq(subjects.ownerId, o), eq(subjects.name, "물리")));
+    expect(rows).toHaveLength(2); // 여전히 2(1·2학기), 중복 생성 없음
+  });
+});
+
+// ── QC v2 2-1 D: 개별 수강 등록/삭제·수강중인수업 파생·평가 prefill (AC-D1~D4) ──
+const RUN_D = process.env.RUN_DB_ITEST === "1" && !!process.env.DATABASE_URL;
+describe.skipIf(!RUN_D)("수업 관리 D — 개별등록(cross-class)·수강파생·평가 prefill", () => {
+  let sqlD: ReturnType<typeof postgres>;
+  let dbD: PostgresJsDatabase<typeof schema>;
+  const o = randomUUID();
+  const Y = 2096;
+  let physicsId = "";
+  let physicsSection = "";
+  let earthId = "";
+  let earthSection = "";
+  let stu27 = ""; // 2-7 학생(물리 분반 소속 반)
+  let stu99 = ""; // 9-99 타반 학생(cross-class 검증)
+
+  async function mkStudent(sid: string, grade: number, classNo: number, num: number): Promise<string> {
+    const [p] = await dbD.insert(persons).values({ ownerId: o, displayName: `s${sid}` }).returning({ id: persons.id });
+    const [sy] = await dbD
+      .insert(studentYears)
+      .values({ ownerId: o, personId: p.id, schoolYear: Y, sid, grade, classNo, number: num, name: `s${sid}` })
+      .returning({ id: studentYears.id });
+    return sy.id;
+  }
+
+  beforeAll(async () => {
+    sqlD = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    dbD = drizzle(sqlD, { schema, casing: "snake_case" });
+    await syncTeacherTimetable(dbD, o, Y, 1, [
+      slot("물리", 2, 7, 1),
+      slot("지구과학", 2, 7, 2),
+    ]);
+    const subs = await dbD
+      .select({ id: subjects.id, name: subjects.name })
+      .from(subjects)
+      .where(and(eq(subjects.ownerId, o), eq(subjects.schoolYear, Y)));
+    physicsId = subs.find((s) => s.name === "물리")!.id;
+    earthId = subs.find((s) => s.name === "지구과학")!.id;
+    const secs = await dbD
+      .select({ id: courseSections.id, subjectId: courseSections.subjectId })
+      .from(courseSections)
+      .where(eq(courseSections.ownerId, o));
+    physicsSection = secs.find((s) => s.subjectId === physicsId)!.id;
+    earthSection = secs.find((s) => s.subjectId === earthId)!.id;
+    stu27 = await mkStudent("20701", 2, 7, 1);
+    stu99 = await mkStudent("99999", 9, 99, 99);
+  });
+
+  afterAll(async () => {
+    await dbD.delete(enrollments).where(eq(enrollments.ownerId, o));
+    await dbD.delete(performanceItems).where(eq(performanceItems.ownerId, o));
+    await dbD.delete(timetableSlots).where(eq(timetableSlots.ownerId, o));
+    await dbD.delete(courseSections).where(eq(courseSections.ownerId, o));
+    await dbD.delete(subjects).where(eq(subjects.ownerId, o));
+    await dbD.delete(studentYears).where(eq(studentYears.ownerId, o));
+    await dbD.delete(persons).where(eq(persons.ownerId, o));
+    await sqlD.end();
+  });
+
+  it("개별 등록(cross-class) + 멱등(중복 무시) (AC-D2)", async () => {
+    const id1 = await enrollOne(dbD, o, physicsSection, stu27);
+    expect(id1).not.toBeNull();
+    // 타반(9-99) 학생도 물리 분반에 등록 가능(cross-class)
+    const id2 = await enrollOne(dbD, o, physicsSection, stu99);
+    expect(id2).not.toBeNull();
+    // 중복 등록은 무시(null)
+    expect(await enrollOne(dbD, o, physicsSection, stu27)).toBeNull();
+    expect(await listEnrollments(dbD, o, physicsSection)).toHaveLength(2);
+  });
+
+  it("수강중인수업 파생: 등록 후 표시·삭제 후 제거 (AC-D4)", async () => {
+    // stu27 은 물리 등록됨 → 수강중인수업에 '물리' 포함
+    let subs = await listSubjectsForStudentYear(dbD, o, stu27, Y);
+    expect(subs.map((s) => s.subjectName)).toEqual(["물리"]);
+    expect(subs[0]).toMatchObject({ semester: 1, sectionLabel: "2-7" });
+
+    // 지구과학도 등록 → 2과목
+    await enrollOne(dbD, o, earthSection, stu27);
+    subs = await listSubjectsForStudentYear(dbD, o, stu27, Y);
+    expect(subs.map((s) => s.subjectName).sort()).toEqual(["물리", "지구과학"]);
+
+    // 물리 수강 삭제 → 제거
+    const [physEnr] = (await listEnrollments(dbD, o, physicsSection)).filter(
+      (e) => e.studentYearId === stu27,
+    );
+    await unenroll(dbD, o, physEnr.enrollmentId);
+    subs = await listSubjectsForStudentYear(dbD, o, stu27, Y);
+    expect(subs.map((s) => s.subjectName)).toEqual(["지구과학"]);
+  });
+
+  it("배치 수강 파생 = 단건 동치 (명단 N+1 제거)", async () => {
+    const batch = await listSubjectsForStudentYears(dbD, o, [stu27, stu99], Y);
+    expect(batch.get(stu27) ?? []).toEqual(
+      await listSubjectsForStudentYear(dbD, o, stu27, Y),
+    );
+    expect(batch.get(stu99) ?? []).toEqual(
+      await listSubjectsForStudentYear(dbD, o, stu99, Y),
+    );
+    expect((await listSubjectsForStudentYears(dbD, o, [], Y)).size).toBe(0);
+  });
+
+  it("평가설정 prefill 조회: 저장값 반영(AC-D1)", async () => {
+    // 미설정 과목 기본값
+    const def = await getEvalSettings(dbD, o, earthId);
+    expect(def.performance).toEqual([]);
+    expect(def.midEnabled).toBe(true);
+
+    // 저장 후 prefill 반영
+    await saveEvalSettings(dbD, o, physicsId, {
+      performance: [{ name: "실험보고서", weight: 60 }],
+      jipilMid: 40,
+      jipilFinal: 0,
+      midEnabled: true,
+      finalEnabled: false,
+    });
+    const ev = await getEvalSettings(dbD, o, physicsId);
+    expect(ev.performance).toEqual([{ name: "실험보고서", weight: 60 }]);
+    expect(ev).toMatchObject({ jipilMid: 40, jipilFinal: 0, midEnabled: true, finalEnabled: false });
   });
 });

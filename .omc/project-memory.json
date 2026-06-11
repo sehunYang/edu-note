@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1781013588058,
+  "lastScanned": 1781134643212,
   "projectRoot": "C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note",
   "techStack": {
     "languages": [
@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -45",
-    "testCommand": "cd \"C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run lib/db/queries/setup-state.integration.test.ts lib/db/queries/lifecycle.integration.test.ts lib/db/queries/profile.integration.test.ts lib/db/queries/roster.integration.test.ts 2>&1 | tail -8",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -25",
+    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run lib/db/queries/roster.integration.test.ts lib/db/queries/timetable.integration.test.ts lib/db/queries/calendar.integration.test.ts 2>&1 | tail -15",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -88,7 +88,7 @@
       "path": "app",
       "purpose": "Application code",
       "fileCount": 4,
-      "lastAccessed": 1781013587926,
+      "lastAccessed": 1781134643106,
       "keyFiles": [
         "globals.css",
         "layout.tsx",
@@ -100,7 +100,7 @@
       "path": "content",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1781013587955,
+      "lastAccessed": 1781134643135,
       "keyFiles": [
         "세특 작성 지침.md"
       ]
@@ -109,7 +109,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 3,
-      "lastAccessed": 1781013587959,
+      "lastAccessed": 1781134643136,
       "keyFiles": [
         "DEPLOY_MANUAL.md",
         "GOOGLE_OAUTH_SETUP.md",
@@ -120,15 +120,16 @@
       "path": "lib",
       "purpose": "Library code",
       "fileCount": 0,
-      "lastAccessed": 1781013587960,
+      "lastAccessed": 1781134643137,
       "keyFiles": []
     },
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
-      "fileCount": 2,
-      "lastAccessed": 1781013587962,
+      "fileCount": 3,
+      "lastAccessed": 1781134643137,
       "keyFiles": [
+        "apply-sql.mjs",
         "comcigan-probe.mjs",
         "scan-client-secrets.mjs"
       ]
@@ -137,14 +138,14 @@
       "path": "app\\api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1781013587963,
+      "lastAccessed": 1781134643139,
       "keyFiles": []
     },
     "lib\\public": {
       "path": "lib\\public",
       "purpose": "Public files",
       "fileCount": 4,
-      "lastAccessed": 1781013587966,
+      "lastAccessed": 1781134643141,
       "keyFiles": [
         "dto.test.ts",
         "dto.ts",
@@ -155,7 +156,7 @@
       "path": "lib\\test",
       "purpose": "Test files",
       "fileCount": 1,
-      "lastAccessed": 1781013587968,
+      "lastAccessed": 1781134643142,
       "keyFiles": [
         "server-only-stub.ts"
       ]
@@ -163,33 +164,45 @@
   },
   "hotPaths": [
     {
+      "path": "lib\\db\\queries\\index.ts",
+      "accessCount": 33,
+      "lastAccessed": 1781187903300,
+      "type": "file"
+    },
+    {
       "path": "PROGRESS.md",
       "accessCount": 28,
       "lastAccessed": 1781021152733,
       "type": "file"
     },
     {
-      "path": "lib\\db\\queries\\index.ts",
-      "accessCount": 26,
-      "lastAccessed": 1781053823034,
-      "type": "file"
-    },
-    {
       "path": "app\\page.tsx",
-      "accessCount": 23,
-      "lastAccessed": 1781048756453,
+      "accessCount": 26,
+      "lastAccessed": 1781067059162,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\misc.ts",
-      "accessCount": 19,
-      "lastAccessed": 1781053814743,
+      "accessCount": 26,
+      "lastAccessed": 1781187895561,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\queries\\roster.ts",
+      "accessCount": 21,
+      "lastAccessed": 1781187838776,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\schema\\classes.ts",
+      "accessCount": 18,
+      "lastAccessed": 1781187838204,
       "type": "file"
     },
     {
       "path": "lib\\db\\queries\\audit.ts",
-      "accessCount": 14,
-      "lastAccessed": 1781051756227,
+      "accessCount": 17,
+      "lastAccessed": 1781186902027,
       "type": "file"
     },
     {
@@ -205,21 +218,27 @@
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\classes.ts",
+      "path": "lib\\db\\index.ts",
       "accessCount": 10,
-      "lastAccessed": 1781053815016,
+      "lastAccessed": 1781069311667,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\schema\\identity.ts",
+      "accessCount": 10,
+      "lastAccessed": 1781123689010,
+      "type": "file"
+    },
+    {
+      "path": "lib\\csv\\student-roster.ts",
+      "accessCount": 9,
+      "lastAccessed": 1781187855757,
       "type": "file"
     },
     {
       "path": "lib\\public\\get-public-page.ts",
       "accessCount": 8,
       "lastAccessed": 1780915872571,
-      "type": "file"
-    },
-    {
-      "path": "lib\\db\\queries\\roster.ts",
-      "accessCount": 8,
-      "lastAccessed": 1781053806709,
       "type": "file"
     },
     {
@@ -235,27 +254,21 @@
       "type": "file"
     },
     {
-      "path": "lib\\db\\index.ts",
-      "accessCount": 7,
-      "lastAccessed": 1781048545060,
-      "type": "file"
-    },
-    {
       "path": "lib\\integrations\\comcigan.ts",
       "accessCount": 7,
       "lastAccessed": 1781051780876,
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\identity.ts",
+      "path": "lib\\integrations\\neis-client.ts",
       "accessCount": 7,
-      "lastAccessed": 1781052662711,
+      "lastAccessed": 1781103903711,
       "type": "file"
     },
     {
-      "path": "lib\\integrations\\neis-client.ts",
-      "accessCount": 6,
-      "lastAccessed": 1781051739599,
+      "path": "lib\\db\\schema\\records.ts",
+      "accessCount": 7,
+      "lastAccessed": 1781105762598,
       "type": "file"
     },
     {
@@ -283,9 +296,15 @@
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\records.ts",
+      "path": "lib\\db\\schema\\_shared.ts",
       "accessCount": 5,
-      "lastAccessed": 1781053841224,
+      "lastAccessed": 1781096492324,
+      "type": "file"
+    },
+    {
+      "path": "lib\\csv\\student-roster.test.ts",
+      "accessCount": 5,
+      "lastAccessed": 1781187896414,
       "type": "file"
     },
     {
@@ -298,12 +317,6 @@
       "path": "lib\\setech\\prompt.ts",
       "accessCount": 4,
       "lastAccessed": 1780877930555,
-      "type": "file"
-    },
-    {
-      "path": "lib\\db\\schema\\_shared.ts",
-      "accessCount": 4,
-      "lastAccessed": 1781053125559,
       "type": "file"
     },
     {
@@ -349,6 +362,12 @@
       "type": "file"
     },
     {
+      "path": "lib\\csv\\types.ts",
+      "accessCount": 3,
+      "lastAccessed": 1781104377320,
+      "type": "file"
+    },
+    {
       "path": "app\\p\\[token]\\gone.tsx",
       "accessCount": 2,
       "lastAccessed": 1780730174902,
@@ -358,18 +377,6 @@
       "path": "lib\\csv\\parse.ts",
       "accessCount": 2,
       "lastAccessed": 1780730177253,
-      "type": "file"
-    },
-    {
-      "path": "lib\\csv\\student-roster.ts",
-      "accessCount": 2,
-      "lastAccessed": 1780730177805,
-      "type": "file"
-    },
-    {
-      "path": "lib\\csv\\types.ts",
-      "accessCount": 2,
-      "lastAccessed": 1780730191497,
       "type": "file"
     },
     {
@@ -391,27 +398,21 @@
       "type": "file"
     },
     {
+      "path": "lib\\csv\\index.ts",
+      "accessCount": 2,
+      "lastAccessed": 1781186918541,
+      "type": "file"
+    },
+    {
       "path": "lib\\domain\\attendance-rules.test.ts",
       "accessCount": 1,
       "lastAccessed": 1780729331606,
       "type": "file"
     },
     {
-      "path": "lib\\csv\\index.ts",
-      "accessCount": 1,
-      "lastAccessed": 1780729442296,
-      "type": "file"
-    },
-    {
       "path": "lib\\csv\\parse.test.ts",
       "accessCount": 1,
       "lastAccessed": 1780729456137,
-      "type": "file"
-    },
-    {
-      "path": "lib\\csv\\student-roster.test.ts",
-      "accessCount": 1,
-      "lastAccessed": 1780729476920,
       "type": "file"
     },
     {

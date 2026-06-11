@@ -59,7 +59,14 @@
       "Read(//c/Users/Sehun/AppData/Local/Temp/claude/C--Users-Sehun-Desktop-Private-Files-Dev-Edu-Note/**)",
       "Bash(find . -name \"a4ace92b3725e6660*\" -o -name \"a622170a05c07b0aa*\")",
       "Bash(wc -l 6112711b-5306-4ca6-8ede-20b6f1306fb8/tasks/a4ace92b3725e6660.output)",
-      "Bash(wc -l 6112711b-5306-4ca6-8ede-20b6f1306fb8/tasks/a622170a05c07b0aa.output)"
+      "Bash(wc -l 6112711b-5306-4ca6-8ede-20b6f1306fb8/tasks/a622170a05c07b0aa.output)",
+      "PowerShell(winget install *)",
+      "Bash(git remote *)",
+      "Bash(node *)",
+      "Bash(npm view *)",
+      "Bash(RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run lib/db/queries/lifecycle.integration.test.ts)",
+      "Bash(find . -path ./node_modules -prune -o -name \"*integration.test.ts\" -print)",
+      "Bash(ls vercel.json)"
     ]
   }
 }

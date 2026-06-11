@@ -56,7 +56,13 @@ export type AuditEvent =
   | "enrollment_bulk"
   | "section_role_upsert"
   | "section_role_delete"
-  | "subject_exam_materialize";
+  | "subject_exam_materialize"
+  // QC v2 세팅실 재수정 (2-1)
+  | "calendar_bulk_save"
+  | "enrollment_add"
+  | "enrollment_remove"
+  | "student_delete"
+  | "student_update";
 
 export async function writeAudit(
   db: DB,

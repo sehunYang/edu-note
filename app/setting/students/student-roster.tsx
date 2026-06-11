@@ -1,14 +1,18 @@
 "use client";
-import { useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import {
   linkStudentsAction,
   resolveInheritanceAction,
   addClassRoleAction,
   deleteClassRoleAction,
   issuePublicLinkAction,
+  deleteStudentAction,
+  updateStudentAttrsAction,
   type LinkStudentsState,
   type ResolveInheritanceState,
   type IssueLinkState,
+  type DeleteStudentState,
+  type UpdateStudentState,
 } from "../actions";
 import type { PendingLink, ClassRoleRow } from "@/lib/db/queries";
 
@@ -19,13 +23,17 @@ interface StudentRow {
   grade: number;
   classNo: number;
   number: number;
+  phone: string | null;
+  career: string | null;
   isHomeroom: boolean;
   roles: ClassRoleRow[];
+  subjects: string[]; // 수강중인수업(학기 구분 과목명)
+  priorSids: string[]; // 과거 학번("연도 학번")
 }
 
 /**
- * C4 학생 명단 UI (AC-4.1~4.6). 동명이인 매칭 실행 + 보류 큐 해소, 학급역할 CRUD,
- * 담임반 이모지(파생 true 만), 공개링크 발급(담임반만 — 서버가 재검증).
+ * QC v2 학생 명단 모체 데이터 UI (AC-C1~C7). 전 속성 표시·인라인 수정(이름/연락처/희망진로)·
+ * 하드삭제·공개링크 복사·필터(학년/반/번호+이름). 동명이인 매칭·학급역할 CRUD 는 C4 유지.
  */
 export function StudentRoster({
   students,
@@ -38,6 +46,28 @@ export function StudentRoster({
     linkStudentsAction,
     null,
   );
+
+  const [fGrade, setFGrade] = useState("");
+  const [fClass, setFClass] = useState("");
+  const [fNumber, setFNumber] = useState("");
+  const [fName, setFName] = useState("");
+
+  const grades = useMemo(
+    () => [...new Set(students.map((s) => s.grade))].sort((a, b) => a - b),
+    [students],
+  );
+  const classes = useMemo(
+    () => [...new Set(students.map((s) => s.classNo))].sort((a, b) => a - b),
+    [students],
+  );
+
+  const filtered = students.filter((s) => {
+    if (fGrade && String(s.grade) !== fGrade) return false;
+    if (fClass && String(s.classNo) !== fClass) return false;
+    if (fNumber && String(s.number) !== fNumber) return false;
+    if (fName && !s.name.includes(fName.trim())) return false;
+    return true;
+  });
 
   return (
     <div className="mt-5 space-y-6">
@@ -89,18 +119,64 @@ export function StudentRoster({
       )}
 
       <section>
-        <h3 className="text-sm font-semibold text-neutral-700">
-          학생 ({students.length})
-        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-neutral-700">
+            학생 ({filtered.length}/{students.length})
+          </h3>
+          {/* 필터(client-side, AC-C6) */}
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <select
+              value={fGrade}
+              onChange={(e) => setFGrade(e.target.value)}
+              className="rounded border border-neutral-300 px-1.5 py-0.5"
+            >
+              <option value="">학년</option>
+              {grades.map((g) => (
+                <option key={g} value={g}>
+                  {g}학년
+                </option>
+              ))}
+            </select>
+            <select
+              value={fClass}
+              onChange={(e) => setFClass(e.target.value)}
+              className="rounded border border-neutral-300 px-1.5 py-0.5"
+            >
+              <option value="">반</option>
+              {classes.map((c) => (
+                <option key={c} value={c}>
+                  {c}반
+                </option>
+              ))}
+            </select>
+            <input
+              value={fNumber}
+              onChange={(e) => setFNumber(e.target.value)}
+              placeholder="번호"
+              className="w-14 rounded border border-neutral-300 px-1.5 py-0.5"
+            />
+            <input
+              value={fName}
+              onChange={(e) => setFName(e.target.value)}
+              placeholder="이름 검색"
+              className="w-28 rounded border border-neutral-300 px-1.5 py-0.5"
+            />
+          </div>
+        </div>
         {students.length === 0 ? (
           <p className="mt-2 text-sm text-neutral-400">
             등록된 학생이 없습니다.
           </p>
         ) : (
           <div className="mt-3 space-y-2">
-            {students.map((s) => (
+            {filtered.map((s) => (
               <StudentCard key={s.id} student={s} />
             ))}
+            {filtered.length === 0 && (
+              <p className="text-sm text-neutral-400">
+                필터에 해당하는 학생이 없습니다.
+              </p>
+            )}
           </div>
         )}
       </section>
@@ -152,9 +228,27 @@ function StudentCard({ student }: { student: StudentRow }) {
     issuePublicLinkAction,
     null,
   );
+  const [delState, del, deleting] = useActionState<DeleteStudentState, FormData>(
+    deleteStudentAction,
+    null,
+  );
+  const [editing, setEditing] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function copyLink(token: string) {
+    const url = `${window.location.origin}/p/${token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  }
+
   return (
     <div className="rounded border border-neutral-200 px-4 py-3 text-sm">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-2">
         <span>
           {student.isHomeroom && <span className="mr-1">🏠</span>}
           <strong>{student.name}</strong>{" "}
@@ -162,24 +256,92 @@ function StudentCard({ student }: { student: StudentRow }) {
             {student.sid} ({student.grade}-{student.classNo}-{student.number})
           </span>
         </span>
-        {student.isHomeroom && (
-          <form action={issue}>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setEditing((v) => !v)}
+            className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50"
+          >
+            {editing ? "닫기" : "수정"}
+          </button>
+          {student.isHomeroom && (
+            <form action={issue}>
+              <input type="hidden" name="studentYearId" value={student.id} />
+              <button
+                type="submit"
+                disabled={issuing}
+                className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50 disabled:opacity-40"
+              >
+                {issuing ? "발급…" : "공개링크 발급"}
+              </button>
+            </form>
+          )}
+          {/* 하드삭제(AC-C3) — 우측 상단 빨간 X */}
+          <form
+            action={del}
+            onSubmit={(e) => {
+              if (!confirm(`${student.name} 학적을 삭제합니다. 계속할까요?`)) {
+                e.preventDefault();
+              }
+            }}
+          >
             <input type="hidden" name="studentYearId" value={student.id} />
             <button
               type="submit"
-              disabled={issuing}
-              className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50 disabled:opacity-40"
+              disabled={deleting}
+              title="학적 삭제"
+              className="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-40"
             >
-              {issuing ? "발급…" : "공개링크 발급"}
+              ✕
             </button>
           </form>
-        )}
+        </div>
       </div>
 
+      {delState && !delState.ok && (
+        <p className="mt-1 text-xs text-red-700">{delState.message}</p>
+      )}
+
+      {/* 속성 표시(AC-C1) */}
+      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-neutral-600 sm:grid-cols-3">
+        <div>
+          <dt className="inline text-neutral-400">연락처 </dt>
+          <dd className="inline">{student.phone ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="inline text-neutral-400">희망진로 </dt>
+          <dd className="inline">{student.career ?? "—"}</dd>
+        </div>
+        <div>
+          <dt className="inline text-neutral-400">과거학번 </dt>
+          <dd className="inline">
+            {student.priorSids.length > 0 ? student.priorSids.join(", ") : "—"}
+          </dd>
+        </div>
+        <div className="col-span-2 sm:col-span-3">
+          <dt className="inline text-neutral-400">수강중인수업 </dt>
+          <dd className="inline">
+            {student.subjects.length > 0 ? student.subjects.join(", ") : "—"}
+          </dd>
+        </div>
+      </dl>
+
+      {/* 인라인 수정(AC-C2) — 이름/연락처/희망진로 */}
+      {editing && (
+        <InlineEdit student={student} onDone={() => setEditing(false)} />
+      )}
+
       {linkState && linkState.ok && linkState.studentYearId === student.id && (
-        <p className="mt-2 break-all rounded bg-neutral-50 p-2 text-xs text-neutral-600">
-          /p/{linkState.token}
-        </p>
+        <div className="mt-2 flex items-center gap-2">
+          <p className="break-all rounded bg-neutral-50 p-2 text-xs text-neutral-600">
+            /p/{linkState.token}
+          </p>
+          <button
+            onClick={() => copyLink(linkState.token)}
+            className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50"
+          >
+            {copied ? "복사됨" : "복사"}
+          </button>
+        </div>
       )}
       {linkState && !linkState.ok && (
         <p className="mt-2 text-xs text-red-700">{linkState.message}</p>
@@ -212,5 +374,61 @@ function StudentCard({ student }: { student: StudentRow }) {
         </form>
       </div>
     </div>
+  );
+}
+
+function InlineEdit({
+  student,
+  onDone,
+}: {
+  student: StudentRow;
+  onDone: () => void;
+}) {
+  const [state, action, busy] = useActionState<UpdateStudentState, FormData>(
+    updateStudentAttrsAction,
+    null,
+  );
+  return (
+    <form
+      action={(fd) => {
+        action(fd);
+        onDone();
+      }}
+      className="mt-2 flex flex-wrap items-center gap-2 rounded border border-neutral-100 bg-neutral-50 p-2 text-xs"
+    >
+      <input type="hidden" name="studentYearId" value={student.id} />
+      <label className="flex items-center gap-1">
+        이름
+        <input
+          name="name"
+          defaultValue={student.name}
+          className="w-24 rounded border border-neutral-300 px-1.5 py-0.5"
+        />
+      </label>
+      <label className="flex items-center gap-1">
+        연락처
+        <input
+          name="phone"
+          defaultValue={student.phone ?? ""}
+          className="w-36 rounded border border-neutral-300 px-1.5 py-0.5"
+        />
+      </label>
+      <label className="flex items-center gap-1">
+        희망진로
+        <input
+          name="career"
+          defaultValue={student.career ?? ""}
+          className="w-28 rounded border border-neutral-300 px-1.5 py-0.5"
+        />
+      </label>
+      <button
+        type="submit"
+        disabled={busy}
+        className="rounded border border-green-600 bg-green-600 px-2 py-0.5 text-white hover:bg-green-700 disabled:opacity-40"
+      >
+        {busy ? "저장…" : "저장"}
+      </button>
+      {state && !state.ok && <span className="text-red-700">{state.message}</span>}
+    </form>
   );
 }

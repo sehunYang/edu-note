@@ -12,6 +12,24 @@ export function activeSchoolYear(today: Date): number {
   return monthIdx >= 2 ? year : year - 1;
 }
 
+/**
+ * 오늘 날짜의 활성 학기(1 | 2). 학년도가 3월~익년 2월이므로 **학년도-aware** 경계다:
+ * 1학기 = 3/1 ~ 8/14, 2학기 = 8/15 ~ 익년 2월말. 따라서 1·2월은 직전 시작 학년도의
+ * 2학기다(단일 달력 8/15 경계로 보면 1·2월이 1학기로 오분류됨 — 그 함정을 피한다).
+ * UTC 기준 결정론.
+ */
+export function activeSemester(today: Date): 1 | 2 {
+  const monthIdx = today.getUTCMonth(); // 0=1월 .. 11=12월
+  const day = today.getUTCDate();
+  // 1·2월(monthIdx 0~1) = 직전 학년도 2학기
+  if (monthIdx <= 1) return 2;
+  // 3월~8/14 = 1학기
+  if (monthIdx < 7) return 1; // 3~7월
+  if (monthIdx === 7 && day < 15) return 1; // 8/1~8/14
+  // 8/15 이후 ~ 12월 = 2학기
+  return 2;
+}
+
 export interface SchoolYearRange {
   /** 시작일 YYYY-MM-DD (해당 학년도 3/1). */
   start: string;

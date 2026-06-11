@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   activeSchoolYear,
+  activeSemester,
   schoolYearRange,
   schoolYearRangeYmd,
 } from "./school-year";
@@ -20,6 +21,21 @@ describe("activeSchoolYear", () => {
     expect(activeSchoolYear(new Date("2026-06-10T00:00:00Z"))).toBe(2026);
     expect(activeSchoolYear(new Date("2026-12-31T00:00:00Z"))).toBe(2026);
     expect(activeSchoolYear(new Date("2027-01-15T00:00:00Z"))).toBe(2026);
+  });
+});
+
+describe("activeSemester", () => {
+  it("학년도-aware 8/15 경계: 3~8/14=1학기, 8/15~12=2학기", () => {
+    expect(activeSemester(new Date("2026-03-01T00:00:00Z"))).toBe(1);
+    expect(activeSemester(new Date("2026-07-15T00:00:00Z"))).toBe(1);
+    expect(activeSemester(new Date("2026-08-14T23:59:59Z"))).toBe(1);
+    expect(activeSemester(new Date("2026-08-15T00:00:00Z"))).toBe(2);
+    expect(activeSemester(new Date("2026-12-31T00:00:00Z"))).toBe(2);
+  });
+
+  it("1·2월은 직전 시작 학년도의 2학기(단일 달력 경계 오분류 방지)", () => {
+    expect(activeSemester(new Date("2027-01-01T00:00:00Z"))).toBe(2);
+    expect(activeSemester(new Date("2027-02-28T23:59:59Z"))).toBe(2);
   });
 });
 

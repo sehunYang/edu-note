@@ -109,11 +109,16 @@ export const ccaArea = pgEnum("cca_area", [
   "volunteer", // 봉사
 ]);
 
-// calendar_events.event_kind: 키워드 자동 분류(QC v1 C3) — 시험/방학식/개학식/동아리
+// calendar_events.event_kind: 키워드 자동 분류 (QC v2 2-1 B 확장) — 활성 7종.
+// DB enum 타입에는 구 값(vacation_start/vacation_end/none)이 미사용으로 잔존하나(타입
+// 재생성=파괴적이라 회피), 0014 remap 으로 해당 값 행이 0건이라 여기엔 나열하지 않는다
+// (Drizzle 은 read 시 pgEnum 배열을 DB 타입과 대조·검증하지 않음 → 도메인 EventKind 와 일치).
 export const eventKind = pgEnum("event_kind", [
   "exam", // 지필평가/고사 (examSemester·examOrdinal 동반)
-  "vacation_start", // 방학식
-  "vacation_end", // 개학식
+  "mock_exam", // 수능·모의고사·학력평가
+  "vacation", // 방학(방학식~개학식 구간 + 제목 '방학')
+  "holiday", // 휴업일(NEIS 비수업일 ∧ 방학 아님)
   "club", // 동아리 활동
-  "none", // 미분류(기본)
+  "self_activity", // 자율활동(미분류 기본값 포함)
+  "career_activity", // 진로활동
 ]);

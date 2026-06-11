@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
+import { activeSemester } from "@/lib/domain/school-year";
 import {
   getTeacherTimetable,
   getUpcomingEvents,
@@ -41,11 +42,12 @@ export default async function TodayPage() {
   const ownerId = await getOwnerId();
   const db = getDb();
   const year = new Date().getFullYear();
+  const semester = activeSemester(new Date());
   const { date, weekday } = kstToday();
 
   const [allSlots, events, meals, sections, nudges, pendingTiers, students] =
     await Promise.all([
-      getTeacherTimetable(db, ownerId, year),
+      getTeacherTimetable(db, ownerId, year, semester),
       getUpcomingEvents(db, ownerId, date, 5),
       getMealsInRange(db, ownerId, date, date),
       listSectionsWithProgress(db, ownerId, year),

@@ -9,7 +9,7 @@ import {
   upsertTeacherComciganConfig,
   writeAudit,
 } from "@/lib/db/queries";
-import { activeSchoolYear } from "@/lib/domain/school-year";
+import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 
 /**
  * 컴시간 시간표 동기화 서버액션 (C5 세팅실로 이관, 읽기전용 외부·비차단).
@@ -28,7 +28,9 @@ export async function syncTimetableAction(
     const ownerId = await getOwnerId();
     const school = String(formData.get("school") ?? "").trim();
     const teacher = String(formData.get("teacher") ?? "").trim();
-    const year = activeSchoolYear(new Date());
+    const now = new Date();
+    const year = activeSchoolYear(now);
+    const semester = activeSemester(now);
     if (!school || !teacher) {
       return { ok: false, message: "학교명과 교사명을 입력하세요." };
     }
@@ -44,7 +46,7 @@ export async function syncTimetableAction(
     }
 
     const db = getDb();
-    const sync = await syncTeacherTimetable(db, ownerId, year, slots);
+    const sync = await syncTeacherTimetable(db, ownerId, year, semester, slots);
     await upsertTeacherComciganConfig(db, ownerId, school, teacher, new Date());
     await writeAudit(db, ownerId, "sync_comcigan", null, {
       school,

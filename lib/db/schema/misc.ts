@@ -99,9 +99,11 @@ export const calendarEvents = pgTable("calendar_events", {
   ccaArea: ccaArea("cca_area"),
   title: text("title").notNull(),
   // 키워드 자동 분류 + 시험 학기/회차 (QC v1 C3, AC-3.1~3.4)
-  eventKind: eventKind("event_kind").notNull().default("none"),
+  eventKind: eventKind("event_kind").notNull().default("self_activity"),
   examSemester: integer("exam_semester"),
   examOrdinal: integer("exam_ordinal"),
+  // 미분류 자동분류(self_activity fallback) 경고 플래그 (QC v2 2-1 B).
+  needsReview: boolean("needs_review").notNull().default(false),
   ...timestamps(),
 });
 

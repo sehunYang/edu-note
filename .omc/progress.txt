@@ -34,7 +34,66 @@
 ## 다음 세션 재개 지점
 - C2부터: teacherProfile 마이그레이션(isHomeroom/homeroomGrade/homeroomClassNo/schoolName) → profile.ts 쿼리 → neis/comcigan 동시 학교해석 → profile.integration.test.ts → app/setting/profile 폼.
 - 마이그레이션 적용 명령: node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs generate 후 ... migrate.
-- [ ] C2
-- [ ] C3
-- [ ] C4
-- [ ] C5
+
+═══════════════════════════════════════════════════════════
+# QC v1 LATENCY-FIX — ralph 진행 (2026-06-10~)
+═══════════════════════════════════════════════════════════
+계획: .omc/plans/qc-v1-latency-fix-plan.md (Architect+Critic 통과).
+실행 순서(사용자): P1+P4 적용·배포 → warm p50 측정/효과확인 → P3 적용·배포(통합테스트 그린) → P2 사용자 가이드.
+
+## 환경 사실
+- 배포 = git push origin main → Vercel Hobby 자동 프로덕션 배포. remote=github.com/sehunYang/edu-note
+- 로컬 DATABASE_URL 포트=5432(세션 풀러). itest는 실 Supabase(서울), owner=randomUUID 격리.
+- P3는 **마이그레이션 불필요**(신규 쿼리 함수 + 테스트 확장만). 위 마이그레이션 저널 경고는 P3에 무관.
+
+## 진행 로그
+- prd.json(latency) 작성. vercel.json {"regions":["icn1"]} 생성(P1). P4 편집 착수.
+- [x] P1P4 완료·배포: actions.ts 15곳 + import/timetable-actions 2곳 scoped revalidate, layout 유지 3곳(completeStage/reopenStage/deleteYear). typecheck 0err, build exit0, roster+timetable itest 14 green. commit 2df1fa7 → push origin main (Vercel 프로덕션 배포 트리거).
+- [진행] MEASURE: 프로덕션 인증 warm p50 측정은 사용자 권한 영역 → 레시피 제공 + P3 진행 결정(계획 Option A 전체적용·N+1 독립정당). P3 착수.
+- [x] P3 완료·배포: timetable.ts 배치3(listSubjectExamsForYear/listEnrollmentsForYear/listSectionRolesForEnrollments)+roster.ts listClassRolesForStudents(inArray 빈배열 가드). courses/students 페이지 루프 제거→배치+메모리조립. itest 동치 단언 추가(AC-P3) → roster+timetable 16 green, typecheck 0err, build exit0, 비-itest 153 green. commit 4481824 → push origin main.
+- [x] MEASURE+P2GUIDE: .omc/plans/qc-v1-latency-followup-guide.md 작성(warm p50 측정 레시피+x-vercel-id/Functions 리전확인+P2 :6543 단계별/안전성/스모크/롤백/로컬 권고).
+- 전 스토리 passes:true.
+- [x] architect 검증(opus) → APPROVED (8 AC 전부 확인, P3 ORDER BY 동치성 정밀 검토). 비차단 권고 2건(id 타이브레이커 옵션, 파일위치 메모) — 채택 보류(deslop 범위 외 하드닝).
+- [x] deslop(ai-slop-cleaner 표준) → 변경 surface 클린, 편집 0건. 단건 함수 4개는 dead 아님(AC-P3 동치 테스트 레퍼런스 + index.ts 공개 API). 인라인 그룹핑은 기존 컨벤션 일치.
+- [x] 7.6 회귀: deslop 편집 0 → 직전 green 상태 유지(typecheck 0err, build exit0, itest 16, unit 153).
+- 완료: P1·P4·P3 배포(2df1fa7, 4481824) + 측정/P2 가이드(.omc/plans/qc-v1-latency-followup-guide.md). cancel 실행 예정.
+
+═══════════════════════════════════════════════════════════
+# QC v2 계획 2-1 — 세팅실 재수정 (ralph, 2026-06-11~)
+═══════════════════════════════════════════════════════════
+계획: .omc/plans/qc-v2-2-1-setting-redo-plan.md (consensus+2차검토, 14개 개선 병합). 스펙: .omc/specs/deep-interview-qc-v2-setting-redo.md.
+순서: 단계0(마이그)→A(학기)→B(학사일정)→D(수업)→C(학생)→E(배포). 교실 2-2 deferred.
+
+## 핵심 결정/학습
+- **subjectExams.semester 유지(사용자 결정)**: 단일 공유 prod DB라 컬럼 drop+unique변경이 현 prod materialize를 깸 → 유지(subjects.semester로 채움, 기능 동치). 전 마이그레이션 additive·무중단.
+- apply-sql.mjs:14 = 파일 전체 sql.unsafe() 단일 simple-query(암묵 tx) 확인 → enum ADD VALUE(0013)와 remap(0014) 파일 분리.
+- 마이그 0012(subjects.semester default1+year_course_key) / 0013(event_kind ADD VALUE 5종) / 0014(remap vacation_start/end→vacation, none→self_activity + default) / 0015(needs_review) — 전부 적용·검증(200행 유실0).
+- activeSemester: 학년도-aware(1·2월=직전 2학기), 단일 8/15 경계 아님.
+- getOrCreateSubject/syncTeacherTimetable/getTeacherTimetable/listSubjectsWithSections/listSubjectExamsForYear/listEnrollmentsForYear 전부 semester 인자 추가. materializeSubjectExams는 e.semester===sub.semester 필터.
+- 시그니처 변경 영향: today/page.tsx도 getTeacherTimetable semester 인자 필요(수정함).
+
+## 단계 상태
+- [x] A-domain: activeSemester + 단위테스트 8 green, tc0.
+- [x] MIG0: 0012~0015 적용·검증, schema(classes/misc) additive 동기화, tc0.
+- [x] A-impl: 쿼리 semester화 + courses page 학기 토글(searchParams) + timetable itest 11 green(신규 학기모델 블록 AC-A3~A6 포함), tc0, build0.
+- [x] B-impl 완료: calendar.integration.test.ts context-aware B 블록(방학구간·휴업일자동·수능·미분류needsReview·일괄저장·수동재분류 라운드트립·재sync멱등) 7 green. (학습: 방학식~개학식 구간 내 비수업일=vacation 우선, 휴업일 테스트는 방학 밖 비수업일로 분리해야 함.)
+- [x] D-impl 완료: timetable.ts enrollOne/unenroll/listSubjectsForStudentYear(+배치)/getEvalSettings(+배치) + actions enrollStudentAction/unenrollAction + courses page eval prefill·개별등록(cross-class 학번/이름 검색)·수강삭제 + itest 15 green(D 4건: 개별등록 cross-class·수강파생·평가prefill).
+- [x] C-impl 완료: csv role 별칭+roles[] + importStudentRoster role→class_roles(create-only 중복방지) + roster.ts deleteStudentYear(tx+FK cascade+고아person)/updateStudentAttrs + students.ts listStudentRoster/listPriorSidsForStudents + actions deleteStudentAction/updateStudentAttrsAction + student-roster UI(전속성·필터·인라인수정·빨간X삭제·링크복사) + import-form CSV예시다운로드 + itest 12 green(C 4건: CSV역할재임포트·updateAttrs·삭제보존/고아·과거학번).
+- [x] E-deploy: 전체 typecheck 0err·build exit0·unit 158·itest 34(roster12/timetable15/calendar7) green. architect 검증 APPROVED. deslop 0편집(단건/배치 쌍은 P3 동치테스트 레퍼런스 컨벤션). → git push origin main 배포.
+- (구) B-impl 진행중 기록:
+    - calendar-keywords.ts 전면 재작성: EventKind 7종, classifyOne(mock_exam>isExam 우선), classifySchedule(date정렬→방학구간/휴업일(비수업일∧방학아님)/지필학기 8/15·제목우선/미분류 self_activity+needsReview). classifyEvent 하위호환 유지.
+    - enums.ts eventKind 7종(구3종은 DB만 잔존, TS 미나열 — Drizzle read 미검증). misc.ts default self_activity + needsReview 컬럼.
+    - EventKind ripple: actions.ts EVENT_KINDS 7종(런타임), calendar-attrs.tsx KIND_LABEL 7종.
+    - calendar.ts: syncSchoolCalendar classifySchedule+토요휴업일 필터+needsReview, getEventsWithAttrs+needsReview, updateEventAttributes needsReview해제, bulkUpdateEventAttrs(tx) 신규.
+    - actions.ts bulkSaveCalendarAction(JSON updates, audit calendar_bulk_save). audit.ts에 calendar_bulk_save/enrollment_add/remove/student_delete/update 추가.
+    - calendar-attrs.tsx 재작성: 7종 드롭다운+미검토 ⚠배지+일괄저장 버튼(client draft 누적→JSON).
+    - 검증: calendar-keywords 단위 12 green, 전체 단위 157 green, typecheck 0. build 확인중.
+    - **B 잔여(다음 세션)**: calendar.integration.test.ts 확장(방학구간·휴업일자동·수능·미분류needsReview·일괄저장·수동재분류 라운드트립) + RUN_DB_ITEST 그린 검증. 그 후 B-impl 완료 마킹.
+- [ ] D-impl / C-impl / E-deploy.
+
+## 다음 세션 재개 지점 (QC v2)
+1. B 마무리: calendar.integration.test.ts에 합성 schedule로 syncSchoolCalendar→getEventsWithAttrs 검증 블록 추가(RUN_DB). 그 후 RUN_DB_ITEST=1 ...run calendar.integration.test.ts 그린 확인 → prd B-impl passes:true.
+2. D-impl: timetable.ts enrollOne/unenroll/listSubjectsForStudentYear/getEvalSettings + actions enrollStudentAction/unenrollAction + courses-manager UI(평가 prefill·개별등록·삭제) + itest.
+3. C-impl: csv role 별칭+import→class_roles(중복방지), roster.ts deleteStudentYear/updateStudentAttrs + actions + student-roster UI(속성/삭제/CSV예시/필터/링크복사) + page 수강중인수업 배치 + itest.
+4. E: 전체 typecheck/build/단위/itest 그린 → git push origin main 배포.
+- 검증 명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>. 단위: node ./node_modules/vitest/vitest.mjs run <file>.

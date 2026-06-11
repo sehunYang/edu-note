@@ -10,13 +10,18 @@ import {
   getTeacherNeisConfig,
   syncSchoolCalendar,
   updateEventAttributes,
+  bulkUpdateEventAttrs,
   linkYearStudents,
   resolveInheritance,
   addClassRole,
   deleteClassRole,
+  deleteStudentYear,
+  updateStudentAttrs,
   issuePublicPageForHomeroom,
   saveEvalSettings,
   bulkEnroll,
+  enrollOne,
+  unenroll,
   materializeSubjectExams,
   addSectionRole,
   deleteSectionRole,
@@ -220,10 +225,12 @@ export type UpdateAttrsState =
 
 const EVENT_KINDS: readonly EventKind[] = [
   "exam",
-  "vacation_start",
-  "vacation_end",
+  "mock_exam",
+  "vacation",
+  "holiday",
   "club",
-  "none",
+  "self_activity",
+  "career_activity",
 ];
 
 /** 자동 분류 보정(AC-3.3). exam 아니면 학기/회차는 쿼리 계층에서 null 강제. */
@@ -250,6 +257,46 @@ export async function updateEventAttrsAction(
     return { ok: true, eventId };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "보정 실패" };
+  }
+}
+
+export type BulkSaveCalendarState =
+  | { ok: true; count: number }
+  | { ok: false; message: string }
+  | null;
+
+/** 학사일정 보정 일괄 저장(AC-B9). updates JSON 다건을 트랜잭션 반영 + needsReview 해제. */
+export async function bulkSaveCalendarAction(
+  _prev: BulkSaveCalendarState,
+  formData: FormData,
+): Promise<BulkSaveCalendarState> {
+  try {
+    const ownerId = await getOwnerId();
+    const raw = String(formData.get("updates") ?? "[]");
+    const parsed = JSON.parse(raw) as {
+      eventId?: string;
+      eventKind?: string;
+      examSemester?: number | null;
+      examOrdinal?: number | null;
+    }[];
+    const updates = parsed
+      .filter(
+        (u) =>
+          !!u.eventId && EVENT_KINDS.includes(u.eventKind as EventKind),
+      )
+      .map((u) => ({
+        eventId: u.eventId as string,
+        eventKind: u.eventKind as EventKind,
+        examSemester: u.examSemester ?? null,
+        examOrdinal: u.examOrdinal ?? null,
+      }));
+    const db = getDb();
+    const count = await bulkUpdateEventAttrs(db, ownerId, updates);
+    await writeAudit(db, ownerId, "calendar_bulk_save", null, { count });
+    revalidatePath("/setting/calendar");
+    return { ok: true, count };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "일괄 저장 실패" };
   }
 }
 
@@ -350,6 +397,62 @@ export async function issuePublicLinkAction(
     return { ok: true, studentYearId, token: issued.token };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "발급 실패" };
+  }
+}
+
+// ── QC v2 2-1 C: 학생 하드삭제 + 인라인 속성 수정 (AC-C2~C3) ──
+
+export type DeleteStudentState =
+  | { ok: true; removedPerson: boolean }
+  | { ok: false; message: string }
+  | null;
+
+/** 현재 연도 학적 하드삭제(AC-C3). 연관 행 cascade + 잔여 학적 0이면 고아 person 제거. */
+export async function deleteStudentAction(
+  _prev: DeleteStudentState,
+  formData: FormData,
+): Promise<DeleteStudentState> {
+  try {
+    const ownerId = await getOwnerId();
+    const studentYearId = String(formData.get("studentYearId"));
+    if (!studentYearId) return { ok: false, message: "학생이 지정되지 않았습니다." };
+    const db = getDb();
+    const res = await deleteStudentYear(db, ownerId, studentYearId);
+    await writeAudit(db, ownerId, "student_delete", studentYearId, {
+      removedPerson: res.removedPerson,
+    });
+    revalidatePath("/setting/students");
+    return { ok: true, removedPerson: res.removedPerson };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "삭제 실패" };
+  }
+}
+
+export type UpdateStudentState =
+  | { ok: true; studentYearId: string }
+  | { ok: false; message: string }
+  | null;
+
+/** 인라인 속성 수정(AC-C2). 연락처·희망진로·이름만 편집(키 필드 불변). */
+export async function updateStudentAttrsAction(
+  _prev: UpdateStudentState,
+  formData: FormData,
+): Promise<UpdateStudentState> {
+  try {
+    const ownerId = await getOwnerId();
+    const studentYearId = String(formData.get("studentYearId"));
+    if (!studentYearId) return { ok: false, message: "학생이 지정되지 않았습니다." };
+    const db = getDb();
+    await updateStudentAttrs(db, ownerId, studentYearId, {
+      name: textOrNull(formData.get("name")),
+      phone: textOrNull(formData.get("phone")),
+      career: textOrNull(formData.get("career")),
+    });
+    await writeAudit(db, ownerId, "student_update", studentYearId);
+    revalidatePath("/setting/students");
+    return { ok: true, studentYearId };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "수정 실패" };
   }
 }
 
@@ -469,5 +572,45 @@ export async function deleteSectionRoleAction(formData: FormData): Promise<void>
   const db = getDb();
   await deleteSectionRole(db, ownerId, roleId);
   await writeAudit(db, ownerId, "section_role_delete", roleId);
+  revalidatePath("/setting/courses");
+}
+
+// ── QC v2 2-1 D: 개별 수강 등록/삭제 (AC-D2~D3) ──
+
+export type EnrollOneState =
+  | { ok: true; sectionId: string }
+  | { ok: false; message: string }
+  | null;
+
+/** 개별 수강 등록(AC-D2). 학번/이름 검색으로 고른 학생 1명을 분반에 추가(cross-class 허용). */
+export async function enrollStudentAction(
+  _prev: EnrollOneState,
+  formData: FormData,
+): Promise<EnrollOneState> {
+  try {
+    const ownerId = await getOwnerId();
+    const sectionId = String(formData.get("sectionId"));
+    const studentYearId = String(formData.get("studentYearId"));
+    if (!sectionId || !studentYearId) {
+      return { ok: false, message: "분반/학생이 지정되지 않았습니다." };
+    }
+    const db = getDb();
+    await enrollOne(db, ownerId, sectionId, studentYearId);
+    await writeAudit(db, ownerId, "enrollment_add", sectionId, { studentYearId });
+    revalidatePath("/setting/courses");
+    return { ok: true, sectionId };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "등록 실패" };
+  }
+}
+
+/** 수강 개별 삭제(AC-D3). */
+export async function unenrollAction(formData: FormData): Promise<void> {
+  const ownerId = await getOwnerId();
+  const enrollmentId = String(formData.get("enrollmentId"));
+  if (!enrollmentId) return;
+  const db = getDb();
+  await unenroll(db, ownerId, enrollmentId);
+  await writeAudit(db, ownerId, "enrollment_remove", enrollmentId);
   revalidatePath("/setting/courses");
 }
