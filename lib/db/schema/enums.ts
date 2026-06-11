@@ -121,4 +121,5 @@ export const eventKind = pgEnum("event_kind", [
   "club", // 동아리 활동
   "self_activity", // 자율활동(미분류 기본값 포함)
   "career_activity", // 진로활동
+  "etc", // 기타 — 수동 전용(교사 재분류), 자동 미부여. (0016 마이그레이션 ADD VALUE)
 ]);

@@ -129,3 +129,104 @@ describe("classifySchedule — 시퀀스 분류", () => {
     expect(kindOf(res, "2026-07-25").eventKind).toBe("vacation");
   });
 });
+
+describe("classifySchedule — cluster-local 방학 종료 (후속)", () => {
+  function entry(
+    date: string,
+    title: string,
+    isSchoolDay = true,
+  ): ScheduleEntry {
+    return { date, title, isSchoolDay };
+  }
+  function kindOf(list: ReturnType<typeof classifySchedule>, date: string) {
+    return list.find((e) => e.date === date)!;
+  }
+
+  it("AC-1 개학 없음 → 마지막 '방학'일까지 방학, 그 이후는 비-방학(개학 간주)", () => {
+    const res = classifySchedule([
+      entry("2026-07-20", "여름방학식"), // opener
+      entry("2026-07-25", "도서관 개방"), // 사이 중립 → vacation
+      entry("2026-08-01", "방학중 보충수업"), // 방학 키워드(lastVac)
+      entry("2026-08-10", "가을 소풍 준비"), // 마지막 방학일 이후 중립 → 비-방학
+    ]);
+    expect(kindOf(res, "2026-07-20").eventKind).toBe("vacation");
+    expect(kindOf(res, "2026-07-25").eventKind).toBe("vacation");
+    expect(kindOf(res, "2026-08-01").eventKind).toBe("vacation");
+    const after = kindOf(res, "2026-08-10");
+    expect(after.eventKind).not.toBe("vacation");
+    expect(after.eventKind).toBe("self_activity"); // 수업일 중립 fallback
+    expect(after.needsReview).toBe(true);
+  });
+
+  it("AC-3 cross-term merge 방지 — 닫힌 방학 뒤 학기는 삼키지 않음(떠도는 '방학' 공지 포함)", () => {
+    const res = classifySchedule([
+      entry("2026-07-20", "여름방학식"),
+      entry("2026-08-20", "2학기 개학식"), // 여름 방학 종료
+      entry("2026-09-10", "2학기 방학 안내문"), // 떠도는 '방학' 행 → 짧은 bounded 스팬만
+      entry("2026-10-15", "중간고사"), // 가을학기 exam → vacation 으로 안 삼켜짐
+    ]);
+    expect(kindOf(res, "2026-10-15").eventKind).toBe("exam"); // 핵심: 학기 보존
+    expect(kindOf(res, "2026-08-20").eventKind).not.toBe("vacation");
+  });
+
+  it("AC-4 경계 — 단일 방학행 / 마지막 entry 방학행 / 끝 인접 방학행 2개", () => {
+    // (a) 단일 entry
+    expect(classifySchedule([entry("2026-07-20", "여름방학식")])[0].eventKind).toBe(
+      "vacation",
+    );
+    // (b) 배열 마지막 entry 가 방학행(이후 행 없음 — 내부 루프 미실행)
+    const b = classifySchedule([
+      entry("2026-05-01", "중간고사"),
+      entry("2026-12-30", "겨울방학식"),
+    ]);
+    expect(kindOf(b, "2026-12-30").eventKind).toBe("vacation");
+    expect(kindOf(b, "2026-05-01").eventKind).toBe("exam");
+    // (c) 끝에 인접 방학행 2개
+    const c = classifySchedule([
+      entry("2026-12-28", "겨울방학식"),
+      entry("2026-12-30", "방학중 등교일"),
+    ]);
+    expect(kindOf(c, "2026-12-28").eventKind).toBe("vacation");
+    expect(kindOf(c, "2026-12-30").eventKind).toBe("vacation");
+  });
+
+  it("AC-6 중립 보간 — 마지막 방학일 이후 중립 school day=self_activity, 비수업일=holiday", () => {
+    const res = classifySchedule([
+      entry("2026-07-20", "여름방학식"),
+      entry("2026-08-01", "방학중 보충수업"), // lastVac
+      entry("2026-08-05", "교직원 연수"), // 이후 중립 수업일 → self_activity
+      entry("2026-08-07", "임시 공휴일", false), // 이후 중립 비수업일 → holiday
+      entry("2026-09-01", "동아리 발표회"), // club(positive)
+    ]);
+    expect(kindOf(res, "2026-08-05").eventKind).toBe("self_activity");
+    expect(kindOf(res, "2026-08-07").eventKind).toBe("holiday");
+    expect(kindOf(res, "2026-09-01").eventKind).toBe("club");
+  });
+
+  it("AC-7 방학 키워드 행은 isVac 분기로 소비(클러스터 확장, positive 로 안 끊김)", () => {
+    const res = classifySchedule([
+      entry("2026-07-20", "여름방학식"),
+      entry("2026-07-28", "겨울방학 생활계획"), // '방학' 포함 → 확장(끊지 않음)
+      entry("2026-08-18", "개학식"),
+    ]);
+    expect(kindOf(res, "2026-07-28").eventKind).toBe("vacation");
+  });
+
+  it("AC-8 알려진 한계 — 방학 중 키워드 보유(positive) 행은 클러스터를 조기 종료(교사 보정 전제)", () => {
+    const res = classifySchedule([
+      entry("2026-07-20", "여름방학식"),
+      entry("2026-08-01", "여름 동아리 캠프"), // club(positive) → 클러스터 종료
+    ]);
+    expect(kindOf(res, "2026-08-01").eventKind).toBe("club"); // vacation 아님(의도된 동작)
+  });
+
+  it("AC-9 etc 는 자동 분류로 부여되지 않음(fallback 은 self_activity 유지)", () => {
+    // classifyOne 은 어떤 입력에도 etc 를 반환하지 않는다.
+    for (const t of ["졸업식", "개교기념 행사", "학부모 총회", "임의문구"]) {
+      expect(classifyOne(t)?.eventKind).not.toBe("etc");
+    }
+    // 미분류 시퀀스 fallback 도 self_activity(needsReview), etc 아님.
+    const res = classifySchedule([entry("2026-09-02", "학생자치회의")]);
+    expect(res[0].eventKind).toBe("self_activity");
+  });
+});

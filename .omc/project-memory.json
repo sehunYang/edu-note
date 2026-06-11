@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -25",
-    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run lib/db/queries/roster.integration.test.ts lib/db/queries/timetable.integration.test.ts lib/db/queries/calendar.integration.test.ts 2>&1 | tail -15",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -8",
+    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm test 2>&1 | tail -8",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -176,15 +176,15 @@
       "type": "file"
     },
     {
-      "path": "app\\page.tsx",
-      "accessCount": 26,
-      "lastAccessed": 1781067059162,
+      "path": "lib\\db\\schema\\misc.ts",
+      "accessCount": 28,
+      "lastAccessed": 1781189961657,
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\misc.ts",
+      "path": "app\\page.tsx",
       "accessCount": 26,
-      "lastAccessed": 1781187895561,
+      "lastAccessed": 1781067059162,
       "type": "file"
     },
     {

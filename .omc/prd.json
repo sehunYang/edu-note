@@ -1,98 +1,48 @@
 {
-  "title": "QC v2 계획 2-1 — 세팅실 재수정 (ralph 실행)",
-  "task": "계획 .omc/plans/qc-v2-2-1-setting-redo-plan.md 대로 단계 0(마이그레이션)→A(학기모델)→B(학사일정분류)→D(수업관리)→C(학생명단)→E(회귀·배포) 순차 구현. 각 단계 통합테스트(RUN_DB_ITEST=1) 그린 게이트 후 다음. 전 단계 완료 시 배포(git push origin main → Vercel). 스펙 .omc/specs/deep-interview-qc-v2-setting-redo.md (AC-A1~A6, B1~B9, C1~C7, D1~D4, X1~X2).",
+  "title": "QC v2 후속 — 학사일정 방학 종료 로직 + 기타(etc) 분류 (ralph 실행)",
+  "task": "계획 .omc/plans/qc-v2-2-2-calendar-vacation-etc-plan.md 대로 구현. ① classifySchedule cluster-local 2-phase 재작성(개학 종료 유지 + 개학 없으면 클러스터 마지막 방학일 종료, positive 행이 클러스터 분리) ② etc(기타) EventKind 수동 전용 추가(자동 fallback=self_activity 불변). 단위+통합테스트 그린 게이트, 전 단계 완료 시 git push origin main 배포.",
   "constraints": [
-    "마이그레이션=수기 SQL via scripts/apply-sql.mjs(drizzle-kit generate 금지). enum ADD VALUE(0-B1)와 UPDATE/DEFAULT(0-B2) 파일·실행 분리. subjects.semester default1 백필, year_course_key/needs_review 추가. **subjectExams.semester 유지 결정(사용자)** — 제거·dedup·unique변경·컬럼drop 전부 불필요(단일 공유 prod DB 무중단). 전 마이그레이션 additive.",
-    "통합테스트: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>. 단위: npm test. 회귀: npm run typecheck / npm run build.",
-    "brownfield 패턴: 쿼리 lib/db/queries(ownerId 인자)+index.ts 재노출, 순수규칙 lib/domain, 서버액션 getOwnerId+페이지범위 revalidatePath+writeAudit.",
-    "activeSemester는 학년도-aware(1·2월=직전 학년도 2학기). EventKind 7종+구3종 잔존. EVENT_KINDS(actions.ts) 런타임 화이트리스트 7종 갱신 필수. mock_exam 검사 isExam보다 우선.",
-    "단일 공유 Supabase DB(dev==prod 데이터원): 파괴적 subjectExams.semester drop은 코드 배포 후 적용(backward-tolerant 선배포). 그 외 additive는 dev 중 적용 OK(기존 워크플로).",
-    "범위 봉쇄: 교실 2-2·교사기본설정 불변. year_course_key는 2-1 미사용(2-2 대비 선설치)."
+    "분류기 2건 외 불변. 컬럼 default(self_activity) 불변. 다른 EventKind 소비자 불변.",
+    "마이그=수기 SQL via apply-sql.mjs. 0016 ADD VALUE 'etc'만(단독 파일, UPDATE/DEFAULT 금지 — 단일 tx 제약), remap 불필요. drizzle-kit generate 금지.",
+    "내부 루프 분기 우선순위 isReopen→isVac→base(positive) 고정(load-bearing). classifyOne은 etc 자동 반환 금지(AC-B8 불변).",
+    "EVENT_KINDS(actions.ts) 런타임 화이트리스트 etc 수동 동기화 필수(typecheck 미포착). KIND_LABEL(calendar-attrs.tsx)는 exhaustive Record라 typecheck 강제.",
+    "enum 비가역 — 롤백=잔존(무해). 배포: 0016 공유 DB 적용 → 코드 push.",
+    "검증: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>. 단위: node ./node_modules/vitest/vitest.mjs run <file>. 회귀: npm run typecheck / npm run build."
   ],
   "stories": [
     {
-      "id": "A-domain",
-      "title": "단계 A 도메인 — activeSemester(학년도-aware) + 단위테스트",
+      "id": "VAC1",
+      "title": "단계1 — classifySchedule cluster-local 2-phase 재작성 + 단위테스트",
       "priority": 0,
       "passes": true,
       "acceptanceCriteria": [
-        "lib/domain/school-year.ts에 activeSemester(today:Date):1|2 추가 — 1학기=월∈[3,8/14], 2학기=(월==8∧일≥15)|월∈[9,12]|월∈[1,2]. UTC 결정론.",
-        "school-year.test.ts 확장: 3/1→1, 7/15→1, 8/14→1, 8/15→2, 12/31→2, 익년1/1→2, 익년2/28→2 단언.",
-        "npm test 그린(activeSemester 케이스 포함), npm run typecheck 0err."
+        "classifySchedule를 2-phase로 재작성: Phase1 vacation[] (while-loop, 방학 opener에서 isReopen→reopen(endIdx=breakIdx-1)/isVac→lastVac 확장/base!=null→positive break(endIdx=lastVac)/중립→계속; 분기 우선순위 isReopen→isVac→base 고정). Phase2 우선순위 vacation>base>holiday>self_activity+needsReview. date asc 정렬·classifyEvent 하위호환 유지.",
+        "AC-1 개학없음 마지막방학일 종료: 방학식→키워드없는날(사이=vacation)→방학중행사(방학)→키워드없는날(이후=비vacation). AC-2 개학 종료 회귀(개학당일·이후 비vacation, 그전 중립일 vacation). AC-3 cross-term merge 방지(방학식→개학식→가을 중간고사=exam 비vacation; 떠도는 '2학기 방학 안내' 있어도 가을 exam 안삼킴).",
+        "AC-4 경계: 단일 entry [방학식]=vacation, 마지막 entry가 방학행=vacation, 끝 인접 방학행2개 둘다 vacation. AC-5 방학우선+역순입력 회귀. AC-6 중립보간(마지막방학일과 이후 positive 사이 중립 school day=self_activity, 비수업일=holiday). AC-7 방학행은 isVac분기 소비(positive로 안끊김). AC-8 알려진한계(방학중 '동아리'행 클러스터 조기종료) 문서화 테스트.",
+        "calendar-keywords.test.ts 신규/회귀 케이스 green(node vitest run). typecheck 0err."
       ]
     },
     {
-      "id": "MIG0",
-      "title": "단계 0 — additive 마이그레이션 적용(파괴적 drop 제외)",
+      "id": "ETC2",
+      "title": "단계2 — etc(기타) EventKind 수동 전용 추가",
       "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "00NN_subject_semester.sql: subjects.semester int notnull default1 + year_course_key text 추가(apply-sql 성공).",
-        "00NN_event_kind_add_values.sql(0-B1): event_kind ADD VALUE mock_exam/holiday/self_activity/career_activity/vacation (단독 실행 커밋).",
-        "00NN_event_kind_remap.sql(0-B2): vacation_start/end→vacation, none→self_activity UPDATE + default self_activity(0-B1 커밋 후).",
-        "00NN_calendar_needs_review.sql: calendar_events.needs_review boolean default false.",
-        "subject_exams 무변경(semester 유지 결정) — unique/컬럼 그대로.",
-        "schema 파일(classes.ts/misc.ts/enums.ts) 동기화. 적용 전후 행 분포 스냅샷 유실0."
-      ]
-    },
-    {
-      "id": "A-impl",
-      "title": "단계 A — 학기모델 쿼리/액션/UI + 통합테스트",
-      "priority": 2,
-      "passes": true,
-      "acceptanceCriteria": [
-        "getOrCreateSubject(semester 인자+매칭 owner,year,semester,name+yearCourseKey insert), syncTeacherTimetable(semester), listSubjectsWithSections/getTeacherTimetable/listSubjectExamsForYear semester 필터.",
-        "materializeSubjectExams: 과목 학기 일치 exam 이벤트만(e.semester===sub.semester 필터) insert(semester=sub.semester), onConflict (subjectId,semester,ordinal) 그대로. subjectExams.semester 유지라 listSubjectExams/SubjectExamRow/courses UI 무변경(semester 렌더 유지 OK).",
-        "timetable-actions syncTimetableAction activeSemester 주입. courses page 활성학기 표시+과거학기 토글.",
-        "timetable.integration.test.ts: 1학기 sync→2학기 sync 동명과목 2행 공존, 활성학기 필터, 명단불변. itest:224-237 신모델 갱신. RUN_DB_ITEST 그린.",
+        "0016_event_kind_add_etc.sql 작성(ADD VALUE if not exists 'etc'만, 단독 파일) + apply-sql.mjs 적용 + enum_range 조회로 'etc' 존재 단언(AC-11).",
+        "enums.ts eventKind pgEnum에 'etc'(8종)+주석. calendar-keywords.ts EventKind union에 'etc' only(classifyOne/classifySchedule fallback 불변). actions.ts EVENT_KINDS에 'etc'. calendar-attrs.tsx KIND_LABEL etc:'기타'.",
+        "AC-9 etc 자동 미부여(classifyOne 임의입력 etc 미반환, fallback self_activity+needsReview 유지) 단위테스트. AC-10 수동 재분류 라운드트립(updateEventAttributes로 etc 저장→재조회 지속) 통합테스트(RUN_DB_ITEST).",
         "typecheck 0err, build exit0."
       ]
     },
     {
-      "id": "B-impl",
-      "title": "단계 B — 학사일정 분류(context-aware) + 통합테스트",
-      "priority": 3,
+      "id": "DEPLOY3",
+      "title": "단계3 — 회귀·배포",
+      "priority": 2,
       "passes": true,
       "acceptanceCriteria": [
-        "calendar-keywords.ts: EventKind union 7종 재정의, classifyOne(mock_exam 검사 isExam 우선)+classifySchedule(date asc 정렬→방학구간/휴업일(비수업일∧방학아님)/지필학기 8/15·제목우선/미분류 self_activity+needsReview/토요휴업일 제외). 단위테스트 확장.",
-        "enums.ts eventKind 7종+구3종 주석, misc.ts calendarEvents default self_activity. EventKind 파급: actions.ts EVENT_KINDS 7종(런타임), calendar-attrs.tsx KIND_LABEL 7종.",
-        "calendar.ts syncSchoolCalendar classifySchedule 적용+needsReview, bulkUpdateEventAttrs(트랜잭션), getEventsWithAttrs needsReview, updateEventAttributes needsReview 해제.",
-        "actions.ts bulkSaveCalendarAction(audit calendar_bulk_save, revalidate /setting/calendar). calendar UI 7종 드롭다운+일괄저장+경고배지.",
-        "calendar.integration.test.ts: 방학구간·휴업일자동·수능·미분류needsReview·일괄저장·재sync멱등·수동재분류 라운드트립. RUN_DB_ITEST 그린. typecheck/build."
-      ]
-    },
-    {
-      "id": "D-impl",
-      "title": "단계 D — 수업관리(개별등록/수강파생/평가표시) + 통합테스트",
-      "priority": 4,
-      "passes": true,
-      "acceptanceCriteria": [
-        "timetable.ts: enrollOne(onConflictDoNothing), unenroll, listSubjectsForStudentYear(enrollments→sections→subjects 학기구분), getEvalSettings(prefill). index 재노출.",
-        "actions.ts enrollStudentAction/unenrollAction(audit, revalidate /setting/courses). courses-manager 평가저장 지속표시(prefill)+개별등록(학번/이름 cross-class)+수강삭제.",
-        "timetable.integration.test.ts: enrollOne/unenroll, listSubjectsForStudentYear 등록후표시·삭제후제거, cross-class. RUN_DB_ITEST 그린. typecheck/build."
-      ]
-    },
-    {
-      "id": "C-impl",
-      "title": "단계 C — 학생명단(속성/삭제/CSV역할/필터) + 통합테스트",
-      "priority": 5,
-      "passes": true,
-      "acceptanceCriteria": [
-        "csv/student-roster.ts: role 별칭+roles 분리. importStudentRoster 역할→class_roles(재임포트 중복방지: create-only/교체).",
-        "roster.ts deleteStudentYear(tx: studentYear 삭제 cascade→deleteOrphanPerson, 수동 yearLinks 삭제 금지), updateStudentAttrs(name/phone/career). index 재노출.",
-        "actions.ts deleteStudentAction/updateStudentAttrsAction(audit, revalidate /setting/students). student-roster.tsx 전속성표시+인라인수정+빨간X삭제+링크복사+CSV예시다운로드+필터(학년/반/번호+이름). page 수강중인수업 배치조회.",
-        "roster.integration.test.ts: deleteStudentYear(과거연도·person 보존·고아삭제), updateStudentAttrs, CSV역할 파싱. RUN_DB_ITEST 그린. typecheck/build."
-      ]
-    },
-    {
-      "id": "E-deploy",
-      "title": "단계 E — 회귀·배포·파괴적 마이그레이션 마무리",
-      "priority": 6,
-      "passes": true,
-      "acceptanceCriteria": [
-        "전체 typecheck 0err, build exit0, 비-itest npm test 그린, 전 통합테스트(roster/timetable/calendar) RUN_DB_ITEST 그린.",
+        "전체 typecheck 0err, build exit0, 비-itest npm test green, calendar.integration.test.ts RUN_DB_ITEST green.",
         "git push origin main (Vercel 프로덕션 배포 트리거).",
-        "progress.txt에 구현·배포 기록. (subjectExams.semester 유지 결정으로 파괴적 후속 마이그레이션 없음)"
+        "progress.txt에 구현·배포 기록."
       ]
     }
   ]

@@ -18,7 +18,8 @@ export type EventKind =
   | "holiday" // 휴업일(NEIS 비수업일 ∧ 방학 아님: 국경일·대체공휴일·재량휴업일)
   | "club" // 동아리 활동
   | "self_activity" // 자율활동(미분류 기본값 포함)
-  | "career_activity"; // 진로활동
+  | "career_activity" // 진로활동
+  | "etc"; // 기타 — 수동 전용(교사 재분류). classifyOne/classifySchedule 은 자동 부여하지 않음.
 // (DB enum 에는 구 값 vacation_start/vacation_end/none 이 미사용으로 잔존)
 
 export interface EventClassification {
@@ -96,42 +97,80 @@ function semesterFromDate(date: string): number {
 }
 
 /**
- * 시퀀스 분류(QC v2 2-1 B). 날짜 오름차순으로 처리하며:
- * ① 방학식~개학식 구간 + 제목 '방학' → vacation(방학 우선)
- * ② 위가 아니고 비수업일(isSchoolDay=false) → holiday
- * ③ 제목 분류(classifyOne) → 그 값. exam 은 학기 미상 시 8/15 자동(제목 명시 우선)
- * ④ 어디에도 해당 없음 → self_activity + needsReview(경고)
- * 반환은 날짜 오름차순.
+ * 시퀀스 분류(QC v2 2-1 B + 후속: cluster-local 방학 종료). 날짜 오름차순으로 2-phase 처리.
+ *
+ * Phase 1 — 방학 구간 마스크(vacation[]). 방학 opener(제목 '방학')에서 클러스터를 **local**
+ * 하게 닫는다(분기 우선순위 고정: isReopen → isVac → base):
+ *  - 개학 키워드 → 그날부터 비방학(개학식 당일 제외, endIdx=개학−1).
+ *  - 방학 키워드 → 클러스터 확장(lastVac 갱신).
+ *  - 그 외 positively-classified(exam/club/career/mock_exam/자율활동) 행 → 학교 가동 신호로
+ *    클러스터 종료(endIdx=lastVac). [방학 중 키워드행이 조기 종료시킬 수 있음 — 교사 보정 전제]
+ *  - 중립(미분류) 행 → tentative(계속 스캔). 개학이 없으면 이 클러스터의 **마지막 방학일**까지만
+ *    방학(그 이후는 개학 간주). → cross-term merge(전 학기 silent vacation) 방지.
+ *
+ * Phase 2 — 분류 매핑(우선순위 vacation > classifyOne > holiday > self_activity+needsReview).
+ * exam 은 학기 미상 시 8/15 자동(제목 명시 우선). needsReview 는 미분류 fallback 만 true.
  */
 export function classifySchedule(entries: ScheduleEntry[]): ClassifiedEvent[] {
   const sorted = [...entries].sort((a, b) =>
     a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
   );
+  const n = sorted.length;
 
-  let inVacation = false;
-  const out: ClassifiedEvent[] = [];
+  // 사전계산(컨텍스트 무관 부분).
+  const isVac = sorted.map((e) => /방학/.test(normalize(e.title)));
+  const isReopen = sorted.map((e) => /개학/.test(normalize(e.title)));
+  const base = sorted.map((e) => classifyOne(e.title));
 
-  for (const e of sorted) {
-    const t = normalize(e.title);
-    const isVacationKeyword = /방학/.test(t); // 방학식 포함
-    const isReopen = /개학/.test(t); // 개학식 = 방학 구간 종료
+  // Phase 1 — 방학 구간 마스크.
+  const vacation = new Array<boolean>(n).fill(false);
+  let i = 0;
+  while (i < n) {
+    if (!isVac[i]) {
+      i += 1;
+      continue;
+    }
+    // 방학 opener
+    let lastVac = i;
+    let breakKind: "reopen" | "positive" | "end" = "end";
+    let breakIdx = n;
+    for (let j = i + 1; j < n; j++) {
+      if (isReopen[j]) {
+        breakKind = "reopen"; // ① 개학 우선
+        breakIdx = j;
+        break;
+      }
+      if (isVac[j]) {
+        lastVac = j; // ② 방학 키워드 → 클러스터 확장
+        continue;
+      }
+      if (base[j] !== null) {
+        breakKind = "positive"; // ③ 학교 가동 신호 → 클러스터 종료
+        breakIdx = j;
+        break;
+      }
+      // 중립(base null) → tentative, 계속 스캔
+    }
+    const endIdx = breakKind === "reopen" ? breakIdx - 1 : lastVac;
+    for (let k = i; k <= endIdx; k++) vacation[k] = true;
+    i = endIdx + 1;
+  }
 
-    // 개학식이면 이 이벤트 처리 전에 방학 구간 종료(개학식 당일은 방학 아님).
-    if (isReopen) inVacation = false;
-
-    const base = classifyOne(e.title);
+  // Phase 2 — 분류 매핑.
+  return sorted.map((e, idx) => {
+    const b = base[idx];
     let eventKind: EventKind;
     let examSemester: number | null = null;
     let examOrdinal: number | null = null;
     let needsReview = false;
 
-    if (isVacationKeyword || inVacation) {
+    if (vacation[idx]) {
       eventKind = "vacation";
-    } else if (base) {
-      eventKind = base.eventKind;
+    } else if (b) {
+      eventKind = b.eventKind;
       if (eventKind === "exam") {
-        examSemester = base.examSemester ?? semesterFromDate(e.date);
-        examOrdinal = base.examOrdinal ?? null;
+        examSemester = b.examSemester ?? semesterFromDate(e.date);
+        examOrdinal = b.examOrdinal ?? null;
       }
     } else if (!e.isSchoolDay) {
       eventKind = "holiday";
@@ -140,20 +179,15 @@ export function classifySchedule(entries: ScheduleEntry[]): ClassifiedEvent[] {
       needsReview = true;
     }
 
-    out.push({
+    return {
       date: e.date,
       title: e.title,
       eventKind,
       examSemester,
       examOrdinal,
       needsReview,
-    });
-
-    // 방학식 이후부터 구간 시작(개학식까지 후속 이벤트 vacation).
-    if (isVacationKeyword) inVacation = true;
-  }
-
-  return out;
+    };
+  });
 }
 
 /**

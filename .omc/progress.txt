@@ -91,6 +91,22 @@
     - **B 잔여(다음 세션)**: calendar.integration.test.ts 확장(방학구간·휴업일자동·수능·미분류needsReview·일괄저장·수동재분류 라운드트립) + RUN_DB_ITEST 그린 검증. 그 후 B-impl 완료 마킹.
 - [ ] D-impl / C-impl / E-deploy.
 
+═══════════════════════════════════════════════════════════
+# QC v2 후속 — 학사일정 방학 종료 + 기타(etc) (ralph, 2026-06-12)
+═══════════════════════════════════════════════════════════
+계획: .omc/plans/qc-v2-2-2-calendar-vacation-etc-plan.md (consensus: Architect SOUND-WITH-CHANGES + Critic ITERATE→전부 반영). 구현 검증 architect APPROVED.
+
+## 핵심 결정/학습
+- **classifySchedule cluster-local 2-phase 재작성**: Phase1 vacation[] while-loop. 방학 opener에서 분기 우선순위 **isReopen→isVac→base(positive) 고정**(load-bearing). 개학 → endIdx=breakIdx-1(개학당일 제외). positive 행(exam/club/career/mock/자율) → 클러스터 종료 endIdx=lastVac. 개학 없으면 클러스터 마지막 방학일까지(이후 비-방학=개학 간주). → 전역 lastVacIndex의 cross-term silent merge(전 학기 vacation, ⚠없음) 제거.
+- 기존 버그: 개학 없으면 방학식 이후 학년도 끝까지 vacation. 수정됨.
+- 알려진 한계(AC-8): 방학 중 '동아리' 등 키워드행이 클러스터 조기종료 → 교사 드롭다운 보정 전제.
+- **etc(기타) 수동 전용**: 마이그 0016(ADD VALUE만, 단독파일, 적용완료) + enums.ts(8종) + EventKind union + EVENT_KINDS 런타임 화이트리스트(typecheck 미포착, 수동동기화) + KIND_LABEL(exhaustive Record→typecheck 강제). classifyOne/classifySchedule는 etc 자동 미부여(fallback=self_activity 불변, AC-B8 유지). enum 비가역→롤백=잔존.
+
+## 단계 상태
+- [x] VAC1: classifySchedule cluster-local 재작성 + 단위테스트 AC-1~9. calendar-keywords 19 green(12→19), tc0.
+- [x] ETC2: 0016 적용 + etc ripple(enums/union/EVENT_KINDS/KIND_LABEL). calendar.integration etc 라운드트립 8 green. tc0, build0.
+- [x] DEPLOY3: 전체 tc0/build0/unit 165/calendar itest 8 green. architect APPROVED. deslop 0편집. → git push origin main.
+
 ## 다음 세션 재개 지점 (QC v2)
 1. B 마무리: calendar.integration.test.ts에 합성 schedule로 syncSchoolCalendar→getEventsWithAttrs 검증 블록 추가(RUN_DB). 그 후 RUN_DB_ITEST=1 ...run calendar.integration.test.ts 그린 확인 → prd B-impl passes:true.
 2. D-impl: timetable.ts enrollOne/unenroll/listSubjectsForStudentYear/getEvalSettings + actions enrollStudentAction/unenrollAction + courses-manager UI(평가 prefill·개별등록·삭제) + itest.

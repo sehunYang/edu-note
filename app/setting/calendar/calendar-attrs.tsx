@@ -17,6 +17,7 @@ const KIND_LABEL: Record<EventKind, string> = {
   club: "동아리",
   self_activity: "자율활동",
   career_activity: "진로활동",
+  etc: "기타",
 };
 const KINDS = Object.keys(KIND_LABEL) as EventKind[];
 

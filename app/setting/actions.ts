@@ -231,6 +231,7 @@ const EVENT_KINDS: readonly EventKind[] = [
   "club",
   "self_activity",
   "career_activity",
+  "etc", // 기타 — 수동 재분류 허용(typecheck 미포착 런타임 화이트리스트, union 과 수동 동기화)
 ];
 
 /** 자동 분류 보정(AC-3.3). exam 아니면 학기/회차는 쿼리 계층에서 null 강제. */

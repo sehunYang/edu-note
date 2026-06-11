@@ -241,6 +241,15 @@ describe.skipIf(!RUN_DB)("학사일정 context-aware 분류·보정 — 합성 s
     });
   });
 
+  it("수동 재분류: 신규 etc(기타) 저장·재조회 지속 (0016 enum + EVENT_KINDS 가드)", async () => {
+    // 광복절을 '기타'로 재분류 — 0016 마이그레이션 ADD VALUE 와 런타임 화이트리스트 검증.
+    const events = await getEventsWithAttrs(db2, owner2, "2026-08-15", "2026-08-15");
+    const target = events[0];
+    await updateEventAttributes(db2, owner2, target.id, { eventKind: "etc" });
+    const after = await getEventsWithAttrs(db2, owner2, "2026-08-15", "2026-08-15");
+    expect(after[0].eventKind).toBe("etc");
+  });
+
   it("교사 보정: self_activity→exam 교정 + exam 아님 시 학기/회차 null 강제(AC-3.3)", async () => {
     const before = await getEventsWithAttrs(db2, owner2, "2026-09-15", "2026-09-15");
     const target = before.find((e) => e.title === "학생자치회의")!;
