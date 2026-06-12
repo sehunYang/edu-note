@@ -66,6 +66,11 @@ export default async function Home() {
           desc="학년도·교사·학사일정·학생·수업을 순서대로 설정합니다(기초 환경)."
         />
         <DashCard
+          href="/classroom"
+          title="🏫 교실"
+          desc="수업 계획·진척도·성적·교과 관찰·학생 보고서·세특을 한곳에서 관리합니다."
+        />
+        <DashCard
           href="/today"
           title="오늘의 학교"
           desc="오늘 시간표·급식·학사일정과 해야 할 일(넛지)을 한눈에 봅니다."
@@ -96,14 +101,14 @@ export default async function Home() {
           desc="학생별 자율·진로 활동을 기입합니다(자율+진로는 한 곳으로 자동 배치)."
         />
         <DashCard
-          href="/observations"
-          title="관찰 · 행특 기록"
-          desc="교과 관찰기록과 행동특성 누가기록을 키워드와 함께 남깁니다."
+          href="/classroom/observations"
+          title="교과 관찰 기록"
+          desc="교과 관찰기록을 분반·날짜와 함께 남깁니다(교실로 이동)."
         />
         <DashCard
-          href="/setech"
-          title="세특 내보내기"
-          desc="원천 자료를 묶어 코워크 프롬프트를 만들고, 결과를 검수해 저장합니다."
+          href="/homeroom/behavior"
+          title="행동특성 기록"
+          desc="담임반 학생의 행동발달 및 특기사항을 누가기록합니다."
         />
         <DashCard
           href="/attendance"

@@ -1,8 +1,8 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import { studentYears } from "../schema/identity";
-import { courseSections } from "../schema/classes";
+import { courseSections, enrollments, subjects } from "../schema/classes";
 import {
   subjectObservations,
   homeroomBehaviorNotes,
@@ -226,4 +226,158 @@ export async function listDrafts(
     .where(and(...conds))
     .orderBy(desc(specialNoteDrafts.createdAt));
   return rows.map((r) => ({ ...r, type: r.type as SpecialNoteType }));
+}
+
+// ───────────────────────────── 교실 2-2 단계7: 일괄(bulk) CSV 왕복 ─────────────────────────────
+
+export interface EnrolledStudent {
+  studentYearId: string;
+  sid: string;
+  name: string;
+}
+
+/**
+ * 과목(선택적으로 분반)에 수강 등록된 학생 목록(학번순). 일괄 원천 CSV 내보내기용.
+ * sectionId 지정 시 해당 분반만, 미지정 시 과목 전체 분반의 수강생(중복 제거).
+ */
+export async function listEnrolledStudentsForSubject(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  sectionId?: string | null,
+): Promise<EnrolledStudent[]> {
+  const conds = [
+    eq(enrollments.ownerId, ownerId),
+    eq(courseSections.subjectId, subjectId),
+  ];
+  if (sectionId) conds.push(eq(enrollments.sectionId, sectionId));
+  const rows = await db
+    .select({
+      studentYearId: studentYears.id,
+      sid: studentYears.sid,
+      name: studentYears.name,
+    })
+    .from(enrollments)
+    .innerJoin(courseSections, eq(enrollments.sectionId, courseSections.id))
+    .innerJoin(studentYears, eq(enrollments.studentYearId, studentYears.id))
+    .where(and(...conds))
+    .orderBy(asc(studentYears.sid));
+  // 과목 전체일 때 여러 분반 중복 학생 제거.
+  const seen = new Set<string>();
+  const out: EnrolledStudent[] = [];
+  for (const r of rows) {
+    if (seen.has(r.studentYearId)) continue;
+    seen.add(r.studentYearId);
+    out.push(r);
+  }
+  return out;
+}
+
+/** 학생×과목 추가 입력(자율 탐구 등) 저장. 세특 원천자료에 합류한다(studentExtraNotes). */
+export async function saveExtraNote(
+  db: DB,
+  ownerId: string,
+  studentYearId: string,
+  subjectId: string | null,
+  body: string,
+): Promise<{ id: string }> {
+  const [row] = await db
+    .insert(studentExtraNotes)
+    .values({ ownerId, studentYearId, subjectId: subjectId ?? null, body })
+    .returning({ id: studentExtraNotes.id });
+  return row;
+}
+
+export interface BulkDraftInput {
+  studentYearId: string;
+  sid: string;
+  subject: string;
+  noteType: SpecialNoteType;
+  subjectId?: string | null;
+  content: string;
+}
+
+export interface BulkSaveResult {
+  saved: {
+    sid: string;
+    subject: string;
+    byteCount: number;
+    byteLimit: number;
+    /** 비차단(자문) 경고 메시지(기재금지·문체·이름). 저장은 됨. */
+    warnings: string[];
+  }[];
+  rejected: { sid: string; subject: string; reasons: string[] }[];
+}
+
+/**
+ * 일괄 세특 초안 저장(AC-S5). **saveDraft 를 재사용하지 않는다** — saveDraft 는
+ * 차단 경고(over_limit·empty)에서 throw 하므로 일괄 흐름을 깬다. 대신 행별로
+ * verifyPastedDraft 결과를 **심각도로 분할**한다:
+ *   - 차단(over_limit·empty)  → 해당 행 거부(rejected) + 저장 안 함(나이스 바이트 하드제약 보존)
+ *   - 비차단(기재금지·문체·이름) → 저장 + 플래그(warnings) (교사 자율 판단, R17)
+ * 직접 insert 하며 byteCount/byteLimit 은 saveDraft 와 동일 산출.
+ */
+export async function saveDraftsBulk(
+  db: DB,
+  ownerId: string,
+  rows: BulkDraftInput[],
+): Promise<BulkSaveResult> {
+  const saved: BulkSaveResult["saved"] = [];
+  const rejected: BulkSaveResult["rejected"] = [];
+
+  for (const r of rows) {
+    const verdict = verifyPastedDraft(r.content, r.noteType);
+    const blocking = verdict.warnings.filter((w) => w.blocking);
+    if (blocking.length > 0) {
+      rejected.push({
+        sid: r.sid,
+        subject: r.subject,
+        reasons: blocking.map((w) => w.message),
+      });
+      continue;
+    }
+    const byteCount = byteLength(r.content);
+    const byteLimit = BYTE_LIMITS[r.noteType];
+    await db.insert(specialNoteDrafts).values({
+      ownerId,
+      studentYearId: r.studentYearId,
+      type: r.noteType,
+      subjectId: r.subjectId ?? null,
+      content: r.content,
+      byteCount,
+      byteLimit,
+      status: "draft",
+      source: "cowork",
+      generatedAt: new Date(),
+    });
+    saved.push({
+      sid: r.sid,
+      subject: r.subject,
+      byteCount,
+      byteLimit,
+      warnings: verdict.warnings.map((w) => w.message),
+    });
+  }
+
+  return { saved, rejected };
+}
+
+/** 활성 학년도 과목명→subjectId 맵(일괄 결과 CSV 의 과목 복합키 매핑용). */
+export async function subjectNameMap(
+  db: DB,
+  ownerId: string,
+  schoolYear: number,
+  semester: number,
+): Promise<Map<string, string>> {
+  const rows = await db
+    .select({ id: subjects.id, name: subjects.name })
+    .from(subjects)
+    .where(
+      and(
+        eq(subjects.ownerId, ownerId),
+        eq(subjects.schoolYear, schoolYear),
+        eq(subjects.semester, semester),
+      ),
+    );
+  return new Map(rows.map((r) => [r.name, r.id]));
 }

@@ -1,10 +1,17 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import {
   subjectObservations,
   homeroomBehaviorNotes,
 } from "../schema/records";
+import {
+  courseSections,
+  enrollments,
+  subjects,
+  homeroomClasses,
+  homeroomMembers,
+} from "../schema/classes";
 import { studentYears } from "../schema/identity";
 import type { RecordCountItem } from "@/lib/domain/nudge";
 
@@ -38,18 +45,23 @@ export interface ObservationRow {
   createdAt: Date;
 }
 
-/** 교과 관찰기록 추가. */
+/**
+ * 교과 관찰기록 추가. 분반귀속 **필수**(앱레이어 강제 — DB 컬럼은 nullable 유지,
+ * 레거시 null-section 행 무손상). sectionId 미지정 시 throw(Pre-mortem #2, AC-O1).
+ * sessionId 는 교실 관찰(날짜+분반 스코프)에서 미사용 → null 유지.
+ */
 export async function addSubjectObservation(
   db: DB,
   ownerId: string,
   input: AddObservationInput,
 ): Promise<ObservationRow> {
+  if (!input.sectionId) throw new Error("분반을 선택하세요.");
   const [row] = await db
     .insert(subjectObservations)
     .values({
       ownerId,
       studentYearId: input.studentYearId,
-      sectionId: input.sectionId ?? null,
+      sectionId: input.sectionId,
       observedOn: input.observedOn ?? todayStr(),
       body: input.body,
       keywords: input.keywords && input.keywords.length > 0 ? input.keywords : null,
@@ -92,6 +104,51 @@ export async function listSubjectObservations(
     .orderBy(desc(subjectObservations.observedOn), desc(subjectObservations.createdAt));
 
   return opts.limit ? q.limit(opts.limit) : q;
+}
+
+export interface UpdateObservationInput {
+  body?: string;
+  keywords?: string[];
+  observedOn?: string;
+}
+
+/** 교과 관찰기록 수정(ownerId 가드). 전달된 필드만 갱신. */
+export async function updateSubjectObservation(
+  db: DB,
+  ownerId: string,
+  id: string,
+  patch: UpdateObservationInput,
+): Promise<void> {
+  const set: Record<string, unknown> = { updatedAt: new Date() };
+  if (patch.body !== undefined) set.body = patch.body;
+  if (patch.keywords !== undefined)
+    set.keywords = patch.keywords.length > 0 ? patch.keywords : null;
+  if (patch.observedOn !== undefined) set.observedOn = patch.observedOn;
+  await db
+    .update(subjectObservations)
+    .set(set)
+    .where(
+      and(
+        eq(subjectObservations.id, id),
+        eq(subjectObservations.ownerId, ownerId),
+      ),
+    );
+}
+
+/** 교과 관찰기록 삭제(ownerId 가드). */
+export async function deleteSubjectObservation(
+  db: DB,
+  ownerId: string,
+  id: string,
+): Promise<void> {
+  await db
+    .delete(subjectObservations)
+    .where(
+      and(
+        eq(subjectObservations.id, id),
+        eq(subjectObservations.ownerId, ownerId),
+      ),
+    );
 }
 
 export interface AddBehaviorNoteInput {
@@ -162,6 +219,51 @@ export async function listBehaviorNotes(
   return opts.limit ? q.limit(opts.limit) : q;
 }
 
+export interface UpdateBehaviorNoteInput {
+  body?: string;
+  keywords?: string[];
+  notedOn?: string;
+}
+
+/** 행동특성 기록 수정(ownerId 가드). 전달된 필드만 갱신. */
+export async function updateBehaviorNote(
+  db: DB,
+  ownerId: string,
+  id: string,
+  patch: UpdateBehaviorNoteInput,
+): Promise<void> {
+  const set: Record<string, unknown> = { updatedAt: new Date() };
+  if (patch.body !== undefined) set.body = patch.body;
+  if (patch.keywords !== undefined)
+    set.keywords = patch.keywords.length > 0 ? patch.keywords : null;
+  if (patch.notedOn !== undefined) set.notedOn = patch.notedOn;
+  await db
+    .update(homeroomBehaviorNotes)
+    .set(set)
+    .where(
+      and(
+        eq(homeroomBehaviorNotes.id, id),
+        eq(homeroomBehaviorNotes.ownerId, ownerId),
+      ),
+    );
+}
+
+/** 행동특성 기록 삭제(ownerId 가드). */
+export async function deleteBehaviorNote(
+  db: DB,
+  ownerId: string,
+  id: string,
+): Promise<void> {
+  await db
+    .delete(homeroomBehaviorNotes)
+    .where(
+      and(
+        eq(homeroomBehaviorNotes.id, id),
+        eq(homeroomBehaviorNotes.ownerId, ownerId),
+      ),
+    );
+}
+
 /**
  * 학생별 교과 관찰기록 수 집계(넛지 가중랜덤 입력). 해당 연도 등록 학생 전체를
  * 0건 포함해 반환하므로, 기록이 적은 학생일수록 가중치가 높아진다.
@@ -212,4 +314,106 @@ export async function studentsWithoutBehaviorNoteToday(
     );
   const notedSet = new Set(noted.map((n) => n.id));
   return all.map((a) => a.id).filter((id) => !notedSet.has(id));
+}
+
+export interface SectionStudentRow {
+  id: string;
+  sid: string;
+  name: string;
+}
+
+/**
+ * 분반 수강생 목록(학번순). 분반→학생 필터(AC-O3)용. enrollments→studentYears 조인,
+ * ownerId 가드. 결과는 해당 분반에 등록된 학생만.
+ */
+export async function listStudentsBySection(
+  db: DB,
+  ownerId: string,
+  sectionId: string,
+): Promise<SectionStudentRow[]> {
+  return db
+    .select({
+      id: studentYears.id,
+      sid: studentYears.sid,
+      name: studentYears.name,
+    })
+    .from(enrollments)
+    .innerJoin(studentYears, eq(enrollments.studentYearId, studentYears.id))
+    .where(
+      and(
+        eq(enrollments.ownerId, ownerId),
+        eq(enrollments.sectionId, sectionId),
+      ),
+    )
+    .orderBy(asc(studentYears.sid));
+}
+
+export interface StudentSectionRow {
+  sectionId: string;
+  label: string;
+  subjectName: string;
+}
+
+/**
+ * 학생이 수강 중인 분반 목록(학생→수강분반 자동매칭, AC-O2). 활성 학기 과목으로 한정해
+ * (year, sem) 필터. 복수일 때 UI 토글 입력이 된다. ownerId 가드.
+ */
+export async function listSectionsForStudent(
+  db: DB,
+  ownerId: string,
+  studentYearId: string,
+  year: number,
+  sem: number,
+): Promise<StudentSectionRow[]> {
+  return db
+    .select({
+      sectionId: courseSections.id,
+      label: courseSections.label,
+      subjectName: subjects.name,
+    })
+    .from(enrollments)
+    .innerJoin(courseSections, eq(courseSections.id, enrollments.sectionId))
+    .innerJoin(subjects, eq(subjects.id, courseSections.subjectId))
+    .where(
+      and(
+        eq(enrollments.ownerId, ownerId),
+        eq(enrollments.studentYearId, studentYearId),
+        eq(subjects.schoolYear, year),
+        eq(subjects.semester, sem),
+      ),
+    )
+    .orderBy(asc(subjects.name), asc(courseSections.label));
+}
+
+/**
+ * 담임반 학생 목록(학번순). 행특 기록 대상 제한(AC-O6)용. homeroomMembers→studentYears
+ * 조인을 해당 학년도 담임반으로 한정. 담임반 미지정이면 빈 배열(UI 안내). ownerId 가드.
+ */
+export async function listHomeroomStudents(
+  db: DB,
+  ownerId: string,
+  year: number,
+): Promise<SectionStudentRow[]> {
+  return db
+    .select({
+      id: studentYears.id,
+      sid: studentYears.sid,
+      name: studentYears.name,
+    })
+    .from(homeroomMembers)
+    .innerJoin(
+      homeroomClasses,
+      eq(homeroomClasses.id, homeroomMembers.homeroomId),
+    )
+    .innerJoin(
+      studentYears,
+      eq(studentYears.id, homeroomMembers.studentYearId),
+    )
+    .where(
+      and(
+        eq(homeroomMembers.ownerId, ownerId),
+        eq(homeroomClasses.schoolYear, year),
+      ),
+    )
+    .orderBy(asc(studentYears.sid));
 }

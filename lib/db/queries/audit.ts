@@ -62,7 +62,17 @@ export type AuditEvent =
   | "enrollment_add"
   | "enrollment_remove"
   | "student_delete"
-  | "student_update";
+  | "student_update"
+  // QC v2 교실 허브 (2-2)
+  | "lesson_plan_save"
+  | "progress_record"
+  | "grade_upload"
+  | "setech_bulk_export"
+  | "setech_bulk_import"
+  | "observation_update"
+  | "observation_delete"
+  | "behavior_note_update"
+  | "behavior_note_delete";
 
 export async function writeAudit(
   db: DB,

@@ -54,3 +54,18 @@ export function schoolYearRangeYmd(year: number): { from: string; to: string } {
   const r = schoolYearRange(year);
   return { from: r.start.replace(/-/g, ""), to: r.end.replace(/-/g, "") };
 }
+
+/**
+ * 학년도·학기 → 시작·종료 범위(YYYY-MM-DD). 교실 2-2 수업계획·진척도 차시 산정용.
+ * 1학기 = 3/1 ~ 8/14, 2학기 = 8/15 ~ 익년 2월 말(학년도-aware, activeSemester 경계와 일치).
+ */
+export function semesterRange(year: number, sem: 1 | 2): SchoolYearRange {
+  if (sem === 1) {
+    const start = new Date(Date.UTC(year, 2, 1)); // 3/1
+    const end = new Date(Date.UTC(year, 7, 14)); // 8/14
+    return { start: fmt(start), end: fmt(end) };
+  }
+  const start = new Date(Date.UTC(year, 7, 15)); // 8/15
+  const end = new Date(Date.UTC(year + 1, 2, 0)); // 익년 2월 말일
+  return { start: fmt(start), end: fmt(end) };
+}
