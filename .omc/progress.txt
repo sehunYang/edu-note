@@ -113,3 +113,26 @@
 3. C-impl: csv role 별칭+import→class_roles(중복방지), roster.ts deleteStudentYear/updateStudentAttrs + actions + student-roster UI(속성/삭제/CSV예시/필터/링크복사) + page 수강중인수업 배치 + itest.
 4. E: 전체 typecheck/build/단위/itest 그린 → git push origin main 배포.
 - 검증 명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>. 단위: node ./node_modules/vitest/vitest.mjs run <file>.
+
+═══════════════════════════════════════════════════════════
+# QC v2 계획 2-2 — 교실(Classroom) 허브 (ralph, 2026-06-12~)
+═══════════════════════════════════════════════════════════
+계획: .omc/plans/qc-v2-2-2-classroom-hub-plan.md (consensus: Architect SOUND-WITH-CHANGES + Critic APPROVED-WITH-RESERVATIONS, 2 CRITICAL+6 MAJOR 병합). 스펙: .omc/specs/deep-interview-classroom-hub.md. 브랜치=feat/classroom-hub-2-2.
+순서: 0(마이그)→1(허브셸)→2(계획실)→3(진척도)→4(성적)→5(관찰+행특)→6(보고서)→7(세특)→8(배포).
+
+## US-0 — 마이그레이션+스키마+audit [DONE]
+- 0017_lesson_plans / 0018_session_records / 0019_jipil_scores (각 RLS owner_rw). DB 적용·relrowsecurity=true 3개 확인.
+- records.ts: lessonPlans/sessionRecords/jipilScores(+unique import). audit.ts: AuditEvent 9개 추가. typecheck 0.
+
+## 핵심 결정/학습(2-2)
+- 학기 파라미터 ?semester(layout 불가, page만). 차시 N=분반 최댓값. planOrdinal=날짜순위 자동+수동.
+- 세특 bulk: saveDraft 재사용 금지(차단 throw) → 자체 insert + 심각도 분할. 점수 명시 제외(기재요령).
+- 관찰 sectionId 앱레이어 필수(DB nullable 유지, onDelete set null). 행특→신규 /homeroom/behavior 이전.
+- 성적 원점수만 저장·읽기시점 환산. 수행 weight=(subjectId,name) 조인.
+
+## 단계 상태 (2-2)
+- [x] US-0 마이그/스키마/audit. [x] US-1 허브셸+semesterRange(unit 10). [x] US-2 계획실(itest 5). [x] US-3 진척도(itest 5, planOrdinal=날짜순위). [x] US-4 성적(unit 8+itest 3). [x] US-5 관찰격상+행특이전(itest 9). [x] US-6 보고서(unit 21+itest 4, AI없음). [x] US-7 세특bulk(unit 9+itest 8, 심각도분할·점수제외) — executor 과부하로 orchestrator 직접완성.
+- [x] US-8 회귀: typecheck 0, build exit0(9 라우트), unit 210, 교실 itest 34 전부 green.
+- 검증: architect APPROVED-WITH-RESERVATIONS(9 invariant PASS, 2 LOW). LOW#1(bulk import 수강검증) 반영함. deslop: weekdayOf dedup(progress→domain), download helper→lib/ui/download-csv.ts 공유. 재회귀 16 green.
+- 학습: performance_assessments는 (sy,subj,name) unique 없음 → 수동 upsert. setech 단건 흐름(app/setech/setech-form.tsx+actions)은 redirect 후 orphan(typecheck OK, 빌드 미포함).
+- 다음: main 병합 + push → Vercel 배포.

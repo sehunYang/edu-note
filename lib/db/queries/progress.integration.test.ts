@@ -1,0 +1,221 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { randomUUID } from "node:crypto";
+import postgres from "postgres";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { eq } from "drizzle-orm";
+import * as schema from "../schema";
+import {
+  subjects,
+  courseSections,
+  classSessions,
+  timetableSlots,
+} from "../schema/classes";
+import { lessonPlans, sessionRecords } from "../schema/records";
+import { schoolDayCalendar } from "../schema/misc";
+import {
+  generateSemesterSessions,
+  listProgressPopup,
+  markSessionDone,
+  getPlanForSession,
+} from "./progress";
+
+/**
+ * 수업 진척도 실DB 통합 테스트 (교실 2-2 단계3).
+ * 학기차시 생성(done 보존)·schoolDayCalendar 미커버 graceful·팝업 범위(금주∪연체,
+ * 미래·done 제외)·markDone(상태+session_records)·getPlanForSession 날짜순위 매핑.
+ */
+const RUN = process.env.RUN_DB_ITEST === "1" && !!process.env.DATABASE_URL;
+
+let sql: ReturnType<typeof postgres>;
+let db: PostgresJsDatabase<typeof schema>;
+const owner = randomUUID();
+const YEAR = 2099;
+
+async function mkSubject(name: string, semester: number): Promise<string> {
+  const [s] = await db
+    .insert(subjects)
+    .values({ ownerId: owner, name, schoolYear: YEAR, semester })
+    .returning({ id: subjects.id });
+  return s.id;
+}
+async function mkSection(subjectId: string, label: string): Promise<string> {
+  const [c] = await db
+    .insert(courseSections)
+    .values({ ownerId: owner, subjectId, label })
+    .returning({ id: courseSections.id });
+  return c.id;
+}
+async function mkSlot(sectionId: string, weekday: number): Promise<void> {
+  await db
+    .insert(timetableSlots)
+    .values({ ownerId: owner, sectionId, weekday, period: 1 });
+}
+async function mkSchoolDay(date: string): Promise<void> {
+  await db
+    .insert(schoolDayCalendar)
+    .values({ ownerId: owner, date, isSchoolDay: true });
+}
+async function mkSession(
+  sectionId: string,
+  date: string,
+  status: "planned" | "done" | "not_held",
+): Promise<string> {
+  const [s] = await db
+    .insert(classSessions)
+    .values({ ownerId: owner, sectionId, date, status })
+    .returning({ id: classSessions.id });
+  return s.id;
+}
+
+/** 오늘 기준 상대 날짜(UTC, YYYY-MM-DD). */
+function dayOffset(days: number): string {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+describe.skipIf(!RUN)("수업 진척도 쿼리", () => {
+  beforeAll(async () => {
+    sql = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    db = drizzle(sql, { schema, casing: "snake_case" });
+  });
+
+  afterAll(async () => {
+    // session_records 는 class_sessions 의 ON DELETE CASCADE 로 함께 정리되나 명시.
+    await db.delete(sessionRecords).where(eq(sessionRecords.ownerId, owner));
+    await db.delete(classSessions).where(eq(classSessions.ownerId, owner));
+    await db.delete(lessonPlans).where(eq(lessonPlans.ownerId, owner));
+    await db.delete(timetableSlots).where(eq(timetableSlots.ownerId, owner));
+    await db.delete(schoolDayCalendar).where(eq(schoolDayCalendar.ownerId, owner));
+    await db.delete(courseSections).where(eq(courseSections.ownerId, owner));
+    await db.delete(subjects).where(eq(subjects.ownerId, owner));
+    await sql.end();
+  });
+
+  it("generateSemesterSessions — 학기 전체 차시 생성 + 기존 done 보존", async () => {
+    const subj = await mkSubject("통합과학", 1);
+    const sec = await mkSection(subj, "2-1");
+    await mkSlot(sec, 1); // 월
+    await mkSlot(sec, 3); // 수
+
+    // 1학기 범위(2099-03-01~08-14) 내 수업일: 월 2 + 수 2 + 슬롯무관 금 1.
+    await mkSchoolDay("2099-03-02"); // 월
+    await mkSchoolDay("2099-03-04"); // 수
+    await mkSchoolDay("2099-03-09"); // 월
+    await mkSchoolDay("2099-03-11"); // 수
+    await mkSchoolDay("2099-03-06"); // 금(슬롯 없음 → 제외)
+
+    // 사전 done 차시(3/02)를 수동 삽입 → 생성이 덮어쓰지 않아야 함.
+    await mkSession(sec, "2099-03-02", "done");
+
+    const r = await generateSemesterSessions(db, owner, sec, YEAR, 1);
+    expect(r.total).toBe(4); // 월2+수2
+
+    const rows = await db
+      .select({ date: classSessions.date, status: classSessions.status })
+      .from(classSessions)
+      .where(eq(classSessions.sectionId, sec));
+    expect(rows).toHaveLength(4);
+    // 3/02 는 여전히 done(보존), 나머지 3개는 planned.
+    const byDate = new Map(rows.map((x) => [x.date, x.status]));
+    expect(byDate.get("2099-03-02")).toBe("done");
+    expect(byDate.get("2099-03-04")).toBe("planned");
+    expect(byDate.get("2099-03-09")).toBe("planned");
+    expect(byDate.get("2099-03-11")).toBe("planned");
+  });
+
+  it("generateSemesterSessions — schoolDayCalendar 미커버 시 no-op(throw 없음)", async () => {
+    const subj = await mkSubject("미술", 2); // 2학기, 수업일 미시드
+    const sec = await mkSection(subj, "2-2");
+    await mkSlot(sec, 2); // 화
+
+    const r = await generateSemesterSessions(db, owner, sec, YEAR, 2);
+    expect(r).toEqual({ generated: 0, removed: 0, total: 0 });
+
+    const rows = await db
+      .select({ id: classSessions.id })
+      .from(classSessions)
+      .where(eq(classSessions.sectionId, sec));
+    expect(rows).toHaveLength(0);
+  });
+
+  it("listProgressPopup — 연체·금주 포함, 미래(다음주)·done 제외", async () => {
+    const subj = await mkSubject("물리", 1);
+    const sec = await mkSection(subj, "2-3");
+
+    const overdue = await mkSession(sec, dayOffset(-3), "planned"); // 연체
+    const thisWeek = await mkSession(sec, dayOffset(0), "planned"); // 오늘(금주)
+    await mkSession(sec, dayOffset(10), "planned"); // 다음주 이후(미래) → 제외
+    await mkSession(sec, dayOffset(-1), "done"); // 완료 → 제외
+
+    const popup = await listProgressPopup(db, owner, YEAR, 1);
+    const ids = new Set(popup.map((p) => p.sessionId));
+    expect(ids.has(overdue)).toBe(true);
+    expect(ids.has(thisWeek)).toBe(true);
+    // 미래·done 은 미포함.
+    expect(popup.every((p) => p.sessionId !== undefined)).toBe(true);
+    expect(popup.filter((p) => p.date === dayOffset(10))).toHaveLength(0);
+    const od = popup.find((p) => p.sessionId === overdue);
+    expect(od?.overdue).toBe(true);
+    expect(od?.subjectName).toBe("물리");
+  });
+
+  it("markSessionDone — 상태 done + session_records 생성", async () => {
+    const subj = await mkSubject("화학", 1);
+    const sec = await mkSection(subj, "2-4");
+    const sid = await mkSession(sec, "2099-04-01", "planned");
+
+    await markSessionDone(db, owner, sid, {
+      actualContent: "산-염기 적정 실험",
+      keywords: ["적정", "지시약"],
+      evalIdea: "적정 곡선 해석 평가",
+      planOrdinal: 3,
+    });
+
+    const [sess] = await db
+      .select({ status: classSessions.status })
+      .from(classSessions)
+      .where(eq(classSessions.id, sid));
+    expect(sess.status).toBe("done");
+
+    const [rec] = await db
+      .select({
+        actualContent: sessionRecords.actualContent,
+        keywords: sessionRecords.keywords,
+        evalIdea: sessionRecords.evalIdea,
+        planOrdinal: sessionRecords.planOrdinal,
+      })
+      .from(sessionRecords)
+      .where(eq(sessionRecords.sessionId, sid));
+    expect(rec.actualContent).toBe("산-염기 적정 실험");
+    expect(rec.keywords).toEqual(["적정", "지시약"]);
+    expect(rec.evalIdea).toBe("적정 곡선 해석 평가");
+    expect(rec.planOrdinal).toBe(3);
+  });
+
+  it("getPlanForSession — 날짜순위 k → 계획 ordinal k, k>N 은 null", async () => {
+    const subj = await mkSubject("생명과학", 1);
+    const sec = await mkSection(subj, "2-5");
+    // 날짜순 3개 차시.
+    await mkSession(sec, "2099-05-01", "planned");
+    const second = await mkSession(sec, "2099-05-02", "planned");
+    const third = await mkSession(sec, "2099-05-03", "planned");
+
+    // 과목 계획: ordinal 1·2 만 존재(3은 없음 → k=3 은 null).
+    await db.insert(lessonPlans).values([
+      { ownerId: owner, subjectId: subj, ordinal: 1, content: "1차시계획", keywords: ["세포"] },
+      { ownerId: owner, subjectId: subj, ordinal: 2, content: "2차시계획", keywords: ["유전"] },
+    ]);
+
+    // 2번째 차시(날짜순) → ordinal 2.
+    const p2 = await getPlanForSession(db, owner, second);
+    expect(p2?.ordinal).toBe(2);
+    expect(p2?.content).toBe("2차시계획");
+    expect(p2?.keywords).toEqual(["유전"]);
+
+    // 3번째 차시 → 계획 ordinal 3 없음 → null(graceful).
+    const p3 = await getPlanForSession(db, owner, third);
+    expect(p3).toBeNull();
+  });
+});

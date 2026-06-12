@@ -7,6 +7,7 @@ import {
   integer,
   boolean,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 import { pk, ownerId, timestamps } from "./_shared";
 import { studentYears } from "./identity";
@@ -141,6 +142,60 @@ export const studentExtraNotes = pgTable("student_extra_notes", {
   body: text("body").notNull(),
   ...timestamps(),
 });
+
+// 수업 계획 (교실 2-2 수업계획실). 과목단위 차시 1..N. 핵심개념=keywords 해시태그.
+export const lessonPlans = pgTable(
+  "lesson_plans",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    ordinal: integer("ordinal").notNull(),
+    content: text("content"),
+    keywords: text("keywords").array(),
+    ...timestamps(),
+  },
+  (t) => [unique("uq_lesson_plans").on(t.subjectId, t.ordinal)],
+);
+
+// 진척도 실제 기록 (교실 2-2). classSessions 1:1. plan_ordinal=토글로딩 매핑(날짜순위/수동).
+export const sessionRecords = pgTable(
+  "session_records",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    sessionId: uuid("session_id")
+      .notNull()
+      .references(() => classSessions.id, { onDelete: "cascade" }),
+    actualContent: text("actual_content"),
+    keywords: text("keywords").array(),
+    evalIdea: text("eval_idea"),
+    planOrdinal: integer("plan_ordinal"),
+    ...timestamps(),
+  },
+  (t) => [unique("uq_session_records").on(t.sessionId)],
+);
+
+// 지필 원점수 (교실 2-2 성적기록). 환산은 읽기시점. ordinal 1=중간 2=기말.
+export const jipilScores = pgTable(
+  "jipil_scores",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    studentYearId: uuid("student_year_id")
+      .notNull()
+      .references(() => studentYears.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    ordinal: integer("ordinal").notNull(),
+    rawScore: numeric("raw_score"),
+    ...timestamps(),
+  },
+  (t) => [unique("uq_jipil_scores").on(t.studentYearId, t.subjectId, t.ordinal)],
+);
 
 // 특기사항 초안 (5종). source=cowork 기본(코워크 생성 텍스트 붙여넣기).
 export const specialNoteDrafts = pgTable("special_note_drafts", {

@@ -4,6 +4,7 @@ import {
   activeSemester,
   schoolYearRange,
   schoolYearRangeYmd,
+  semesterRange,
 } from "./school-year";
 
 describe("activeSchoolYear", () => {
@@ -56,6 +57,22 @@ describe("schoolYearRange", () => {
     expect(schoolYearRangeYmd(2026)).toEqual({
       from: "20260301",
       to: "20270228",
+    });
+  });
+});
+
+describe("semesterRange", () => {
+  it("1학기 = 3/1 ~ 8/14", () => {
+    expect(semesterRange(2026, 1)).toEqual({
+      start: "2026-03-01",
+      end: "2026-08-14",
+    });
+  });
+
+  it("2학기 = 8/15 ~ 익년 2월 말(2027 비윤년 → 2-28)", () => {
+    expect(semesterRange(2026, 2)).toEqual({
+      start: "2026-08-15",
+      end: "2027-02-28",
     });
   });
 });
