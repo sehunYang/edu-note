@@ -22,7 +22,7 @@ export async function setNoticeAction(formData: FormData): Promise<void> {
   await writeAudit(db, ownerId, "notice_upsert", null, {
     kind: "common_notice",
   });
-  revalidatePath("/notice");
+  revalidatePath("/homeroom/notice");
 }
 
 export async function addNoticeEventAction(formData: FormData): Promise<void> {
@@ -33,7 +33,7 @@ export async function addNoticeEventAction(formData: FormData): Promise<void> {
   const db = getDb();
   const e = await addNoticeEvent(db, ownerId, date, title);
   await writeAudit(db, ownerId, "notice_upsert", e.id, { date });
-  revalidatePath("/notice");
+  revalidatePath("/homeroom/notice");
 }
 
 export async function deleteNoticeEventAction(
@@ -45,5 +45,5 @@ export async function deleteNoticeEventAction(
   const db = getDb();
   await deleteNoticeEvent(db, ownerId, id);
   await writeAudit(db, ownerId, "notice_delete", id);
-  revalidatePath("/notice");
+  revalidatePath("/homeroom/notice");
 }

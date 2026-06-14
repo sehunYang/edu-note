@@ -156,3 +156,19 @@
 - deslop: grades.ts 수강생 조회 중복 1건 → listSubjectStudents 헬퍼 consolidation(~40줄 제거). 회귀 재검증 green(typecheck0·build0·grades itest3).
 - 학습: progress.integration.test에 calendarEvents vacation 시드+afterAll cleanup 추가. weekdayOf=getUTCDay(0=일). resolveSemesterBoundary는 y===year ∧ month 6~8 필터(겨울방학 무시).
 - 배포: 커밋 → push origin main(Vercel Hobby 자동). Part B(US-0b~13 담임교실 허브+학생안내, 마이그 동반)는 별도 승인 게이트.
+
+═══════════════════════════════════════════════════════════
+# QC v3 Part B — 담임 교실 허브 (ralph, 2026-06-14~)
+═══════════════════════════════════════════════════════════
+계획: .omc/plans/qc-v3-classroom-homeroom-plan.md / 스펙: deep-interview-qc-v3.md. 브랜치 feat/qc-v3-part-b(main에서 분기). 사용자 승인: 공개페이지 출결 2D표 reason 노출 OK.
+
+## 핵심 결정/학습 (Part B)
+- **0025·0026 불필요 확정**: (0025) special_note_drafts.type enum에 이미 autonomy/career/behavior 존재 → 생기부 3영역 기존테이블 재사용, 신규테이블·enum변경 없음. (0026) reportTier(normal/warning/critical) 값 유지, submissionTier 의미만 잔여수업일 기준 재정의(US-B7 코드).
+- get_public_page 변경(다중노트·2D출결·상담슬롯·시간표)은 **전부 US-B13으로 이연**(원자적 브랜치 머지) → 0022는 순수 additive(부분적용 윈도우 회피).
+- 할일/공지 = calendar_events(source=manual). 교사한마디 = teacher_profile.public_notice(단일). → 0022에서 teacher_notes 다중테이블+이행, calendar_events.content 추가.
+- 담임 멤버십 단일출처 = homeroom_classes/homeroom_members(classes.ts). listHomeroomStudents(observations.ts:392). isHomeroomStudent(roster.ts)는 profile 파생.
+
+## 단계 상태 (Part B)
+- [x] US-B0: 마이그 0020(periods)/0021(counsel_slots+reservations)/0022(teacher_notes+이행+calendar_events.content)/0023(fixed_class_settings)/0024(student_elective_mappings)/0027(homeroom 백필) 손작성·apply-sql 적용. 스키마(attendance/misc) additive 동기화 + audit 13종. **prod 검증**: 신규컬럼2·RLS5테이블 true·teacher_notes 1행 이행·homeroom_members 32 백필(=AC-8.1 실제버그 해소). typecheck 0.
+- [ ] US-B6 허브셸+라우트이전 / US-B8 행특백필검증 / US-B7 출결 / US-B9 상담 / US-B10 공지 / US-B11 자율진로 / US-B12 생기부 / US-B13 학생안내 / US-B14 배포.
+- 검증명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>. 마이그 apply: node --env-file=.env.local scripts/apply-sql.mjs <file>(사용자 승인 게이트).

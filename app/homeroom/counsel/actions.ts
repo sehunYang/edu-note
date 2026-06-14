@@ -40,7 +40,7 @@ export async function createCounselingAction(
     target,
     date,
   });
-  revalidatePath("/counsel");
+  revalidatePath("/homeroom/counsel");
 }
 
 export async function deleteCounselingAction(
@@ -52,5 +52,5 @@ export async function deleteCounselingAction(
   const db = getDb();
   await deleteCounselingLog(db, ownerId, id);
   await writeAudit(db, ownerId, "counseling_delete", id);
-  revalidatePath("/counsel");
+  revalidatePath("/homeroom/counsel");
 }

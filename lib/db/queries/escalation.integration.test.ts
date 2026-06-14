@@ -95,7 +95,7 @@ describe.skipIf(!RUN)("에스컬레이션 — 교외체험 사후보고서 티�
 
     const trips = await listFieldTrips(db, owner);
     expect(trips[0].tier).toBe("critical");
-    expect(trips[0].deadlineDate).not.toBeNull(); // 5번째 수업일 마감
+    expect(trips[0].deadlineDate).not.toBeNull(); // 10번째 수업일 마감(교외체험)
 
     const transitions = await db
       .select({ id: auditLog.id })

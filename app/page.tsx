@@ -106,24 +106,14 @@ export default async function Home() {
           desc="교과 관찰기록을 분반·날짜와 함께 남깁니다(교실로 이동)."
         />
         <DashCard
-          href="/homeroom/behavior"
-          title="행동특성 기록"
-          desc="담임반 학생의 행동발달 및 특기사항을 누가기록합니다."
-        />
-        <DashCard
-          href="/attendance"
-          title="출결 관리"
-          desc="사유×성격으로 출결을 기록하고 신고서 필요/제출을 관리합니다."
+          href="/homeroom"
+          title="🏠 담임 교실"
+          desc="담임반 학생의 자율·진로활동·출결·행특·상담·공지·생기부를 한곳에서 관리합니다."
         />
         <DashCard
           href="/club"
           title="동아리"
           desc="동아리를 만들고 부원과 희망진로를 관리합니다."
-        />
-        <DashCard
-          href="/counsel"
-          title="상담"
-          desc="학생·학부모 상담일지를 기록합니다(AI 분석은 준비중)."
         />
         <DashCard
           href="/staffroom"
@@ -139,11 +129,6 @@ export default async function Home() {
           href="/print"
           title="인쇄실"
           desc="학생 명렬표를 인쇄하거나 PDF로 저장합니다."
-        />
-        <DashCard
-          href="/notice"
-          title="공지실"
-          desc="공개 페이지의 교사 한마디·이번 주 할 일을 설정합니다."
         />
       </section>
 

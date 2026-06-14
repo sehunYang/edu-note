@@ -1,81 +1,134 @@
 {
-  "task": "QC v3 Part A — 교실 4개 컴포넌트 재수정 (수업계획실/진척도/성적/세특). 마이그레이션 0건. 그 후 보고서.",
+  "task": "QC v3 Part B — 담임 교실 허브(/homeroom) 신설 + 출결/상담/공지/행특 이전·확장 + 자율진로·생기부 신규 + 학생 안내 페이지 전면개편. 마이그 0020~0027(additive, 공유 prod). 브랜치 feat/qc-v3-part-b.",
   "plan": ".omc/plans/qc-v3-classroom-homeroom-plan.md",
   "spec": ".omc/specs/deep-interview-qc-v3.md",
+  "decisions": "사용자 승인: 학생 공개페이지 출결 2D표는 성격×사유(reason) 전체 노출(get_public_page에 reason 차원 추가).",
   "stories": [
     {
-      "id": "US-1",
-      "title": "도메인 순수함수 (Part A 공유)",
+      "id": "US-B0",
+      "title": "마이그레이션 0020~0027 + 스키마 additive + audit 전체",
       "priority": 0,
       "passes": true,
       "acceptanceCriteria": [
-        "lib/domain/lesson-plan.ts: pickRepresentativeSection(sections) 가 주당 슬롯 수 최대 분반의 weekday Set 반환(동률→첫째, 빈입력→빈Set)",
-        "lib/domain/lesson-plan.ts: representativeDates(schoolDays, weekdays) 가 weekday 매칭 수업일을 날짜오름차순 배열로 반환",
-        "lib/domain/lesson-plan.ts: monthWeekLabel(date) 가 {month, weekOfMonth=floor((day-1)/7)+1} 반환",
-        "lib/domain/school-year.ts: resolveSemesterBoundary(events, year) 가 여름(6~8월) vacation 이벤트 최소 날짜를 경계 B로, 없으면 8/15 반환",
-        "lib/domain/school-year.ts: semesterRangeWithBoundary(year, sem, B) 가 sem1=[3/1, B-1], sem2=[B, 익년2월말] 반환",
-        "신규 단위테스트 전부 green (대표분반 동률/물리 다분반 동치, 8월초 경계, monthWeekLabel 경계)",
-        "npm run typecheck 0 errors"
+        "0020: attendance_records.periods int[] 컬럼 add (nullable, idempotent)",
+        "0021: counsel_slots(owner,date,capacity unique(owner,date)) + counsel_reservations(owner,slot_id FK,student_year_id, unique(slot_id,student_year_id)) RLS owner_rw",
+        "0022: teacher_notes(owner,body,sort_order,timestamps) 테이블 + 기존 teacher_profile.public_notice 값을 첫 행(sort_order=0)으로 이행 + todos에 content text 컬럼 add",
+        "0023: fixed_class_settings(owner,grade,class_no,subject_name,is_fixed, unique(owner,grade,class_no,subject_name)) RLS owner_rw",
+        "0024: student_elective_mappings(owner,student_year_id,weekday,period,mapped_subject, unique(student_year_id,weekday,period)) RLS owner_rw",
+        "0025: 생기부 초안 = 기존 special_note_drafts 재사용 결정 확정(specialNoteType에 autonomy/career 존재, 행발=behavior 신규 enum값 필요시 ADD VALUE 단독파일) — 재사용 가능하면 신규테이블 미생성, 불가하면 homeroom_records(area text+CHECK) 생성",
+        "0026: reportTracking.lastTier 모델 = normal/warning/critical enum값 유지하되 의미 재정의(잔여수업일 기반), 마이그 불필요시 0026 생략 명시",
+        "0027: homeroom_classes/homeroom_members 백필 — teacher_profile.is_homeroom AND studentYears.grade/classNo==homeroomGrade/homeroomClassNo 인 학생을 idempotent insert",
+        "schema/{attendance,misc,classes,records}.ts additive 동기화 + audit.ts에 신규 이벤트(attendance_period_record, counsel_slot_open/reserve/cancel, counsel_record_update, teacher_note_create/update/delete, fixed_class_save, elective_map_save, homeroom_record_save, homeroom_backfill) 추가",
+        "apply-sql.mjs로 전 마이그 적용 후 relrowsecurity=true(신규 RLS 테이블) + teacher_notes 행 이행 확인 + npm run typecheck 0"
       ]
     },
     {
-      "id": "US-2",
-      "title": "수업계획실 — 차시 분반무관 + 월주차 + 시험마커 (AC-1.x)",
+      "id": "US-B6",
+      "title": "담임 허브 셸 + 라우트 이전/리다이렉트 (AC-5.x)",
       "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "getPlanLength(lesson-plan.ts) 가 분반 요일 UNION 폐기, pickRepresentativeSection 기반 대표분반 단일로 N 산출",
-        "plan/page.tsx 가 차시별 월/주차(monthWeekLabel) + 시험기간(calendarEvents exam, examOrdinal 1/2) 마커를 대표분반 k번째 수업일 기준으로 전달",
-        "plan-editor.tsx 가 각 차시 행에 'M월 W주차' 와 해당 시 '1차/2차 시험' 마커 표시",
-        "lesson-plan.integration.test.ts: 다분반 과목 N 이 분반 수와 무관(대표분반 동치) 단언",
+        "app/homeroom/layout.tsx + page.tsx: 6개 하위 카드(자율진로/출결/행특/상담/공지/생기부), 담임 미설정시 게이팅 안내(getTeacherSettings.isHomeroom)",
+        "기존 app/{attendance,counsel,notice} → /homeroom/* 로 redirect(또는 제거 후 신규 위치)",
+        "app/page.tsx 홈 허브 카드에 담임 교실 진입점 갱신",
+        "담임반 학생 = listHomeroomStudents(FD1) 단일출처, 학기 토글 없음",
         "npm run typecheck 0 + npm run build exit0"
       ]
     },
     {
-      "id": "US-3",
-      "title": "진척도 — 여름방학 학기경계 (AC-2.x)",
+      "id": "US-B8",
+      "title": "행특 담임반 판별 수정 (AC-8.x, FD1 백필 검증)",
       "priority": 2,
       "passes": true,
       "acceptanceCriteria": [
-        "progress.ts generateSemesterSessions/listSectionsForSemester/listProgressPopup 가 resolveSemesterBoundary 로 1/2학기 범위 도출(vacation 미설정시 8/14 fallback)",
-        "8월초 vacation 이후 수업일이 2학기로 분류(1학기 차시에서 제외)",
-        "progress.integration.test.ts: 여름 vacation 경계 분류 + fallback 단언",
-        "npm run typecheck 0 + npm run build exit0"
+        "0027 백필 후 listHomeroomStudents가 담임반 학생을 반환(behavior 페이지 동작)",
+        "observations.integration.test.ts: 백필 후 listHomeroomStudents 집합 == profile 술어(grade/classNo) 집합 단언",
+        "app/homeroom/behavior 렌더 회귀(typecheck/build)"
       ]
     },
     {
-      "id": "US-4",
-      "title": "성적 — 환산 미리보기 요소분해 + 미시행 숨김 + 별도 조회 라우트 (AC-3.x)",
+      "id": "US-B7",
+      "title": "출결 확장 — 교시·결석범위·3단계 마감·뷰 (AC-7.x)",
       "priority": 3,
       "passes": true,
       "acceptanceCriteria": [
-        "getGradeView(grades.ts) 가 지필 중간/기말 각 환산 + 수행 항목별 점수 + 합계를 분해 반환(활성 회차만)",
-        "grades-uploader.tsx 환산 미리보기가 지필중간/지필기말/수행항목별/합계 열로 분해, 미시행 지필 열 숨김",
-        "신규 app/classroom/grades/view/page.tsx 가 저장된 수행항목별·지필회차별 테이블을 전체화면 조회",
-        "grades.integration.test.ts: 분해 뷰(회차별·항목별) + 미시행 숨김 단언",
-        "npm run typecheck 0 + npm run build exit0"
+        "lib/domain/attendance.ts: absentPeriods(kind,pivot,periods) — 지각=조회~pivot 포함, 조퇴=pivot~끝, 결과=선택그대로, 결석=전체. submissionTier(remainingSchoolDays)→1/2/3(≥3/<3≥0/<0). 단위테스트 green",
+        "체험 사후보고서 마감 = 수업일 10일(기존 5→10, escalation.ts fifthSchoolDayAfter 시그니처/상수 수정)",
+        "출결 쿼리/액션: periods 저장(attendance_period_record audit), 지각/조퇴 기점 1개, 결과 다중, 담임반=listHomeroomStudents",
+        "app/homeroom/attendance: 교시 체크 UI(조회+1..N) + 월별/학생별검색/미제출 뷰 3종",
+        "attendance.integration.test.ts: periods 저장 + tier 분류 단언. npm run typecheck 0 + build exit0"
       ]
     },
     {
-      "id": "US-5",
-      "title": "세특 — 예시 CSV + 과목별 수강생 필터 + 추가입력 CRUD (AC-4.x)",
+      "id": "US-B9",
+      "title": "상담실 — rename·수정·슬롯예약·코워크CSV (AC-9.x)",
       "priority": 4,
-      "passes": true,
+      "passes": false,
       "acceptanceCriteria": [
-        "코워크 결과 CSV 업로드에 예시 CSV 다운로드 버튼(업로드 스키마 샘플 행)",
-        "추가입력란이 과목 선택 시 listEnrolledStudentsForSubject 로 수강생만 필터 드롭다운",
-        "추가입력(studentExtraNotes) 저장 목록 표시 + 수정/삭제(list/update/delete 쿼리+액션+audit)",
-        "setech.integration.test.ts: 추가입력 CRUD + 과목필터 수강생 단언",
-        "npm run typecheck 0 + npm run build exit0"
+        "app/homeroom/counsel(rename) + 상담기록 수정 액션(counsel_record_update audit)",
+        "counsel_slots/reservations 쿼리+액션: 교사 슬롯 오픈(capacity), 선착순 예약, 정원초과/중복예약 거부",
+        "AI분석→코워크 CSV 패턴(원천 내보내기→결과 업로드=행발 원천자료), 담임반 필터",
+        "counsel.integration.test.ts: 슬롯 정원·선착순·중복예약 거부 단언. typecheck 0 + build exit0"
       ]
     },
     {
-      "id": "US-REPORT",
-      "title": "보고서 작성",
+      "id": "US-B10",
+      "title": "공지실 — 다중 한마디·할일 수정/내용·고정반 설정 (AC-10.x)",
       "priority": 5,
+      "passes": false,
+      "acceptanceCriteria": [
+        "teacher_notes 다중 CRUD+순서(teacher_note_create/update/delete audit), 공개 스와이프용 배열 반환",
+        "할일(todos) 수정 + content 필드 추가 표시/저장",
+        "고정반 설정 패널: 컴시간으로 담임 학년 전체 수업 파싱→교사 체크 저장(fixed_class_settings, fixed_class_save audit), 미체크=선택과목",
+        "notice.integration.test.ts: 다중노트 순서 + 고정반 저장 단언. typecheck 0 + build exit0"
+      ]
+    },
+    {
+      "id": "US-B11",
+      "title": "자율·진로활동 관리 (신규, AC-6.x)",
+      "priority": 6,
       "passes": true,
       "acceptanceCriteria": [
-        "Part A 완료 내역(변경 파일·검증 결과) + 남은 Part B 작업 보고서를 qc-report-v3-part-a-status.md 로 작성"
+        "app/homeroom/activities(신규): 학사일정 self_activity 목록 로드 + 활동별 특기 입력",
+        "학생 복수체크 일괄저장(학생별 행, studentActivityEntries 재사용), 자유탐구 공통/개별 + 자율/진로 토글(activityTag/placement)",
+        "저장 내역 수정/삭제, 담임반 학생만(listHomeroomStudents)",
+        "activities.integration.test.ts: 일괄저장(복수학생) + 자율/진로 분류 + 수정삭제 단언. typecheck 0 + build exit0"
+      ]
+    },
+    {
+      "id": "US-B12",
+      "title": "생기부 작성 (신규, AC-11.x)",
+      "priority": 7,
+      "passes": false,
+      "acceptanceCriteria": [
+        "app/homeroom/record(신규): 세특 동일 틀, 3영역(자율/진로/행발) 원천 CSV 내보내기→코워크→결과 CSV 업로드(초안 저장)",
+        "원천 매핑: 자율←activities자율, 진로←activities진로, 행발←behavior+상담CSV+class_roles",
+        "학기 구분 없음(연말 1회), 세특 독립. special_note_drafts 또는 homeroom_records 저장(US-B0 결정)",
+        "homeroom-record.integration.test.ts: 3영역 원천 집계 + 초안 저장 단언. typecheck 0 + build exit0"
+      ]
+    },
+    {
+      "id": "US-B13",
+      "title": "학생 안내 페이지 + get_public_page 재정의 (AC-12.x)",
+      "priority": 8,
+      "passes": false,
+      "acceptanceCriteria": [
+        "get_public_page create or replace: (a)출결 성격×사유 2D집계(reason 노출=승인됨), (b)상담슬롯 잔여, (c)다중 teacher_notes 배열, (d)컴시간 담임반 시간표(enrollments→파싱본 교체). NULL-safe graceful(throw 시 학생페이지 500 방지)",
+        "app/p/[token]: 이름 헤더, 일정 캘린더(학사+할일, 오늘강조, 월이동), 시간표(월~금×1~7, 고정반 과목명/선택과목 자가매핑 토글), 급식 당일, 출결 2D표, 성적 제거, 상담신청 캘린더(슬롯 잔여)",
+        "student_elective_mappings 학생 자가매핑 저장/조회(elective_map_save), electiveCandidates 도메인 후보필터",
+        "컴시간 학생 시간표 매일 동기화(교사 동기화 cron/route 패턴), 공개링크 발급 토큰 재조회 상시표시(app/setting/students UI)",
+        "public-page.integration.test.ts: get_public_page 재정의 계약(2D출결·상담슬롯·다중노트) 단언. typecheck 0 + build exit0"
+      ]
+    },
+    {
+      "id": "US-B14",
+      "title": "회귀 + architect 검증 + 배포",
+      "priority": 9,
+      "passes": false,
+      "acceptanceCriteria": [
+        "전체 npm run typecheck 0 + npm run build exit0 + 전체 단위테스트 green + Part B itest green",
+        "architect(THOROUGH/Opus) APPROVED + deslop(ai-slop-cleaner) 후 재회귀 green",
+        "git push(feat/qc-v3-part-b) → main 머지 → Vercel 배포. 보고서 갱신"
       ]
     }
   ]

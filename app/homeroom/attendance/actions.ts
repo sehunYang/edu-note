@@ -41,6 +41,13 @@ export async function recordAttendanceAction(formData: FormData): Promise<void> 
     return;
   }
 
+  // 교시 입력: 지각/조퇴=기점 라디오(pivotPeriod), 결과=다중 체크박스(periods).
+  const pivotPeriod = Number(formData.get("pivotPeriod") ?? 0) || 0;
+  const selectedPeriods = formData
+    .getAll("periods")
+    .map((p) => Number(p))
+    .filter((p) => Number.isInteger(p));
+
   const db = getDb();
   const row = await upsertAttendance(db, ownerId, {
     studentYearId,
@@ -48,15 +55,18 @@ export async function recordAttendanceAction(formData: FormData): Promise<void> 
     reason,
     kind,
     noteField,
+    pivotPeriod,
+    selectedPeriods,
   });
-  await writeAudit(db, ownerId, "attendance_record", row.id, {
+  await writeAudit(db, ownerId, "attendance_period_record", row.id, {
     studentYearId,
     date,
     reason,
     kind,
+    periods: row.periods,
     reportRequired: row.reportRequired,
   });
-  revalidatePath("/attendance");
+  revalidatePath("/homeroom/attendance");
 }
 
 export async function toggleReportSubmittedAction(formData: FormData): Promise<void> {
@@ -67,7 +77,7 @@ export async function toggleReportSubmittedAction(formData: FormData): Promise<v
   const db = getDb();
   await setReportSubmitted(db, ownerId, id, submitted);
   await writeAudit(db, ownerId, "report_submit", id, { submitted });
-  revalidatePath("/attendance");
+  revalidatePath("/homeroom/attendance");
 }
 
 export async function deleteAttendanceAction(formData: FormData): Promise<void> {
@@ -76,7 +86,7 @@ export async function deleteAttendanceAction(formData: FormData): Promise<void> 
   if (!id) return;
   const db = getDb();
   await deleteAttendance(db, ownerId, id);
-  revalidatePath("/attendance");
+  revalidatePath("/homeroom/attendance");
 }
 
 /** 교외체험 사후보고서 추적 시작. */
@@ -91,7 +101,7 @@ export async function addFieldTripAction(formData: FormData): Promise<void> {
     studentYearId,
     tripDate,
   });
-  revalidatePath("/attendance");
+  revalidatePath("/homeroom/attendance");
 }
 
 /** 교외체험 사후보고서 제출 여부 마킹. */
@@ -102,7 +112,7 @@ export async function toggleFieldTripAction(formData: FormData): Promise<void> {
   if (!id) return;
   const db = getDb();
   await setFieldTripSubmitted(db, ownerId, id, submitted);
-  revalidatePath("/attendance");
+  revalidatePath("/homeroom/attendance");
 }
 
 /** 신고서 에스컬레이션 즉시 재계산(수업일 기준 티어 갱신 + 전이 감사). */
@@ -110,5 +120,5 @@ export async function recomputeEscalationAction(): Promise<void> {
   const ownerId = await getOwnerId();
   const db = getDb();
   await recomputeEscalation(db, ownerId);
-  revalidatePath("/attendance");
+  revalidatePath("/homeroom/attendance");
 }
