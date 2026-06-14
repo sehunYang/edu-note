@@ -170,5 +170,14 @@
 
 ## 단계 상태 (Part B)
 - [x] US-B0: 마이그 0020(periods)/0021(counsel_slots+reservations)/0022(teacher_notes+이행+calendar_events.content)/0023(fixed_class_settings)/0024(student_elective_mappings)/0027(homeroom 백필) 손작성·apply-sql 적용. 스키마(attendance/misc) additive 동기화 + audit 13종. **prod 검증**: 신규컬럼2·RLS5테이블 true·teacher_notes 1행 이행·homeroom_members 32 백필(=AC-8.1 실제버그 해소). typecheck 0.
-- [ ] US-B6 허브셸+라우트이전 / US-B8 행특백필검증 / US-B7 출결 / US-B9 상담 / US-B10 공지 / US-B11 자율진로 / US-B12 생기부 / US-B13 학생안내 / US-B14 배포.
-- 검증명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>. 마이그 apply: node --env-file=.env.local scripts/apply-sql.mjs <file>(사용자 승인 게이트).
+- [x] US-B6 허브셸: app/homeroom/{layout,page} 6카드+담임게이팅 + attendance/counsel/notice → /homeroom/* git mv + 구경로 redirect + 홈카드 단일화 + today/nudge 링크 갱신. build0.
+- [x] US-B7 출결: lib/domain/attendance.ts absentPeriods(지각=조회~pivot/조퇴=pivot~끝/결과=다중/결석=전체)+submissionTier(잔여 ≥3/<3/<0). escalation 체험 5→10(nthSchoolDayAfter+상수). periods 저장+attendance_period_record. 월별/학생별/미제출 뷰. itest9.
+- [x] US-B8 행특: 0027 백필로 listHomeroomStudents 동작. observations itest 백필=profile술어 동일집합. (10 green)
+- [x] US-B9 상담: updateCounselingLog + 슬롯/예약(openSlot/reserve/cancel, FOR UPDATE 정원직렬화+unique중복+선착순) + 코워크CSV→studentExtraNotes(subjectId null). itest5.
+- [x] US-B10 공지: teacher_notes 다중CRUD+sortOrder, updateNoticeEvent(content), fixed-class.ts(컴시간 학년파싱 listGradeClasses+saveFixedClassSetting, 파싱실패 graceful). itest6.
+- [x] US-B11 자율진로: app/homeroom/activities self_activity 로드+복수학생 일괄저장(studentActivityEntries)+자유탐구 공통/개별+자율진로 토글+CRUD. itest8.
+- [x] US-B12 생기부: homeroom-record.ts collectRecordSources(자율←activities autonomy/진로←career/행발←behavior+counselCSV+class_roles)+saveHomeroomRecordDraft(special_note_drafts type=area, byteLimit=byte-count.ts 재사용). itest2.
+- [x] US-B13 학생안내: 0028 homeroom_timetable_slots + 0029 get_public_page v3(studentName·notices배열·월간창-31..+93·시간표 고정/선택매핑·당일급식·출결2D 성격×사유·상담슬롯, 전 NULL-safe). dto.ts allowlist 확장. elective.ts. 토큰스코프 write(student-write.ts: saveElectiveMapping/reserveCounsel, public_pages 토큰해석+revoked/expired거부). p/[token] UI 전면개편(이름헤더·월간캘린더·시간표그리드·2D출결·성적제거·상담신청). 컴시간 담임반 동기화. setting/students 토큰 재조회(listPublicPages). prod 검증: get_public_page ok·11키·no throw.
+- [x] US-B14 회귀: typecheck0/build0/unit235/Part B itest 전부 green. architect 검증: 1차 REJECT(meal payload->>'menu' 버그+예약 race) → 둘 다 수정(meal 배열평탄화 재적용·검증, reserve FOR UPDATE) → 재검증.
+- ⚠ 학습: meal_cache.payload={meals:[{mealType,menu:text[],calInfo}]} — get_public_page는 jsonb_array_elements+string_agg로 평탄화해야 함(스칼라 ->>'menu' 아님). 0029 create or replace라 재적용 안전.
+- 검증명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>. 마이그 apply: node --env-file=.env.local scripts/apply-sql.mjs <file>(사용자 승인 게이트). 마이그 0020~0024,0027,0028,0029 prod 적용완료.

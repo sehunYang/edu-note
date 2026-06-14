@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -6 && echo \"BUILD_DONE\"",
-    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run lib/db/queries/integration.test.ts lib/db/queries/attendance.integration.test.ts lib/db/queries/activities.integration.test.ts lib/db/queries/homeroom-record.integration.test.ts lib/db/queries/homeroom-timetable.integration.test.ts 2>&1 | tail -18",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -6 && echo BUILD_DONE",
+    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run lib/db/queries/attendance.integration.test.ts lib/db/queries/activities.integration.test.ts lib/db/queries/counsel.integration.test.ts lib/db/queries/notice.integration.test.ts lib/db/queries/homeroom-record.integration.test.ts lib/db/queries/homeroom-timetable.integration.test.ts lib/db/queries/observations.integration.test.ts lib/db/queries/integration.test.ts 2>&1 | tail -16",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -171,8 +171,8 @@
     },
     {
       "path": "lib\\db\\schema\\misc.ts",
-      "accessCount": 46,
-      "lastAccessed": 1781469869508,
+      "accessCount": 47,
+      "lastAccessed": 1781474945865,
       "type": "file"
     },
     {
@@ -213,8 +213,8 @@
     },
     {
       "path": "lib\\public\\dto.ts",
-      "accessCount": 16,
-      "lastAccessed": 1781469822829,
+      "accessCount": 17,
+      "lastAccessed": 1781474938617,
       "type": "file"
     },
     {
@@ -231,8 +231,8 @@
     },
     {
       "path": "lib\\integrations\\neis.ts",
-      "accessCount": 12,
-      "lastAccessed": 1781052335035,
+      "accessCount": 13,
+      "lastAccessed": 1781475108463,
       "type": "file"
     },
     {
@@ -248,21 +248,27 @@
       "type": "file"
     },
     {
+      "path": "lib\\public\\get-public-page.ts",
+      "accessCount": 11,
+      "lastAccessed": 1781474978204,
+      "type": "file"
+    },
+    {
       "path": "README.md",
       "accessCount": 10,
       "lastAccessed": 1780767768822,
       "type": "file"
     },
     {
-      "path": "lib\\public\\get-public-page.ts",
-      "accessCount": 10,
-      "lastAccessed": 1781469612969,
-      "type": "file"
-    },
-    {
       "path": "lib\\db\\queries\\public-page.ts",
       "accessCount": 10,
       "lastAccessed": 1781469624996,
+      "type": "file"
+    },
+    {
+      "path": "app\\p\\[token]\\page.tsx",
+      "accessCount": 9,
+      "lastAccessed": 1781474973190,
       "type": "file"
     },
     {
@@ -275,12 +281,6 @@
       "path": "lib\\domain\\types.ts",
       "accessCount": 8,
       "lastAccessed": 1781469699374,
-      "type": "file"
-    },
-    {
-      "path": "app\\p\\[token]\\page.tsx",
-      "accessCount": 8,
-      "lastAccessed": 1781470182297,
       "type": "file"
     },
     {

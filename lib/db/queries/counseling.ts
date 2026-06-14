@@ -249,12 +249,14 @@ export async function listCounselReservations(
  * 학생 상담 예약(선착순·중복방지).
  *
  * 검사 순서:
- *  1. 슬롯 존재 확인(ownerId 일치).
+ *  1. 슬롯 존재 확인(ownerId 일치) + **FOR UPDATE 행잠금**.
  *  2. 이미 예약 여부 확인 → 이미 예약됨 throw.
  *  3. 잔여 정원 확인 → 정원 초과 throw.
- *  4. insert — unique(slot_id, student_year_id) 가 동시 경쟁을 잡는다.
+ *  4. insert — unique(slot_id, student_year_id) 가 중복을 잡는다.
  *
- * 트랜잭션 안에서 실행되므로 race-safe.
+ * 동시성: 같은 슬롯에 대한 예약은 1단계 FOR UPDATE 로 직렬화되므로(같은 슬롯 행을
+ * 잠금) 두 학생이 마지막 한 자리를 동시에 신청해도 정원 초과가 발생하지 않는다.
+ * 중복(같은 학생 재신청)은 unique 제약이 추가 방어한다.
  */
 export async function reserveCounselSlot(
   db: DB,
@@ -263,13 +265,14 @@ export async function reserveCounselSlot(
   studentYearId: string,
 ): Promise<{ id: string }> {
   return db.transaction(async (tx) => {
-    // 1. 슬롯 존재 확인
+    // 1. 슬롯 존재 확인 + 행잠금(동시 예약 직렬화 — 정원 경쟁 방어)
     const [slot] = await tx
       .select({ id: counselSlots.id, capacity: counselSlots.capacity })
       .from(counselSlots)
       .where(
         and(eq(counselSlots.id, slotId), eq(counselSlots.ownerId, ownerId)),
-      );
+      )
+      .for("update");
     if (!slot) throw new Error("슬롯을 찾을 수 없습니다.");
 
     // 2. 중복 예약 확인

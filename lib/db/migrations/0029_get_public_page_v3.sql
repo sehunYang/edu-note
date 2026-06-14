@@ -137,8 +137,16 @@ begin
          and hts.grade = v_grade
          and hts.class_no = v_class_no), '[]'::jsonb),
     'meals', coalesce(
-      (select jsonb_agg(jsonb_build_object('date', mc.date, 'menu', mc.payload->>'menu'))
+      -- meal_cache.payload = { meals: [ { mealType, menu: text[], calInfo } ] }.
+      -- 배열을 평탄화하고 menu 배열을 문자열로 합쳐 DTO(menu:string)에 맞춘다.
+      (select jsonb_agg(jsonb_build_object(
+                'date', mc.date,
+                'menu', concat_ws(' · ', m->>'mealType',
+                          (select string_agg(item, ', ')
+                           from jsonb_array_elements_text(m->'menu') as item))))
        from meal_cache mc
+       cross join lateral jsonb_array_elements(
+         coalesce(mc.payload->'meals', '[]'::jsonb)) as m
        where mc.owner_id = v_owner
          and mc.date = current_date), '[]'::jsonb),  -- 당일만
     -- 개별칸
