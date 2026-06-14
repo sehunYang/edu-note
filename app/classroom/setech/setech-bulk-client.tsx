@@ -4,8 +4,11 @@ import {
   exportBulkSourceAction,
   importBulkResultAction,
   saveExtraNoteAction,
+  updateExtraNoteAction,
+  deleteExtraNoteAction,
 } from "./actions";
 import { downloadCsv } from "@/lib/ui/download-csv";
+import { bulkResultCsvExample } from "@/lib/setech";
 
 interface SubjectOpt {
   id: string;
@@ -23,17 +26,27 @@ interface DraftRow {
   byteCount: number;
   byteLimit: number;
 }
+interface ExtraNoteRow {
+  id: string;
+  studentYearId: string;
+  subjectId: string | null;
+  body: string;
+}
 
 export function SetechBulkClient({
   semester,
   subjects,
   students,
+  enrollmentBySubject,
   drafts,
+  extraNotes,
 }: {
   semester: number;
   subjects: SubjectOpt[];
   students: StudentOpt[];
+  enrollmentBySubject: Record<string, string[]>;
   drafts: DraftRow[];
+  extraNotes: ExtraNoteRow[];
 }) {
   const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? "");
   const [sectionId, setSectionId] = useState("");
@@ -134,9 +147,20 @@ export function SetechBulkClient({
 
       {/* 결과 업로드 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-semibold text-neutral-700">
-          ② 코워크 결과 CSV 업로드(학번+과목 매칭)
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-neutral-700">
+            ② 코워크 결과 CSV 업로드(학번+과목 매칭)
+          </h3>
+          <button
+            type="button"
+            onClick={() =>
+              downloadCsv(bulkResultCsvExample(), "세특_업로드_예시.csv")
+            }
+            className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50"
+          >
+            ⬇ 예시 CSV 다운로드
+          </button>
+        </div>
         <input
           type="file"
           accept=".csv,text/csv"
@@ -182,8 +206,13 @@ export function SetechBulkClient({
         )}
       </section>
 
-      {/* 학생×과목 추가입력 */}
-      <ExtraNoteForm subjects={subjects} students={students} />
+      {/* 학생×과목 추가입력 + 목록(CRUD) */}
+      <ExtraNoteForm
+        subjects={subjects}
+        students={students}
+        enrollmentBySubject={enrollmentBySubject}
+        extraNotes={extraNotes}
+      />
 
       {msg && <p className="text-xs text-neutral-500">{msg}</p>}
 
@@ -215,24 +244,43 @@ export function SetechBulkClient({
   );
 }
 
-/** 학생×과목 추가 입력(자율 탐구 등). */
+/** 학생×과목 추가 입력(자율 탐구 등) + 저장 목록(수정/삭제). */
 function ExtraNoteForm({
   subjects,
   students,
+  enrollmentBySubject,
+  extraNotes,
 }: {
   subjects: SubjectOpt[];
   students: StudentOpt[];
+  enrollmentBySubject: Record<string, string[]>;
+  extraNotes: ExtraNoteRow[];
 }) {
-  const [studentYearId, setStudentYearId] = useState(students[0]?.id ?? "");
   const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? "");
+  const [studentYearId, setStudentYearId] = useState("");
   const [body, setBody] = useState("");
   const [msg, setMsg] = useState("");
   const [pending, startTransition] = useTransition();
 
+  // AC-4.2 과목 선택 시 그 과목 수강생만 드롭다운.
+  const enrolledIds = new Set(enrollmentBySubject[subjectId] ?? []);
+  const filteredStudents = students.filter((s) => enrolledIds.has(s.id));
+  const effectiveStudentId =
+    studentYearId && enrolledIds.has(studentYearId)
+      ? studentYearId
+      : (filteredStudents[0]?.id ?? "");
+
+  const labelById = new Map(students.map((s) => [s.id, s.label]));
+  const subjectNameById = new Map(subjects.map((s) => [s.id, s.name]));
+
   function onSave() {
     setMsg("");
     startTransition(async () => {
-      const r = await saveExtraNoteAction({ studentYearId, subjectId: subjectId || null, body });
+      const r = await saveExtraNoteAction({
+        studentYearId: effectiveStudentId,
+        subjectId: subjectId || null,
+        body,
+      });
       if (r.ok) {
         setBody("");
         setMsg("추가 입력을 저장했습니다.");
@@ -245,22 +293,17 @@ function ExtraNoteForm({
   return (
     <section className="rounded-lg border border-neutral-200 p-4">
       <h3 className="text-sm font-semibold text-neutral-700">학생 추가 입력(자율 탐구 등)</h3>
-      <p className="mt-1 text-xs text-neutral-400">세특 원천자료에 합류합니다. 점수가 아닌 활동 서술을 기입하세요.</p>
+      <p className="mt-1 text-xs text-neutral-400">
+        세특 원천자료에 합류합니다. 과목을 고르면 그 과목 수강생만 표시됩니다. 점수가
+        아닌 활동 서술을 기입하세요.
+      </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <select
-          value={studentYearId}
-          onChange={(e) => setStudentYearId(e.target.value)}
-          className="rounded border border-neutral-300 px-2 py-1 text-sm"
-        >
-          {students.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-        </select>
-        <select
           value={subjectId}
-          onChange={(e) => setSubjectId(e.target.value)}
+          onChange={(e) => {
+            setSubjectId(e.target.value);
+            setStudentYearId("");
+          }}
           className="rounded border border-neutral-300 px-2 py-1 text-sm"
         >
           {subjects.map((s) => (
@@ -268,6 +311,21 @@ function ExtraNoteForm({
               {s.name}
             </option>
           ))}
+        </select>
+        <select
+          value={effectiveStudentId}
+          onChange={(e) => setStudentYearId(e.target.value)}
+          className="rounded border border-neutral-300 px-2 py-1 text-sm"
+        >
+          {filteredStudents.length === 0 ? (
+            <option value="">수강생 없음</option>
+          ) : (
+            filteredStudents.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))
+          )}
         </select>
       </div>
       <textarea
@@ -279,12 +337,120 @@ function ExtraNoteForm({
       />
       <button
         onClick={onSave}
-        disabled={pending || !studentYearId || !body.trim()}
+        disabled={pending || !effectiveStudentId || !body.trim()}
         className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
       >
         추가 입력 저장
       </button>
       {msg && <p className="mt-1 text-xs text-neutral-500">{msg}</p>}
+
+      {/* AC-4.3 저장된 추가 입력 목록(수정/삭제) */}
+      <div className="mt-4 border-t border-neutral-100 pt-3">
+        <h4 className="text-xs font-semibold text-neutral-600">
+          저장된 추가 입력 {extraNotes.length}
+        </h4>
+        {extraNotes.length === 0 ? (
+          <p className="mt-1 text-xs text-neutral-400">아직 추가 입력이 없습니다.</p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {extraNotes.map((n) => (
+              <ExtraNoteItem
+                key={n.id}
+                note={n}
+                studentLabel={labelById.get(n.studentYearId) ?? "—"}
+                subjectName={
+                  n.subjectId ? (subjectNameById.get(n.subjectId) ?? "—") : "공통"
+                }
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
+  );
+}
+
+/** 추가 입력 1행(인라인 수정·삭제). */
+function ExtraNoteItem({
+  note,
+  studentLabel,
+  subjectName,
+}: {
+  note: ExtraNoteRow;
+  studentLabel: string;
+  subjectName: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [body, setBody] = useState(note.body);
+  const [pending, startTransition] = useTransition();
+
+  function onUpdate() {
+    startTransition(async () => {
+      const r = await updateExtraNoteAction({ id: note.id, body });
+      if (r.ok) setEditing(false);
+    });
+  }
+  function onDelete() {
+    startTransition(async () => {
+      await deleteExtraNoteAction({ id: note.id });
+    });
+  }
+
+  return (
+    <li className="rounded border border-neutral-200 p-2 text-sm">
+      <div className="flex items-center justify-between text-xs text-neutral-400">
+        <span>
+          {studentLabel} · {subjectName}
+        </span>
+        <span className="flex gap-2">
+          {editing ? (
+            <>
+              <button
+                onClick={onUpdate}
+                disabled={pending || !body.trim()}
+                className="text-emerald-600 hover:underline disabled:opacity-50"
+              >
+                저장
+              </button>
+              <button
+                onClick={() => {
+                  setEditing(false);
+                  setBody(note.body);
+                }}
+                className="text-neutral-400 hover:underline"
+              >
+                취소
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setEditing(true)}
+                className="text-neutral-500 hover:underline"
+              >
+                수정
+              </button>
+              <button
+                onClick={onDelete}
+                disabled={pending}
+                className="text-red-500 hover:underline disabled:opacity-50"
+              >
+                삭제
+              </button>
+            </>
+          )}
+        </span>
+      </div>
+      {editing ? (
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          rows={3}
+          className="mt-1 w-full rounded border border-neutral-300 px-2 py-1 text-sm"
+        />
+      ) : (
+        <p className="mt-1 whitespace-pre-wrap text-neutral-700">{note.body}</p>
+      )}
+    </li>
   );
 }

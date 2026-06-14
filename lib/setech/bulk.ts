@@ -112,6 +112,32 @@ export function toBulkCsv(rows: BulkSourceRow[]): string {
   return lines.join("\n");
 }
 
+/**
+ * QC v3 AC-4.1 — 코워크 결과 업로드용 **예시 CSV**. 내보내기와 동일 스키마
+ * (학번,이름,과목,원천자료,세특본문)에 세특본문이 채워진 샘플 행을 보여준다.
+ * 교사가 형식을 파악하고 같은 구조로 채워 올리도록 돕는다.
+ */
+export function bulkResultCsvExample(): string {
+  const header = ["학번", "이름", "과목", "원천자료", "세특본문"];
+  const sample = [
+    [
+      "20301",
+      "홍길동",
+      "물리학",
+      "탐구활동: 빛의 굴절 실험 설계 / 수행: 보고서 우수",
+      "빛의 굴절 실험을 스스로 설계하여 임계각을 측정하고 오차 원인을 정량적으로 분석함. 탐구 과정에서 변인 통제의 중요성을 체득함.",
+    ],
+    [
+      "20302",
+      "김영희",
+      "물리학",
+      "탐구활동: 전자기 유도 추가 조사",
+      "전자기 유도 단원에서 발전기의 원리를 추가 조사하여 학급에 발표하고 동료의 질문에 논리적으로 답변함.",
+    ],
+  ];
+  return [header, ...sample].map((r) => r.map(csvCell).join(",")).join("\n");
+}
+
 /** 결과 CSV 헤더 별칭. */
 const RESULT_ALIASES = {
   sid: ["학번"],

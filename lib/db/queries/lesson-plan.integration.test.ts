@@ -9,6 +9,7 @@ import { lessonPlans } from "../schema/records";
 import { schoolDayCalendar } from "../schema/misc";
 import {
   getPlanLength,
+  getPlanView,
   listLessonPlan,
   upsertLessonPlanEntry,
   deleteLessonPlanEntry,
@@ -28,6 +29,7 @@ const YEAR = 2099;
 
 let subj1: string; // 1학기 과목
 let subj2: string; // 동명 2학기 과목
+let subj3: string; // 다분반(요일 상이) 과목 — 대표분반 동치 검증
 
 async function mkSubject(name: string, semester: number): Promise<string> {
   const [s] = await db
@@ -77,6 +79,20 @@ describe.skipIf(!RUN)("수업 계획실 쿼리", () => {
     await mkSchoolDay("2099-03-11"); // 수
     await mkSchoolDay("2099-03-16"); // 월
     await mkSchoolDay("2099-03-06"); // 금(슬롯 없음 → 미카운트)
+    // 대표분반 검증용 추가 수업일: 화 1 + 목 1.
+    await mkSchoolDay("2099-03-03"); // 화
+    await mkSchoolDay("2099-03-05"); // 목
+
+    // subj3: 분반A 월·수(2슬롯), 분반B 화·목·금(3슬롯=대표). UNION 이면 8(전부),
+    // 대표분반(B)만이면 화1+목1+금1 = 3. 분반 수와 무관해야 함(물리 97 버그 방지).
+    subj3 = await mkSubject("물리학", 1);
+    const sA = await mkSection(subj3, "2-1");
+    await mkSlot(sA, 1); // 월
+    await mkSlot(sA, 3); // 수
+    const sB = await mkSection(subj3, "2-2");
+    await mkSlot(sB, 2); // 화
+    await mkSlot(sB, 4); // 목
+    await mkSlot(sB, 5); // 금
   });
 
   afterAll(async () => {
@@ -91,6 +107,26 @@ describe.skipIf(!RUN)("수업 계획실 쿼리", () => {
   it("차시 N 산출 — 월·수 슬롯 ∩ 1학기 수업일 = 5 (금 제외)", async () => {
     const n = await getPlanLength(db, owner, subj1, YEAR, 1);
     expect(n).toBe(5);
+  });
+
+  it("AC-1.2 차시 N 분반무관 — 대표분반(화목금 3슬롯) = 3, UNION(8) 아님", async () => {
+    const n = await getPlanLength(db, owner, subj3, YEAR, 1);
+    expect(n).toBe(3); // 화1+목1+금1 (대표=분반B). UNION 이면 8.
+  });
+
+  it("AC-1.2 분반 추가해도 N 불변 — 월·수 분반 1개 더 추가해도 3 유지", async () => {
+    const sC = await mkSection(subj3, "2-3");
+    await mkSlot(sC, 1); // 월
+    await mkSlot(sC, 3); // 수
+    const n = await getPlanLength(db, owner, subj3, YEAR, 1);
+    expect(n).toBe(3); // 여전히 대표분반(B) 기준 — 분반 수 무관(물리 97 버그 방지)
+  });
+
+  it("AC-1.3 getPlanView — 차시별 월/주차 메타 + 길이", async () => {
+    const view = await getPlanView(db, owner, subj1, YEAR, 1);
+    expect(view.length).toBe(5);
+    expect(view.ordinals).toHaveLength(5);
+    expect(view.ordinals[0]).toMatchObject({ ordinal: 1, month: 3, weekOfMonth: 1 });
   });
 
   it("upsert 후 list — 항목 반환(키워드 보존)", async () => {

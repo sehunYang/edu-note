@@ -16,8 +16,9 @@ import { downloadCsv } from "@/lib/ui/download-csv";
 export interface GradeRow {
   sid: string;
   name: string;
-  jipilConverted: number;
-  performanceTotal: number;
+  jipilMid: number;
+  jipilFinal: number;
+  performanceByItem: Record<string, number>;
   total: number;
 }
 
@@ -121,8 +122,13 @@ export function GradesUploader({ subjects }: { subjects: SubjectGradeView[] }) {
         )}
       </section>
 
-      {/* 환산 미리보기 */}
-      <GradePreview rows={selected.grades} />
+      {/* 환산 미리보기(요소별 분해) */}
+      <GradePreview
+        rows={selected.grades}
+        performanceItems={selected.performanceItems}
+        midEnabled={selected.jipilMidEnabled}
+        finalEnabled={selected.jipilFinalEnabled}
+      />
     </div>
   );
 }
@@ -315,11 +321,18 @@ function UploadResult({ state }: { state: GradeUploadState | null }) {
   );
 }
 
-function GradePreview({ rows }: { rows: GradeRow[] }) {
-  const hasAny = useMemo(
-    () => rows.some((r) => r.total !== 0),
-    [rows],
-  );
+function GradePreview({
+  rows,
+  performanceItems,
+  midEnabled,
+  finalEnabled,
+}: {
+  rows: GradeRow[];
+  performanceItems: string[];
+  midEnabled: boolean;
+  finalEnabled: boolean;
+}) {
+  const hasAny = useMemo(() => rows.some((r) => r.total !== 0), [rows]);
   if (rows.length === 0) {
     return (
       <p className="text-xs text-neutral-400">
@@ -332,14 +345,22 @@ function GradePreview({ rows }: { rows: GradeRow[] }) {
       <h3 className="text-sm font-semibold text-neutral-700">
         환산 미리보기{!hasAny && " (입력된 성적 없음)"}
       </h3>
+      <p className="mt-0.5 text-xs text-neutral-400">
+        지필은 활성 회차별, 수행은 항목별로 분해됩니다. 미시행 지필 열은 숨깁니다.
+      </p>
       <div className="mt-2 overflow-x-auto">
         <table className="min-w-full text-xs">
           <thead>
             <tr className="border-b border-neutral-200 text-left text-neutral-500">
               <th className="px-2 py-1">학번</th>
               <th className="px-2 py-1">이름</th>
-              <th className="px-2 py-1 text-right">지필환산</th>
-              <th className="px-2 py-1 text-right">수행합</th>
+              {midEnabled && <th className="px-2 py-1 text-right">지필중간</th>}
+              {finalEnabled && <th className="px-2 py-1 text-right">지필기말</th>}
+              {performanceItems.map((item) => (
+                <th key={item} className="px-2 py-1 text-right">
+                  {item}
+                </th>
+              ))}
               <th className="px-2 py-1 text-right">합계</th>
             </tr>
           </thead>
@@ -348,8 +369,17 @@ function GradePreview({ rows }: { rows: GradeRow[] }) {
               <tr key={r.sid} className="border-b border-neutral-100">
                 <td className="px-2 py-1">{r.sid}</td>
                 <td className="px-2 py-1">{r.name}</td>
-                <td className="px-2 py-1 text-right">{r.jipilConverted}</td>
-                <td className="px-2 py-1 text-right">{r.performanceTotal}</td>
+                {midEnabled && (
+                  <td className="px-2 py-1 text-right">{r.jipilMid}</td>
+                )}
+                {finalEnabled && (
+                  <td className="px-2 py-1 text-right">{r.jipilFinal}</td>
+                )}
+                {performanceItems.map((item) => (
+                  <td key={item} className="px-2 py-1 text-right">
+                    {r.performanceByItem[item] ?? "–"}
+                  </td>
+                ))}
                 <td className="px-2 py-1 text-right font-semibold">{r.total}</td>
               </tr>
             ))}

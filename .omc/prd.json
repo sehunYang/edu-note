@@ -1,48 +1,81 @@
 {
-  "title": "QC v2 후속 — 학사일정 방학 종료 로직 + 기타(etc) 분류 (ralph 실행)",
-  "task": "계획 .omc/plans/qc-v2-2-2-calendar-vacation-etc-plan.md 대로 구현. ① classifySchedule cluster-local 2-phase 재작성(개학 종료 유지 + 개학 없으면 클러스터 마지막 방학일 종료, positive 행이 클러스터 분리) ② etc(기타) EventKind 수동 전용 추가(자동 fallback=self_activity 불변). 단위+통합테스트 그린 게이트, 전 단계 완료 시 git push origin main 배포.",
-  "constraints": [
-    "분류기 2건 외 불변. 컬럼 default(self_activity) 불변. 다른 EventKind 소비자 불변.",
-    "마이그=수기 SQL via apply-sql.mjs. 0016 ADD VALUE 'etc'만(단독 파일, UPDATE/DEFAULT 금지 — 단일 tx 제약), remap 불필요. drizzle-kit generate 금지.",
-    "내부 루프 분기 우선순위 isReopen→isVac→base(positive) 고정(load-bearing). classifyOne은 etc 자동 반환 금지(AC-B8 불변).",
-    "EVENT_KINDS(actions.ts) 런타임 화이트리스트 etc 수동 동기화 필수(typecheck 미포착). KIND_LABEL(calendar-attrs.tsx)는 exhaustive Record라 typecheck 강제.",
-    "enum 비가역 — 롤백=잔존(무해). 배포: 0016 공유 DB 적용 → 코드 push.",
-    "검증: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>. 단위: node ./node_modules/vitest/vitest.mjs run <file>. 회귀: npm run typecheck / npm run build."
-  ],
+  "task": "QC v3 Part A — 교실 4개 컴포넌트 재수정 (수업계획실/진척도/성적/세특). 마이그레이션 0건. 그 후 보고서.",
+  "plan": ".omc/plans/qc-v3-classroom-homeroom-plan.md",
+  "spec": ".omc/specs/deep-interview-qc-v3.md",
   "stories": [
     {
-      "id": "VAC1",
-      "title": "단계1 — classifySchedule cluster-local 2-phase 재작성 + 단위테스트",
+      "id": "US-1",
+      "title": "도메인 순수함수 (Part A 공유)",
       "priority": 0,
       "passes": true,
       "acceptanceCriteria": [
-        "classifySchedule를 2-phase로 재작성: Phase1 vacation[] (while-loop, 방학 opener에서 isReopen→reopen(endIdx=breakIdx-1)/isVac→lastVac 확장/base!=null→positive break(endIdx=lastVac)/중립→계속; 분기 우선순위 isReopen→isVac→base 고정). Phase2 우선순위 vacation>base>holiday>self_activity+needsReview. date asc 정렬·classifyEvent 하위호환 유지.",
-        "AC-1 개학없음 마지막방학일 종료: 방학식→키워드없는날(사이=vacation)→방학중행사(방학)→키워드없는날(이후=비vacation). AC-2 개학 종료 회귀(개학당일·이후 비vacation, 그전 중립일 vacation). AC-3 cross-term merge 방지(방학식→개학식→가을 중간고사=exam 비vacation; 떠도는 '2학기 방학 안내' 있어도 가을 exam 안삼킴).",
-        "AC-4 경계: 단일 entry [방학식]=vacation, 마지막 entry가 방학행=vacation, 끝 인접 방학행2개 둘다 vacation. AC-5 방학우선+역순입력 회귀. AC-6 중립보간(마지막방학일과 이후 positive 사이 중립 school day=self_activity, 비수업일=holiday). AC-7 방학행은 isVac분기 소비(positive로 안끊김). AC-8 알려진한계(방학중 '동아리'행 클러스터 조기종료) 문서화 테스트.",
-        "calendar-keywords.test.ts 신규/회귀 케이스 green(node vitest run). typecheck 0err."
+        "lib/domain/lesson-plan.ts: pickRepresentativeSection(sections) 가 주당 슬롯 수 최대 분반의 weekday Set 반환(동률→첫째, 빈입력→빈Set)",
+        "lib/domain/lesson-plan.ts: representativeDates(schoolDays, weekdays) 가 weekday 매칭 수업일을 날짜오름차순 배열로 반환",
+        "lib/domain/lesson-plan.ts: monthWeekLabel(date) 가 {month, weekOfMonth=floor((day-1)/7)+1} 반환",
+        "lib/domain/school-year.ts: resolveSemesterBoundary(events, year) 가 여름(6~8월) vacation 이벤트 최소 날짜를 경계 B로, 없으면 8/15 반환",
+        "lib/domain/school-year.ts: semesterRangeWithBoundary(year, sem, B) 가 sem1=[3/1, B-1], sem2=[B, 익년2월말] 반환",
+        "신규 단위테스트 전부 green (대표분반 동률/물리 다분반 동치, 8월초 경계, monthWeekLabel 경계)",
+        "npm run typecheck 0 errors"
       ]
     },
     {
-      "id": "ETC2",
-      "title": "단계2 — etc(기타) EventKind 수동 전용 추가",
+      "id": "US-2",
+      "title": "수업계획실 — 차시 분반무관 + 월주차 + 시험마커 (AC-1.x)",
       "priority": 1,
       "passes": true,
       "acceptanceCriteria": [
-        "0016_event_kind_add_etc.sql 작성(ADD VALUE if not exists 'etc'만, 단독 파일) + apply-sql.mjs 적용 + enum_range 조회로 'etc' 존재 단언(AC-11).",
-        "enums.ts eventKind pgEnum에 'etc'(8종)+주석. calendar-keywords.ts EventKind union에 'etc' only(classifyOne/classifySchedule fallback 불변). actions.ts EVENT_KINDS에 'etc'. calendar-attrs.tsx KIND_LABEL etc:'기타'.",
-        "AC-9 etc 자동 미부여(classifyOne 임의입력 etc 미반환, fallback self_activity+needsReview 유지) 단위테스트. AC-10 수동 재분류 라운드트립(updateEventAttributes로 etc 저장→재조회 지속) 통합테스트(RUN_DB_ITEST).",
-        "typecheck 0err, build exit0."
+        "getPlanLength(lesson-plan.ts) 가 분반 요일 UNION 폐기, pickRepresentativeSection 기반 대표분반 단일로 N 산출",
+        "plan/page.tsx 가 차시별 월/주차(monthWeekLabel) + 시험기간(calendarEvents exam, examOrdinal 1/2) 마커를 대표분반 k번째 수업일 기준으로 전달",
+        "plan-editor.tsx 가 각 차시 행에 'M월 W주차' 와 해당 시 '1차/2차 시험' 마커 표시",
+        "lesson-plan.integration.test.ts: 다분반 과목 N 이 분반 수와 무관(대표분반 동치) 단언",
+        "npm run typecheck 0 + npm run build exit0"
       ]
     },
     {
-      "id": "DEPLOY3",
-      "title": "단계3 — 회귀·배포",
+      "id": "US-3",
+      "title": "진척도 — 여름방학 학기경계 (AC-2.x)",
       "priority": 2,
       "passes": true,
       "acceptanceCriteria": [
-        "전체 typecheck 0err, build exit0, 비-itest npm test green, calendar.integration.test.ts RUN_DB_ITEST green.",
-        "git push origin main (Vercel 프로덕션 배포 트리거).",
-        "progress.txt에 구현·배포 기록."
+        "progress.ts generateSemesterSessions/listSectionsForSemester/listProgressPopup 가 resolveSemesterBoundary 로 1/2학기 범위 도출(vacation 미설정시 8/14 fallback)",
+        "8월초 vacation 이후 수업일이 2학기로 분류(1학기 차시에서 제외)",
+        "progress.integration.test.ts: 여름 vacation 경계 분류 + fallback 단언",
+        "npm run typecheck 0 + npm run build exit0"
+      ]
+    },
+    {
+      "id": "US-4",
+      "title": "성적 — 환산 미리보기 요소분해 + 미시행 숨김 + 별도 조회 라우트 (AC-3.x)",
+      "priority": 3,
+      "passes": true,
+      "acceptanceCriteria": [
+        "getGradeView(grades.ts) 가 지필 중간/기말 각 환산 + 수행 항목별 점수 + 합계를 분해 반환(활성 회차만)",
+        "grades-uploader.tsx 환산 미리보기가 지필중간/지필기말/수행항목별/합계 열로 분해, 미시행 지필 열 숨김",
+        "신규 app/classroom/grades/view/page.tsx 가 저장된 수행항목별·지필회차별 테이블을 전체화면 조회",
+        "grades.integration.test.ts: 분해 뷰(회차별·항목별) + 미시행 숨김 단언",
+        "npm run typecheck 0 + npm run build exit0"
+      ]
+    },
+    {
+      "id": "US-5",
+      "title": "세특 — 예시 CSV + 과목별 수강생 필터 + 추가입력 CRUD (AC-4.x)",
+      "priority": 4,
+      "passes": true,
+      "acceptanceCriteria": [
+        "코워크 결과 CSV 업로드에 예시 CSV 다운로드 버튼(업로드 스키마 샘플 행)",
+        "추가입력란이 과목 선택 시 listEnrolledStudentsForSubject 로 수강생만 필터 드롭다운",
+        "추가입력(studentExtraNotes) 저장 목록 표시 + 수정/삭제(list/update/delete 쿼리+액션+audit)",
+        "setech.integration.test.ts: 추가입력 CRUD + 과목필터 수강생 단언",
+        "npm run typecheck 0 + npm run build exit0"
+      ]
+    },
+    {
+      "id": "US-REPORT",
+      "title": "보고서 작성",
+      "priority": 5,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Part A 완료 내역(변경 파일·검증 결과) + 남은 Part B 작업 보고서를 qc-report-v3-part-a-status.md 로 작성"
       ]
     }
   ]

@@ -219,7 +219,13 @@ export interface GradeViewRow {
   studentYearId: string;
   sid: string;
   name: string;
-  /** 지필 환산 합(활성 회차만). 원점수 × (가중치/100). */
+  /** 지필 중간 환산(활성 아니면 0; 화면이 열 숨김). 원점수 × (가중치/100). */
+  jipilMid: number;
+  /** 지필 기말 환산(활성 아니면 0). */
+  jipilFinal: number;
+  /** 수행 항목별 점수(항목명→점수). 미입력 항목은 키 없음. */
+  performanceByItem: Record<string, number>;
+  /** 지필(중간+기말) 환산 합(하위호환). */
   jipilConverted: number;
   /** 수행 점수 합. */
   performanceTotal: number;
@@ -227,10 +233,40 @@ export interface GradeViewRow {
   total: number;
 }
 
+/** 과목 수강생(학번순, 분반 union — 중복 학생 1행, 첫 등장 유지). */
+async function listSubjectStudents(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+): Promise<{ studentYearId: string; sid: string; name: string }[]> {
+  const rows = await db
+    .select({
+      studentYearId: studentYears.id,
+      sid: studentYears.sid,
+      name: studentYears.name,
+    })
+    .from(enrollments)
+    .innerJoin(courseSections, eq(enrollments.sectionId, courseSections.id))
+    .innerJoin(studentYears, eq(enrollments.studentYearId, studentYears.id))
+    .where(
+      and(eq(enrollments.ownerId, ownerId), eq(courseSections.subjectId, subjectId)),
+    )
+    .orderBy(asc(studentYears.sid));
+  const seen = new Set<string>();
+  const out: { studentYearId: string; sid: string; name: string }[] = [];
+  for (const s of rows) {
+    if (seen.has(s.studentYearId)) continue;
+    seen.add(s.studentYearId);
+    out.push(s);
+  }
+  return out;
+}
+
 /**
- * 읽기시점 환산 성적 뷰(저장 금지). 지필 rawScore × (가중치/100) — ord1=중간,
- * ord2=기말, 각 회차 활성(jipil*Enabled)일 때만 합산. 수행 score 단순 합.
- * 과목 수강생(분반 union) 전원을 학번순으로 반환(점수 없는 학생은 0).
+ * QC v3 AC-3.1/3.2 — 읽기시점 환산 성적 뷰(저장 금지)를 **요소별 분해**로 반환.
+ * 지필 중간/기말 각 환산(원점수 × 가중치/100, 활성 회차만)과 수행 **항목별** 점수를
+ * 분리한다(기존 합산 jipilConverted/performanceTotal/total 도 하위호환 유지).
+ * 과목 수강생(분반 union) 전원을 학번순으로 반환(점수 없으면 0/키없음).
  */
 export async function getGradeView(
   db: DB,
@@ -253,30 +289,16 @@ export async function getGradeView(
   const finalW = sub.finalEnabled ? Number(sub.finalWeight ?? 0) : 0;
 
   // 과목 수강생(학번순, 분반 union — 중복 학생 1행).
-  const students = await db
-    .select({
-      studentYearId: studentYears.id,
-      sid: studentYears.sid,
-      name: studentYears.name,
-    })
-    .from(enrollments)
-    .innerJoin(courseSections, eq(enrollments.sectionId, courseSections.id))
-    .innerJoin(studentYears, eq(enrollments.studentYearId, studentYears.id))
-    .where(
-      and(
-        eq(enrollments.ownerId, ownerId),
-        eq(courseSections.subjectId, subjectId),
-      ),
-    )
-    .orderBy(asc(studentYears.sid));
-
+  const students = await listSubjectStudents(db, ownerId, subjectId);
   const byId = new Map<string, GradeViewRow>();
   for (const s of students) {
-    if (byId.has(s.studentYearId)) continue; // 2분반 중복 제거
     byId.set(s.studentYearId, {
       studentYearId: s.studentYearId,
       sid: s.sid,
       name: s.name,
+      jipilMid: 0,
+      jipilFinal: 0,
+      performanceByItem: {},
       jipilConverted: 0,
       performanceTotal: 0,
       total: 0,
@@ -285,7 +307,7 @@ export async function getGradeView(
   const ids = [...byId.keys()];
   if (ids.length === 0) return [];
 
-  // 지필 원점수 → 회차별 환산.
+  // 지필 원점수 → 회차별 환산(중간/기말 분리).
   const jipil = await db
     .select({
       studentYearId: jipilScores.studentYearId,
@@ -304,14 +326,15 @@ export async function getGradeView(
     const row = byId.get(j.studentYearId);
     if (!row || j.rawScore === null) continue;
     const raw = Number(j.rawScore);
-    const w = j.ordinal === 1 ? midW : j.ordinal === 2 ? finalW : 0;
-    row.jipilConverted += (raw * w) / 100;
+    if (j.ordinal === 1) row.jipilMid += (raw * midW) / 100;
+    else if (j.ordinal === 2) row.jipilFinal += (raw * finalW) / 100;
   }
 
-  // 수행 점수 합.
+  // 수행 점수(항목별).
   const perf = await db
     .select({
       studentYearId: performanceAssessments.studentYearId,
+      name: performanceAssessments.name,
       score: performanceAssessments.score,
     })
     .from(performanceAssessments)
@@ -325,11 +348,149 @@ export async function getGradeView(
   for (const p of perf) {
     const row = byId.get(p.studentYearId);
     if (!row || p.score === null) continue;
-    row.performanceTotal += Number(p.score);
+    row.performanceByItem[p.name] = Number(p.score);
   }
 
   for (const row of byId.values()) {
+    row.jipilConverted = row.jipilMid + row.jipilFinal;
+    row.performanceTotal = Object.values(row.performanceByItem).reduce(
+      (a, b) => a + b,
+      0,
+    );
     row.total = row.jipilConverted + row.performanceTotal;
   }
   return [...byId.values()];
+}
+
+export interface StoredJipilRow {
+  sid: string;
+  name: string;
+  /** 원점수(미입력 null). */
+  mid: number | null;
+  final: number | null;
+}
+
+export interface StoredPerformanceItem {
+  item: string;
+  rows: { sid: string; name: string; score: number | null; prose: string | null }[];
+}
+
+export interface StoredGradeTables {
+  midEnabled: boolean;
+  finalEnabled: boolean;
+  jipil: StoredJipilRow[];
+  performance: StoredPerformanceItem[];
+}
+
+/**
+ * QC v3 AC-3.3 — 저장된 업로드 테이블(원점수·서술) 조회. 별도 라우트(/grades/view)에서
+ * 수행 항목별·지필 회차별 저장값을 전체 화면으로 보여준다(환산 아님, 원자료).
+ */
+export async function getStoredGradeTables(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+): Promise<StoredGradeTables> {
+  const [sub] = await db
+    .select({
+      midEnabled: subjects.jipilMidEnabled,
+      finalEnabled: subjects.jipilFinalEnabled,
+    })
+    .from(subjects)
+    .where(and(eq(subjects.id, subjectId), eq(subjects.ownerId, ownerId)))
+    .limit(1);
+  const midEnabled = sub?.midEnabled ?? false;
+  const finalEnabled = sub?.finalEnabled ?? false;
+
+  // 과목 수강생(학번순, 분반 union — 중복 제거).
+  const order = await listSubjectStudents(db, ownerId, subjectId);
+  const ids = order.map((o) => o.studentYearId);
+
+  // 지필 원점수.
+  const jipilMap = new Map<string, { mid: number | null; final: number | null }>();
+  if (ids.length > 0) {
+    const jipil = await db
+      .select({
+        studentYearId: jipilScores.studentYearId,
+        ordinal: jipilScores.ordinal,
+        rawScore: jipilScores.rawScore,
+      })
+      .from(jipilScores)
+      .where(
+        and(
+          eq(jipilScores.ownerId, ownerId),
+          eq(jipilScores.subjectId, subjectId),
+          inArray(jipilScores.studentYearId, ids),
+        ),
+      );
+    for (const j of jipil) {
+      const cur = jipilMap.get(j.studentYearId) ?? { mid: null, final: null };
+      const v = j.rawScore === null ? null : Number(j.rawScore);
+      if (j.ordinal === 1) cur.mid = v;
+      else if (j.ordinal === 2) cur.final = v;
+      jipilMap.set(j.studentYearId, cur);
+    }
+  }
+  const jipilRows: StoredJipilRow[] = order.map((o) => ({
+    sid: o.sid,
+    name: o.name,
+    mid: jipilMap.get(o.studentYearId)?.mid ?? null,
+    final: jipilMap.get(o.studentYearId)?.final ?? null,
+  }));
+
+  // 수행 항목별(점수+서술).
+  const perfItems: StoredPerformanceItem[] = [];
+  const items = await db
+    .select({ name: performanceItems.name })
+    .from(performanceItems)
+    .where(
+      and(
+        eq(performanceItems.ownerId, ownerId),
+        eq(performanceItems.subjectId, subjectId),
+      ),
+    )
+    .orderBy(asc(performanceItems.createdAt));
+  if (ids.length > 0) {
+    const perf = await db
+      .select({
+        studentYearId: performanceAssessments.studentYearId,
+        name: performanceAssessments.name,
+        score: performanceAssessments.score,
+        prose: performanceAssessments.prose,
+      })
+      .from(performanceAssessments)
+      .where(
+        and(
+          eq(performanceAssessments.ownerId, ownerId),
+          eq(performanceAssessments.subjectId, subjectId),
+          inArray(performanceAssessments.studentYearId, ids),
+        ),
+      );
+    const byItem = new Map<
+      string,
+      Map<string, { score: number | null; prose: string | null }>
+    >();
+    for (const p of perf) {
+      const m = byItem.get(p.name) ?? new Map();
+      m.set(p.studentYearId, {
+        score: p.score === null ? null : Number(p.score),
+        prose: p.prose,
+      });
+      byItem.set(p.name, m);
+    }
+    for (const it of items) {
+      const m = byItem.get(it.name) ?? new Map();
+      perfItems.push({
+        item: it.name,
+        rows: order.map((o) => ({
+          sid: o.sid,
+          name: o.name,
+          score: m.get(o.studentYearId)?.score ?? null,
+          prose: m.get(o.studentYearId)?.prose ?? null,
+        })),
+      });
+    }
+  }
+
+  return { midEnabled, finalEnabled, jipil: jipilRows, performance: perfItems };
 }

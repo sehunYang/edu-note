@@ -12,6 +12,12 @@ import {
   classifySchedule,
   type EventKind,
 } from "@/lib/domain/calendar-keywords";
+import {
+  schoolYearRange,
+  resolveSemesterBoundary,
+  semesterRangeWithBoundary,
+  type SchoolYearRange,
+} from "@/lib/domain/school-year";
 
 /**
  * 캘린더 sync 쿼리 계층 (계획 §3.3 E, §4 E). NEIS 학사일정·급식을
@@ -296,6 +302,33 @@ export async function getMealsInRange(
       ),
     )
     .orderBy(asc(mealCache.date));
+}
+
+/**
+ * QC v3 AC-2.1/2.2 — 학년도·학기 범위를 **여름방학 경계** 기준으로 도출.
+ * 학년도 전체의 calendarEvents 를 읽어 resolveSemesterBoundary(여름 vacation 시작,
+ * 미설정 8/15)로 경계 B 산정 후 semesterRangeWithBoundary 적용. 수업계획실·진척도
+ * 공용(8/14 하드코딩 폐기). vacation 미설정시 기존 8/14 경계와 동치(무중단).
+ */
+export async function resolveSemesterRange(
+  db: DB,
+  ownerId: string,
+  year: number,
+  sem: 1 | 2,
+): Promise<SchoolYearRange> {
+  const yr = schoolYearRange(year);
+  const events = await db
+    .select({ date: calendarEvents.date, eventKind: calendarEvents.eventKind })
+    .from(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.ownerId, ownerId),
+        gte(calendarEvents.date, yr.start),
+        lte(calendarEvents.date, yr.end),
+      ),
+    );
+  const boundary = resolveSemesterBoundary(events, year);
+  return semesterRangeWithBoundary(year, sem, boundary);
 }
 
 /** 범위 내 수업일 수(잔여차시·신고서 기한 계산 보조). */

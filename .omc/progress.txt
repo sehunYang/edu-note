@@ -135,4 +135,24 @@
 - [x] US-8 회귀: typecheck 0, build exit0(9 라우트), unit 210, 교실 itest 34 전부 green.
 - 검증: architect APPROVED-WITH-RESERVATIONS(9 invariant PASS, 2 LOW). LOW#1(bulk import 수강검증) 반영함. deslop: weekdayOf dedup(progress→domain), download helper→lib/ui/download-csv.ts 공유. 재회귀 16 green.
 - 학습: performance_assessments는 (sy,subj,name) unique 없음 → 수동 upsert. setech 단건 흐름(app/setech/setech-form.tsx+actions)은 redirect 후 orphan(typecheck OK, 빌드 미포함).
-- 다음: main 병합 + push → Vercel 배포.
+- [x] 배포: 커밋 9e334d6 → merge --no-ff f5b5d60 → push origin main(f53f107..f5b5d60). Vercel Hobby 자동배포. 프로덕션 root / = HTTP 200(icn1) 헬시. 마이그 0017~0019는 US-0에서 공유 DB 적용완료.
+- ⚠ 익명 스모크 한계: /classroom 등 보호 라우트는 미인증 시 404(=인증 게이트, 기존 /sessions도 동일 404로 확인됨) → 익명으로 신규 라우트 렌더 검증 불가. 인증 후 화면 확인은 사용자 영역(2-1 latency 때와 동일). 전 단계 US-0~US-8 passes:true.
+
+═══════════════════════════════════════════════════════════
+# QC v3 Part A — 교실 4개 컴포넌트 재수정 (ralph, 2026-06-14)
+═══════════════════════════════════════════════════════════
+계획: .omc/plans/qc-v3-classroom-homeroom-plan.md / 스펙: .omc/specs/deep-interview-qc-v3.md. 마이그레이션 0건(코드만). 보고서: qc-report-v3-part-a-status.md.
+
+## 단계 상태 (전 스토리 passes:true)
+- [x] US-1 도메인: pickRepresentativeSection/representativeDates/monthWeekLabel(lesson-plan) + resolveSemesterBoundary/semesterRangeWithBoundary(school-year). 단위 25 green.
+- [x] US-2 수업계획실: getPlanLength 재작성(분반 UNION 폐기→대표분반=주당슬롯 최대 분반, N 분반무관=물리 97차시 버그 해소) + getPlanView(월주차 monthWeekLabel + exam 마커 examOrdinal 1/2). plan page/editor UI. itest 8(다분반 동치+분반추가 불변).
+- [x] US-3 진척도: 공용 resolveSemesterRange(calendar.ts) — 여름(6~8월) vacation 최소일=경계 B, 미설정 8/15 fallback(=기존 8/14 동치). progress.ts generateSemesterSessions가 사용 → 방학 후 8월 수업일 2학기 분류. itest 7(여름경계+fallback 2종 신규 추가).
+- [x] US-4 성적: getGradeView 요소분해(jipilMid/jipilFinal 각 환산 활성회차만 + performanceByItem, 합산필드 하위호환) + getStoredGradeTables(원자료) + /grades/view 신규 라우트 + uploader 분해미리보기(미시행 지필열 숨김). itest 3.
+- [x] US-5 세특: bulkResultCsvExample 예시CSV + 과목별 수강생필터(enrollmentBySubject) + 추가입력 CRUD(list/update/delete 쿼리+액션+audit extra_note_*). itest 10.
+
+## 검증·배포
+- typecheck 0 / build exit0 / 단위 220 pass·125 skip / Part A itest 28 green(lesson-plan8·setech10·progress7·grades3).
+- architect(THOROUGH/Opus) VERDICT: APPROVED. 블로커 0, MINOR 2(시험마커 동일ordinal 덮어쓰기·hasAny zero-total 표시) 비차단 채택보류.
+- deslop: grades.ts 수강생 조회 중복 1건 → listSubjectStudents 헬퍼 consolidation(~40줄 제거). 회귀 재검증 green(typecheck0·build0·grades itest3).
+- 학습: progress.integration.test에 calendarEvents vacation 시드+afterAll cleanup 추가. weekdayOf=getUTCDay(0=일). resolveSemesterBoundary는 y===year ∧ month 6~8 필터(겨울방학 무시).
+- 배포: 커밋 → push origin main(Vercel Hobby 자동). Part B(US-0b~13 담임교실 허브+학생안내, 마이그 동반)는 별도 승인 게이트.

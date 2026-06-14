@@ -2,7 +2,7 @@ import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import {
   listSubjectsWithSections,
-  getPlanLength,
+  getPlanView,
   listLessonPlan,
 } from "@/lib/db/queries";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
@@ -30,17 +30,23 @@ export default async function PlanPage({
 
   const subjects = await listSubjectsWithSections(db, ownerId, year, sem);
 
-  // 과목별 차시 N + 기존 계획 행 조립.
+  // 과목별 차시 N(대표 분반) + 차시별 월주차·시험마커 + 기존 계획 행 조립.
   const views: SubjectPlanView[] = await Promise.all(
     subjects.map(async (s) => {
-      const [planLength, entries] = await Promise.all([
-        getPlanLength(db, ownerId, s.subjectId, year, sem),
+      const [planView, entries] = await Promise.all([
+        getPlanView(db, ownerId, s.subjectId, year, sem),
         listLessonPlan(db, ownerId, s.subjectId),
       ]);
       return {
         subjectId: s.subjectId,
         subjectName: s.subjectName,
-        planLength,
+        planLength: planView.length,
+        ordinals: planView.ordinals.map((o) => ({
+          ordinal: o.ordinal,
+          month: o.month,
+          weekOfMonth: o.weekOfMonth,
+          examLabel: o.examLabel,
+        })),
         entries: entries.map((e) => ({
           ordinal: e.ordinal,
           content: e.content ?? "",

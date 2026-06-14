@@ -288,6 +288,60 @@ export async function saveExtraNote(
   return row;
 }
 
+export interface ExtraNoteRow {
+  id: string;
+  studentYearId: string;
+  subjectId: string | null;
+  body: string;
+  createdAt: Date;
+}
+
+/** QC v3 AC-4.3 — 추가 입력 목록(최신순). 수정/삭제 UI 용. */
+export async function listExtraNotes(
+  db: DB,
+  ownerId: string,
+): Promise<ExtraNoteRow[]> {
+  return db
+    .select({
+      id: studentExtraNotes.id,
+      studentYearId: studentExtraNotes.studentYearId,
+      subjectId: studentExtraNotes.subjectId,
+      body: studentExtraNotes.body,
+      createdAt: studentExtraNotes.createdAt,
+    })
+    .from(studentExtraNotes)
+    .where(eq(studentExtraNotes.ownerId, ownerId))
+    .orderBy(desc(studentExtraNotes.createdAt));
+}
+
+/** QC v3 AC-4.3 — 추가 입력 본문 수정(소유자 본인 행만). */
+export async function updateExtraNote(
+  db: DB,
+  ownerId: string,
+  id: string,
+  body: string,
+): Promise<void> {
+  await db
+    .update(studentExtraNotes)
+    .set({ body, updatedAt: new Date() })
+    .where(
+      and(eq(studentExtraNotes.id, id), eq(studentExtraNotes.ownerId, ownerId)),
+    );
+}
+
+/** QC v3 AC-4.3 — 추가 입력 삭제(소유자 본인 행만). */
+export async function deleteExtraNote(
+  db: DB,
+  ownerId: string,
+  id: string,
+): Promise<void> {
+  await db
+    .delete(studentExtraNotes)
+    .where(
+      and(eq(studentExtraNotes.id, id), eq(studentExtraNotes.ownerId, ownerId)),
+    );
+}
+
 export interface BulkDraftInput {
   studentYearId: string;
   sid: string;

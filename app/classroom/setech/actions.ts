@@ -6,6 +6,8 @@ import {
   buildSourceBundle,
   listEnrolledStudentsForSubject,
   saveExtraNote,
+  updateExtraNote,
+  deleteExtraNote,
   saveDraftsBulk,
   subjectNameMap,
   listStudents,
@@ -161,10 +163,54 @@ export async function saveExtraNoteAction(args: {
     if (!args.body.trim()) return { ok: false, message: "내용을 입력하세요." };
     const ownerId = await getOwnerId();
     const db = getDb();
-    await saveExtraNote(db, ownerId, args.studentYearId, args.subjectId, args.body.trim());
+    const { id } = await saveExtraNote(
+      db,
+      ownerId,
+      args.studentYearId,
+      args.subjectId,
+      args.body.trim(),
+    );
+    await writeAudit(db, ownerId, "extra_note_save", id, {
+      studentYearId: args.studentYearId,
+      subjectId: args.subjectId,
+    });
     revalidatePath("/classroom/setech");
     return { ok: true };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "저장 실패" };
+  }
+}
+
+/** QC v3 AC-4.3 — 추가 입력 수정. */
+export async function updateExtraNoteAction(args: {
+  id: string;
+  body: string;
+}): Promise<{ ok: boolean; message?: string }> {
+  try {
+    if (!args.body.trim()) return { ok: false, message: "내용을 입력하세요." };
+    const ownerId = await getOwnerId();
+    const db = getDb();
+    await updateExtraNote(db, ownerId, args.id, args.body.trim());
+    await writeAudit(db, ownerId, "extra_note_update", args.id, null);
+    revalidatePath("/classroom/setech");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "수정 실패" };
+  }
+}
+
+/** QC v3 AC-4.3 — 추가 입력 삭제. */
+export async function deleteExtraNoteAction(args: {
+  id: string;
+}): Promise<{ ok: boolean; message?: string }> {
+  try {
+    const ownerId = await getOwnerId();
+    const db = getDb();
+    await deleteExtraNote(db, ownerId, args.id);
+    await writeAudit(db, ownerId, "extra_note_delete", args.id, null);
+    revalidatePath("/classroom/setech");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "삭제 실패" };
   }
 }

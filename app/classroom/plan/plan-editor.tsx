@@ -13,10 +13,18 @@ export interface SubjectPlanEntry {
   keywords: string[];
 }
 
+export interface PlanOrdinalMeta {
+  ordinal: number;
+  month: number;
+  weekOfMonth: number;
+  examLabel: string | null;
+}
+
 export interface SubjectPlanView {
   subjectId: string;
   subjectName: string;
   planLength: number;
+  ordinals: PlanOrdinalMeta[];
   entries: SubjectPlanEntry[];
 }
 
@@ -34,6 +42,12 @@ export function PlanEditor({ subjects }: { subjects: SubjectPlanView[] }) {
   const entryByOrdinal = useMemo(() => {
     const map = new Map<number, SubjectPlanEntry>();
     for (const e of selected?.entries ?? []) map.set(e.ordinal, e);
+    return map;
+  }, [selected]);
+
+  const metaByOrdinal = useMemo(() => {
+    const map = new Map<number, PlanOrdinalMeta>();
+    for (const m of selected?.ordinals ?? []) map.set(m.ordinal, m);
     return map;
   }, [selected]);
 
@@ -70,6 +84,7 @@ export function PlanEditor({ subjects }: { subjects: SubjectPlanView[] }) {
               subjectId={selected.subjectId}
               ordinal={ordinal}
               entry={entryByOrdinal.get(ordinal)}
+              meta={metaByOrdinal.get(ordinal)}
             />
           ))}
         </ul>
@@ -82,15 +97,29 @@ function PlanRow({
   subjectId,
   ordinal,
   entry,
+  meta,
 }: {
   subjectId: string;
   ordinal: number;
   entry?: SubjectPlanEntry;
+  meta?: PlanOrdinalMeta;
 }) {
   return (
     <li className="rounded-lg border border-neutral-200 p-4">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-neutral-700">{ordinal}차시</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-neutral-700">{ordinal}차시</span>
+          {meta && (
+            <span className="text-xs text-neutral-400">
+              {meta.month}월 {meta.weekOfMonth}주차
+            </span>
+          )}
+          {meta?.examLabel && (
+            <span className="rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-600">
+              {meta.examLabel} 시험
+            </span>
+          )}
+        </div>
         {entry && (
           <form action={deleteLessonPlanEntryAction}>
             <input type="hidden" name="subjectId" value={subjectId} />

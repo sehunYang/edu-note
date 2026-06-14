@@ -3,9 +3,15 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import { courseSections, timetableSlots } from "../schema/classes";
 import { lessonPlans } from "../schema/records";
-import { schoolDayCalendar } from "../schema/misc";
-import { semesterRange } from "@/lib/domain/school-year";
-import { computePlanLength } from "@/lib/domain/lesson-plan";
+import { schoolDayCalendar, calendarEvents } from "../schema/misc";
+import {
+  computePlanLength,
+  pickRepresentativeSection,
+  representativeDates,
+  monthWeekLabel,
+  type SectionSlots,
+} from "@/lib/domain/lesson-plan";
+import { resolveSemesterRange } from "./calendar";
 
 /**
  * 수업 계획실 쿼리 계층 (교실 2-2 단계2, ownerId 인자 규약).
@@ -21,24 +27,12 @@ export interface LessonPlanRow {
   keywords: string[] | null;
 }
 
-/**
- * 차시 N 산출. semesterRange ∩ 수업일(isSchoolDay=true) 중, 과목의 모든 분반
- * 시간표 슬롯 요일(UNION)에 해당하는 날짜 수.
- *
- * 설계 선택(계획 §단계2/R3·R16): N = 과목 분반들의 최대 커버리지. 분반별 차시수가
- * 상이할 수 있으나 요일을 UNION 하면 "어느 분반이든 수업하는 요일"을 모두 포함해
- * 최댓값을 근사한다. (개별 분반 차시 매핑은 진척도 단계에서 날짜순위로 처리.)
- */
-export async function getPlanLength(
+/** 과목 분반들의 슬롯 요일(분반별, SectionSlots[]). 대표 분반 선정 입력. */
+async function listSectionSlots(
   db: DB,
   ownerId: string,
   subjectId: string,
-  year: number,
-  sem: 1 | 2,
-): Promise<number> {
-  const { start, end } = semesterRange(year, sem);
-
-  // 과목의 분반들.
+): Promise<SectionSlots[]> {
   const secs = await db
     .select({ id: courseSections.id })
     .from(courseSections)
@@ -49,11 +43,10 @@ export async function getPlanLength(
       ),
     );
   const sectionIds = secs.map((s) => s.id);
-  if (sectionIds.length === 0) return 0;
+  if (sectionIds.length === 0) return [];
 
-  // 분반 시간표 슬롯 요일 UNION (sessions.ts 와 동일하게 weekday 값을 그대로 사용).
   const slots = await db
-    .select({ weekday: timetableSlots.weekday })
+    .select({ sectionId: timetableSlots.sectionId, weekday: timetableSlots.weekday })
     .from(timetableSlots)
     .where(
       and(
@@ -61,11 +54,23 @@ export async function getPlanLength(
         inArray(timetableSlots.sectionId, sectionIds),
       ),
     );
-  const slotWeekdays = new Set(slots.map((s) => s.weekday));
-  if (slotWeekdays.size === 0) return 0;
+  const bySection = new Map<string, number[]>();
+  for (const id of sectionIds) bySection.set(id, []);
+  for (const s of slots) bySection.get(s.sectionId)?.push(s.weekday);
+  return [...bySection.entries()].map(([sectionId, weekdays]) => ({
+    sectionId,
+    weekdays,
+  }));
+}
 
-  // 학기 범위 수업일.
-  const schoolDays = await db
+/** 학기 범위 수업일(오름차순). */
+async function listSchoolDays(
+  db: DB,
+  ownerId: string,
+  start: string,
+  end: string,
+): Promise<{ date: string }[]> {
+  return db
     .select({ date: schoolDayCalendar.date })
     .from(schoolDayCalendar)
     .where(
@@ -75,9 +80,99 @@ export async function getPlanLength(
         gte(schoolDayCalendar.date, start),
         lte(schoolDayCalendar.date, end),
       ),
-    );
+    )
+    .orderBy(asc(schoolDayCalendar.date));
+}
 
-  return computePlanLength(schoolDays, slotWeekdays);
+export interface PlanOrdinalView {
+  ordinal: number;
+  month: number;
+  weekOfMonth: number;
+  /** 이 차시가 시험기간이면 '1차'|'2차', 아니면 null. */
+  examLabel: string | null;
+}
+
+export interface PlanView {
+  length: number;
+  ordinals: PlanOrdinalView[];
+}
+
+/**
+ * QC v3 AC-1.1~1.4 — 차시 N(분반 무관, **대표 분반** 기준) + 차시별 월/주차 + 시험마커.
+ *
+ * 대표 분반 = 주당 슬롯 수(=시수) 최대 분반 하나(pickRepresentativeSection). 기존
+ * 분반 요일 UNION 버그(분반 많을수록 부풀림) 폐기. 학기 범위는 여름방학 경계(B) 기준.
+ * 차시 k 의 월/주차 = 대표 분반 k번째 수업일. 시험은 calendarEvents(exam, examSemester=sem)
+ * 의 examOrdinal 1/2 를, 시험일 이상인 첫 차시(없으면 마지막 차시)에 마커로 부여.
+ */
+export async function getPlanView(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  year: number,
+  sem: 1 | 2,
+): Promise<PlanView> {
+  const { start, end } = await resolveSemesterRange(db, ownerId, year, sem);
+  const sections = await listSectionSlots(db, ownerId, subjectId);
+  const repWeekdays = pickRepresentativeSection(sections);
+  if (repWeekdays.size === 0) return { length: 0, ordinals: [] };
+
+  const schoolDays = await listSchoolDays(db, ownerId, start, end);
+  const dates = representativeDates(schoolDays, repWeekdays);
+  const length = dates.length;
+
+  // 시험 마커: 학기 범위의 exam 이벤트(examOrdinal 1/2)를 차시 ordinal 에 매핑.
+  const exams = await db
+    .select({ date: calendarEvents.date, examOrdinal: calendarEvents.examOrdinal })
+    .from(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.ownerId, ownerId),
+        eq(calendarEvents.eventKind, "exam"),
+        eq(calendarEvents.examSemester, sem),
+        gte(calendarEvents.date, start),
+        lte(calendarEvents.date, end),
+      ),
+    );
+  const examByOrdinal = new Map<number, string>(); // ordinal(차시) → '1차'|'2차'
+  for (const ex of exams) {
+    if (ex.examOrdinal !== 1 && ex.examOrdinal !== 2) continue;
+    // 시험일 이상인 첫 차시(없으면 마지막 차시).
+    let idx = dates.findIndex((d) => d >= ex.date);
+    if (idx < 0) idx = dates.length - 1;
+    if (idx < 0) continue;
+    examByOrdinal.set(idx + 1, `${ex.examOrdinal}차`);
+  }
+
+  const ordinals: PlanOrdinalView[] = dates.map((date, i) => {
+    const { month, weekOfMonth } = monthWeekLabel(date);
+    return {
+      ordinal: i + 1,
+      month,
+      weekOfMonth,
+      examLabel: examByOrdinal.get(i + 1) ?? null,
+    };
+  });
+  return { length, ordinals };
+}
+
+/**
+ * 차시 N(분반 무관, 대표 분반 기준). getPlanView().length 의 경량 래퍼.
+ * 기존 호출처/통합테스트 호환용 — UNION 버그 폐기, 분반 수 무관.
+ */
+export async function getPlanLength(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  year: number,
+  sem: 1 | 2,
+): Promise<number> {
+  const { start, end } = await resolveSemesterRange(db, ownerId, year, sem);
+  const sections = await listSectionSlots(db, ownerId, subjectId);
+  const repWeekdays = pickRepresentativeSection(sections);
+  if (repWeekdays.size === 0) return 0;
+  const schoolDays = await listSchoolDays(db, ownerId, start, end);
+  return computePlanLength(schoolDays, repWeekdays);
 }
 
 /** 과목의 차시 계획 목록(ordinal 오름차순). */

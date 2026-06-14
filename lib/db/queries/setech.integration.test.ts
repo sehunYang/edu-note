@@ -21,6 +21,9 @@ import {
 import {
   listEnrolledStudentsForSubject,
   saveExtraNote,
+  listExtraNotes,
+  updateExtraNote,
+  deleteExtraNote,
   saveDraftsBulk,
 } from "./setech";
 
@@ -236,5 +239,26 @@ describe.skipIf(!RUN)("세특 일괄(bulk) — 점수제외/심각도분할/추�
       .from(studentExtraNotes)
       .where(eq(studentExtraNotes.ownerId, owner2));
     expect(rows.some((r) => r.body.includes("마찰력"))).toBe(true);
+  });
+
+  it("AC-4.3 추가 입력 CRUD — list/update/delete", async () => {
+    const { id } = await saveExtraNote(db2, owner2, syId, subjectId, "CRUD 대상 초기 내용");
+    // list
+    const before = await listExtraNotes(db2, owner2);
+    expect(before.some((n) => n.id === id && n.body === "CRUD 대상 초기 내용")).toBe(true);
+    // update
+    await updateExtraNote(db2, owner2, id, "CRUD 수정된 내용");
+    const afterUpdate = await listExtraNotes(db2, owner2);
+    expect(afterUpdate.find((n) => n.id === id)?.body).toBe("CRUD 수정된 내용");
+    // delete
+    await deleteExtraNote(db2, owner2, id);
+    const afterDelete = await listExtraNotes(db2, owner2);
+    expect(afterDelete.some((n) => n.id === id)).toBe(false);
+  });
+
+  it("AC-4.2 과목별 수강생 필터 — 수강 학생만", async () => {
+    const enrolled = await listEnrolledStudentsForSubject(db2, owner2, subjectId);
+    expect(enrolled.map((e) => e.studentYearId)).toContain(syId);
+    expect(enrolled.every((e) => e.sid === "20101")).toBe(true);
   });
 });

@@ -11,7 +11,7 @@ import {
   timetableSlots,
 } from "../schema/classes";
 import { lessonPlans, sessionRecords } from "../schema/records";
-import { schoolDayCalendar } from "../schema/misc";
+import { schoolDayCalendar, calendarEvents } from "../schema/misc";
 import {
   generateSemesterSessions,
   listProgressPopup,
@@ -88,6 +88,7 @@ describe.skipIf(!RUN)("수업 진척도 쿼리", () => {
     await db.delete(lessonPlans).where(eq(lessonPlans.ownerId, owner));
     await db.delete(timetableSlots).where(eq(timetableSlots.ownerId, owner));
     await db.delete(schoolDayCalendar).where(eq(schoolDayCalendar.ownerId, owner));
+    await db.delete(calendarEvents).where(eq(calendarEvents.ownerId, owner));
     await db.delete(courseSections).where(eq(courseSections.ownerId, owner));
     await db.delete(subjects).where(eq(subjects.ownerId, owner));
     await sql.end();
@@ -192,6 +193,65 @@ describe.skipIf(!RUN)("수업 진척도 쿼리", () => {
     expect(rec.keywords).toEqual(["적정", "지시약"]);
     expect(rec.evalIdea).toBe("적정 곡선 해석 평가");
     expect(rec.planOrdinal).toBe(3);
+  });
+
+  // QC v3 AC-2: 여름방학 vacation 이벤트가 학기 경계가 되어 방학 이후 8월 수업일이
+  // 2학기로 분류된다(1학기에서 제외). vacation 미설정 시 8/14 fallback.
+  async function mkVacation(date: string): Promise<void> {
+    await db.insert(calendarEvents).values({
+      ownerId: owner,
+      date,
+      source: "manual",
+      title: "여름방학",
+      eventKind: "vacation",
+    });
+  }
+  async function sectionSessionDates(sectionId: string): Promise<Set<string>> {
+    const rows = await db
+      .select({ date: classSessions.date })
+      .from(classSessions)
+      .where(eq(classSessions.sectionId, sectionId));
+    return new Set(rows.map((r) => r.date));
+  }
+
+  it("generateSemesterSessions — 여름방학 경계: 방학 이후 8월 수업일이 2학기로 분류", async () => {
+    // 경계 B = 2099-07-20(vacation). sem1=[3/1,7/19], sem2=[7/20,익년2월말].
+    await mkVacation("2099-07-20");
+    const subj = await mkSubject("지구과학", 1);
+    const sec = await mkSection(subj, "2-경계");
+    await mkSlot(sec, 1); // 월
+
+    await mkSchoolDay("2099-07-06"); // 월, 방학 전 → 1학기
+    await mkSchoolDay("2099-08-10"); // 월, 방학 후 → 2학기
+
+    await generateSemesterSessions(db, owner, sec, YEAR, 1);
+    const sem1 = await sectionSessionDates(sec);
+    expect(sem1.has("2099-07-06")).toBe(true); // 방학 전 = 1학기 포함
+    expect(sem1.has("2099-08-10")).toBe(false); // 방학 후 = 1학기 제외
+
+    await generateSemesterSessions(db, owner, sec, YEAR, 2);
+    const sem2 = await sectionSessionDates(sec);
+    expect(sem2.has("2099-08-10")).toBe(true); // 방학 후 = 2학기 포함
+  });
+
+  it("generateSemesterSessions — vacation 미설정 시 8/14 경계 fallback", async () => {
+    // 2098 학년도 여름 vacation 없음 → 경계 fallback 8/15. sem1=[3/1,8/14].
+    const FALLBACK_YEAR = 2098;
+    const subj = await db
+      .insert(subjects)
+      .values({ ownerId: owner, name: "fallback과목", schoolYear: FALLBACK_YEAR, semester: 1 })
+      .returning({ id: subjects.id });
+    const sec = await mkSection(subj[0].id, "2-fb");
+    await mkSlot(sec, 0); // 일(2098-08-10)
+    await mkSlot(sec, 3); // 수(2098-08-20)
+
+    await mkSchoolDay("2098-08-10"); // 8/14 이전 → 1학기
+    await mkSchoolDay("2098-08-20"); // 8/15 이후 → 2학기
+
+    await generateSemesterSessions(db, owner, sec, FALLBACK_YEAR, 1);
+    const sem1 = await sectionSessionDates(sec);
+    expect(sem1.has("2098-08-10")).toBe(true); // fallback 경계 8/14 이전 = 1학기
+    expect(sem1.has("2098-08-20")).toBe(false); // 8/15 이후 = 1학기 제외
   });
 
   it("getPlanForSession — 날짜순위 k → 계획 ordinal k, k>N 은 null", async () => {

@@ -69,3 +69,51 @@ export function semesterRange(year: number, sem: 1 | 2): SchoolYearRange {
   const end = new Date(Date.UTC(year + 1, 2, 0)); // 익년 2월 말일
   return { start: fmt(start), end: fmt(end) };
 }
+
+/** YYYY-MM-DD 에서 하루 전 날짜. */
+function prevDay(date: string): string {
+  const d = new Date(date + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() - 1);
+  return fmt(d);
+}
+
+/**
+ * QC v3 AC-2.1/2.2 — 1·2학기 **경계일 B** 도출. 기존 8/14 하드코딩 대신 학사일정의
+ * **여름방학 시작일**(여름 구간 6~8월의 vacation 이벤트 최소 날짜)을 경계로 쓴다.
+ * 1학기 = [3/1, B-1], 2학기 = [B, 익년 2월말]. 여름 vacation 이벤트가 없으면 8/15
+ * fallback(=기존 8/14 경계 유지, 무중단). 겨울방학(12~2월)은 2학기 내부라 무시.
+ * 순수 함수(결정론·UTC).
+ */
+export function resolveSemesterBoundary(
+  events: { date: string; eventKind: string }[],
+  year: number,
+): string {
+  let earliest: string | null = null;
+  for (const e of events) {
+    if (e.eventKind !== "vacation") continue;
+    const m = new Date(e.date + "T00:00:00Z").getUTCMonth() + 1; // 1~12
+    const y = new Date(e.date + "T00:00:00Z").getUTCFullYear();
+    // 여름 구간: 해당 학년도의 6~8월.
+    if (y !== year || m < 6 || m > 8) continue;
+    if (earliest === null || e.date < earliest) earliest = e.date;
+  }
+  return earliest ?? fmt(new Date(Date.UTC(year, 7, 15))); // fallback 8/15
+}
+
+/**
+ * QC v3 — 경계일 B 기준 학기 범위. sem1=[3/1, B-1], sem2=[B, 익년 2월말].
+ * B 는 resolveSemesterBoundary 결과. semesterRange(순수 fallback)와 동치되는 지점은
+ * B=8/15 일 때(sem1 end=8/14).
+ */
+export function semesterRangeWithBoundary(
+  year: number,
+  sem: 1 | 2,
+  boundary: string,
+): SchoolYearRange {
+  if (sem === 1) {
+    const start = new Date(Date.UTC(year, 2, 1)); // 3/1
+    return { start: fmt(start), end: prevDay(boundary) };
+  }
+  const end = new Date(Date.UTC(year + 1, 2, 0)); // 익년 2월 말일
+  return { start: boundary, end: fmt(end) };
+}

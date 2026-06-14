@@ -9,10 +9,10 @@ import {
 } from "../schema/classes";
 import { lessonPlans, sessionRecords } from "../schema/records";
 import { schoolDayCalendar } from "../schema/misc";
-import { semesterRange } from "@/lib/domain/school-year";
 import { weekdayOf } from "@/lib/domain/lesson-plan";
 import type { SessionStatus } from "@/lib/domain/types";
 import { setSessionStatus } from "./sessions";
+import { resolveSemesterRange } from "./calendar";
 
 /**
  * 수업 진척도 관리 쿼리 계층 (교실 2-2 단계3, ownerId 인자 규약).
@@ -49,7 +49,8 @@ export async function generateSemesterSessions(
   year: number,
   sem: 1 | 2,
 ): Promise<GenerateSemesterResult> {
-  const { start, end } = semesterRange(year, sem);
+  // QC v3 AC-2.1: 학기 경계를 8/14 고정이 아니라 여름방학 시작 기준으로(미설정 8/14 fallback).
+  const { start, end } = await resolveSemesterRange(db, ownerId, year, sem);
 
   const slots = await db
     .select({ weekday: timetableSlots.weekday })

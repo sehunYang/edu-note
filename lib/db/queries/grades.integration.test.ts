@@ -16,6 +16,7 @@ import {
   upsertPerformanceScores,
   upsertJipilScores,
   getGradeView,
+  getStoredGradeTables,
 } from "./grades";
 
 /**
@@ -204,6 +205,10 @@ describe.skipIf(!RUN)("성적 기록 쿼리", () => {
     expect(viewBoth[0].jipilConverted).toBeCloseTo(68, 5);
     expect(viewBoth[0].performanceTotal).toBeCloseTo(15, 5);
     expect(viewBoth[0].total).toBeCloseTo(83, 5);
+    // AC-3.1 요소별 분해: 중간/기말 각 환산 + 수행 항목별.
+    expect(viewBoth[0].jipilMid).toBeCloseTo(36, 5);
+    expect(viewBoth[0].jipilFinal).toBeCloseTo(32, 5);
+    expect(viewBoth[0].performanceByItem["수행"]).toBeCloseTo(15, 5);
 
     // 중간만: final 미시행이면 final 가중치 0.
     const midOnly = await mkSubject({
@@ -248,5 +253,24 @@ describe.skipIf(!RUN)("성적 기록 쿼리", () => {
     const viewNone = await getGradeView(db, owner, none);
     expect(viewNone[0].jipilConverted).toBe(0);
     expect(viewNone[0].total).toBe(0);
+    // 미시행 회차 환산 0 (화면은 열 숨김).
+    expect(viewNone[0].jipilMid).toBe(0);
+    expect(viewNone[0].jipilFinal).toBe(0);
+
+    // AC-3.3 getStoredGradeTables — 저장 원자료(원점수·항목별).
+    const stored = await getStoredGradeTables(db, owner, both);
+    expect(stored.midEnabled).toBe(true);
+    expect(stored.finalEnabled).toBe(true);
+    const jrow = stored.jipil.find((r) => r.sid === "20721");
+    expect(jrow?.mid).toBe(90);
+    expect(jrow?.final).toBe(80);
+    const perfItem = stored.performance.find((p) => p.item === "수행");
+    expect(perfItem).toBeTruthy();
+    expect(perfItem?.rows.find((r) => r.sid === "20721")?.score).toBe(15);
+
+    // 미시행 과목은 지필 활성 플래그 false.
+    const storedNone = await getStoredGradeTables(db, owner, none);
+    expect(storedNone.midEnabled).toBe(false);
+    expect(storedNone.finalEnabled).toBe(false);
   });
 });

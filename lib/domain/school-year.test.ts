@@ -5,6 +5,8 @@ import {
   schoolYearRange,
   schoolYearRangeYmd,
   semesterRange,
+  resolveSemesterBoundary,
+  semesterRangeWithBoundary,
 } from "./school-year";
 
 describe("activeSchoolYear", () => {
@@ -74,5 +76,54 @@ describe("semesterRange", () => {
       start: "2026-08-15",
       end: "2027-02-28",
     });
+  });
+});
+
+describe("QC v3 여름방학 학기 경계", () => {
+  const summerEvents = [
+    { date: "2026-07-25", eventKind: "vacation" }, // 여름방학 시작
+    { date: "2026-07-26", eventKind: "vacation" },
+    { date: "2026-08-16", eventKind: "vacation" },
+    { date: "2027-01-05", eventKind: "vacation" }, // 겨울방학(무시 대상)
+    { date: "2026-05-05", eventKind: "holiday" }, // vacation 아님(무시)
+  ];
+
+  it("resolveSemesterBoundary — 여름(6~8월) vacation 최소일을 경계로", () => {
+    expect(resolveSemesterBoundary(summerEvents, 2026)).toBe("2026-07-25");
+  });
+
+  it("resolveSemesterBoundary — 여름 vacation 없으면 8/15 fallback", () => {
+    expect(
+      resolveSemesterBoundary(
+        [{ date: "2027-01-05", eventKind: "vacation" }],
+        2026,
+      ),
+    ).toBe("2026-08-15");
+    expect(resolveSemesterBoundary([], 2026)).toBe("2026-08-15");
+  });
+
+  it("semesterRangeWithBoundary — 경계 7/25 → 1학기 끝 7/24, 2학기 시작 7/25", () => {
+    const b = resolveSemesterBoundary(summerEvents, 2026);
+    expect(semesterRangeWithBoundary(2026, 1, b)).toEqual({
+      start: "2026-03-01",
+      end: "2026-07-24",
+    });
+    expect(semesterRangeWithBoundary(2026, 2, b)).toEqual({
+      start: "2026-07-25",
+      end: "2027-02-28",
+    });
+  });
+
+  it("8월초 수업일은 2학기로(1학기 범위에서 제외) — 경계 7/25", () => {
+    const b = "2026-07-25";
+    const sem1 = semesterRangeWithBoundary(2026, 1, b);
+    // 8월 3일(월) 수업일이 1학기 end(7/24) 보다 뒤 → 1학기 아님
+    expect("2026-08-03" > sem1.end).toBe(true);
+  });
+
+  it("fallback 경계(8/15)는 기존 semesterRange 와 동치", () => {
+    const b = "2026-08-15";
+    expect(semesterRangeWithBoundary(2026, 1, b)).toEqual(semesterRange(2026, 1));
+    expect(semesterRangeWithBoundary(2026, 2, b)).toEqual(semesterRange(2026, 2));
   });
 });

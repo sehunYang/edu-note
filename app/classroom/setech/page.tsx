@@ -4,6 +4,8 @@ import {
   listSubjectsWithSections,
   listStudents,
   listDrafts,
+  listExtraNotes,
+  listEnrolledStudentsForSubject,
 } from "@/lib/db/queries";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { SetechBulkClient } from "./setech-bulk-client";
@@ -27,11 +29,21 @@ export default async function SetechPage({
   const db = getDb();
   const year = activeSchoolYear(new Date());
 
-  const [subjects, students, drafts] = await Promise.all([
+  const [subjects, students, drafts, extraNotes] = await Promise.all([
     listSubjectsWithSections(db, ownerId, year, sem),
     listStudents(db, ownerId, year),
     listDrafts(db, ownerId),
+    listExtraNotes(db, ownerId),
   ]);
+
+  // AC-4.2 과목별 수강생 필터용 맵(subjectId → 수강 studentYearId[]).
+  const enrollmentBySubject: Record<string, string[]> = {};
+  await Promise.all(
+    subjects.map(async (s) => {
+      const enrolled = await listEnrolledStudentsForSubject(db, ownerId, s.subjectId);
+      enrollmentBySubject[s.subjectId] = enrolled.map((e) => e.studentYearId);
+    }),
+  );
 
   return (
     <div>
@@ -56,12 +68,19 @@ export default async function SetechPage({
             sections: s.sections,
           }))}
           students={students.map((s) => ({ id: s.id, label: `${s.sid} ${s.name}` }))}
+          enrollmentBySubject={enrollmentBySubject}
           drafts={drafts.map((d) => ({
             id: d.id,
             studentYearId: d.studentYearId,
             content: d.content,
             byteCount: d.byteCount,
             byteLimit: d.byteLimit,
+          }))}
+          extraNotes={extraNotes.map((n) => ({
+            id: n.id,
+            studentYearId: n.studentYearId,
+            subjectId: n.subjectId,
+            body: n.body,
           }))}
         />
       )}

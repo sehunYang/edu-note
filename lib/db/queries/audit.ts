@@ -72,7 +72,11 @@ export type AuditEvent =
   | "observation_update"
   | "observation_delete"
   | "behavior_note_update"
-  | "behavior_note_delete";
+  | "behavior_note_delete"
+  // QC v3 세특 추가입력 CRUD
+  | "extra_note_save"
+  | "extra_note_update"
+  | "extra_note_delete";
 
 export async function writeAudit(
   db: DB,
