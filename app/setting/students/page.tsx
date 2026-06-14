@@ -9,6 +9,7 @@ import {
   listPendingLinks,
   listClassRolesForStudents,
   getTeacherSettings,
+  listPublicPages,
 } from "@/lib/db/queries";
 import { activeSchoolYear } from "@/lib/domain/school-year";
 import { StageGate } from "../stage-gate";
@@ -40,11 +41,22 @@ export default async function StudentsStagePage() {
 
   // P3: N+1 제거 — 학급역할·수강중인수업·과거학번을 1회 배치 조회 후 메모리 그룹핑.
   const ids = students.map((s) => s.id);
-  const [rolesByStudent, subjectsByStudent, priorByStudent] = await Promise.all([
-    listClassRolesForStudents(db, ownerId, ids),
-    listSubjectsForStudentYears(db, ownerId, ids, year),
-    listPriorSidsForStudents(db, ownerId, ids, year),
-  ]);
+  const [rolesByStudent, subjectsByStudent, priorByStudent, allPages] =
+    await Promise.all([
+      listClassRolesForStudents(db, ownerId, ids),
+      listSubjectsForStudentYears(db, ownerId, ids, year),
+      listPriorSidsForStudents(db, ownerId, ids, year),
+      // AC-12.9: 발급된 공개 토큰을 영속 표시(새로고침에도 유지). 활성(미폐기)만.
+      listPublicPages(db, ownerId),
+    ]);
+  // 학생별 활성(미폐기) 토큰 — 최신순(listPublicPages 정렬)이라 첫 매칭이 최신.
+  const tokenByStudent = new Map<string, string>();
+  for (const p of allPages) {
+    if (p.revokedAt !== null) continue;
+    if (!tokenByStudent.has(p.studentYearId)) {
+      tokenByStudent.set(p.studentYearId, p.token);
+    }
+  }
   const rows = students.map((s) => ({
     id: s.id,
     sid: s.sid,
@@ -65,6 +77,7 @@ export default async function StudentsStagePage() {
     priorSids: (priorByStudent.get(s.id) ?? []).map(
       (p) => `${p.schoolYear} ${p.sid}`,
     ),
+    activeToken: tokenByStudent.get(s.id) ?? null,
   }));
 
   return (

@@ -31,3 +31,4 @@ export * from "./stats";
 export * from "./notice";
 export * from "./fixed-class";
 export * from "./homeroom-record";
+export * from "./homeroom-timetable";

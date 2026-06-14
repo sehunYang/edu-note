@@ -29,6 +29,7 @@ interface StudentRow {
   roles: ClassRoleRow[];
   subjects: string[]; // 수강중인수업(학기 구분 과목명)
   priorSids: string[]; // 과거 학번("연도 학번")
+  activeToken: string | null; // 활성(미폐기) 공개 토큰 — 새로고침에도 영속 표시(AC-12.9)
 }
 
 /**
@@ -271,7 +272,11 @@ function StudentCard({ student }: { student: StudentRow }) {
                 disabled={issuing}
                 className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50 disabled:opacity-40"
               >
-                {issuing ? "발급…" : "공개링크 발급"}
+                {issuing
+                  ? "발급…"
+                  : student.activeToken
+                    ? "공개링크 재발급"
+                    : "공개링크 발급"}
               </button>
             </form>
           )}
@@ -330,19 +335,27 @@ function StudentCard({ student }: { student: StudentRow }) {
         <InlineEdit student={student} onDone={() => setEditing(false)} />
       )}
 
-      {linkState && linkState.ok && linkState.studentYearId === student.id && (
-        <div className="mt-2 flex items-center gap-2">
-          <p className="break-all rounded bg-neutral-50 p-2 text-xs text-neutral-600">
-            /p/{linkState.token}
-          </p>
-          <button
-            onClick={() => copyLink(linkState.token)}
-            className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50"
-          >
-            {copied ? "복사됨" : "복사"}
-          </button>
-        </div>
-      )}
+      {/* AC-12.9: 새로 발급한 토큰(우선) 또는 영속 활성 토큰을 항상 표시. */}
+      {(() => {
+        const shown =
+          linkState && linkState.ok && linkState.studentYearId === student.id
+            ? linkState.token
+            : student.activeToken;
+        if (!shown) return null;
+        return (
+          <div className="mt-2 flex items-center gap-2">
+            <p className="break-all rounded bg-neutral-50 p-2 text-xs text-neutral-600">
+              /p/{shown}
+            </p>
+            <button
+              onClick={() => copyLink(shown)}
+              className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50"
+            >
+              {copied ? "복사됨" : "복사"}
+            </button>
+          </div>
+        );
+      })()}
       {linkState && !linkState.ok && (
         <p className="mt-2 text-xs text-red-700">{linkState.message}</p>
       )}

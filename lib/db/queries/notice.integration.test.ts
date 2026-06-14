@@ -72,6 +72,7 @@ describe.skipIf(!RUN)("공지실 — 공개 페이지 공통 안내", () => {
   afterAll(async () => {
     await db.delete(publicPages).where(eq(publicPages.ownerId, owner));
     await db.delete(calendarEvents).where(eq(calendarEvents.ownerId, owner));
+    await db.delete(teacherNotes).where(eq(teacherNotes.ownerId, owner));
     await db.delete(teacherProfile).where(eq(teacherProfile.ownerId, owner));
     await db.delete(studentYears).where(eq(studentYears.ownerId, owner));
     await db.delete(persons).where(eq(persons.ownerId, owner));
@@ -97,26 +98,28 @@ describe.skipIf(!RUN)("공지실 — 공개 페이지 공통 안내", () => {
     expect(after.find((x) => x.id === e.id)).toBeUndefined();
   });
 
-  it("get_public_page 가 commonNotice 와 weekTodos(7일내·안전소스)를 노출", async () => {
-    await setPublicNotice(db, owner, "공개용 한마디");
+  it("get_public_page(v3 0029) 가 commonNotice(=첫 teacher_notes)·weekTodos(월간창·안전소스)를 노출", async () => {
+    // 0029 부터 commonNotice 는 teacher_profile.public_notice 가 아니라 teacher_notes 첫 행.
+    await createTeacherNote(db, owner, "공개용 한마디");
     await addNoticeEvent(db, owner, addDays(2), "다가오는 공지"); // manual → 노출
-    await addNoticeEvent(db, owner, addDays(30), "먼 미래 공지"); // 7일 밖 → 미노출
-    // 0008 회귀 가드: personal(개인 일정)·task(업무) 소스는 7일 내라도 공개 미노출
+    await addNoticeEvent(db, owner, addDays(120), "먼 미래 공지"); // 월간창(+93) 밖 → 미노출
+    // 0008 회귀 가드: personal(개인 일정)·task(업무) 소스는 창 내라도 공개 미노출
     await db.insert(calendarEvents).values([
       { ownerId: owner, date: addDays(1), title: "개인약속(비공개)", source: "personal" },
       { ownerId: owner, date: addDays(1), title: "업무마감(비공개)", source: "task" },
     ]);
     const issued = await issuePublicPage(db, owner, studentYearId);
 
-    const rows = await sql<{ get_public_page: { state: string; payload?: { commonNotice: string | null; weekTodos: { title: string }[] } } }[]>`
+    const rows = await sql<{ get_public_page: { state: string; payload?: { commonNotice: string | null; notices: string[]; weekTodos: { title: string }[] } } }[]>`
       select get_public_page(${issued.token}) as get_public_page
     `;
     const result = rows[0].get_public_page;
     expect(result.state).toBe("ok");
     expect(result.payload?.commonNotice).toBe("공개용 한마디");
+    expect(result.payload?.notices).toContain("공개용 한마디"); // 다중 한마디 배열
     const titles = (result.payload?.weekTodos ?? []).map((t) => t.title);
     expect(titles).toContain("다가오는 공지");
-    expect(titles).not.toContain("먼 미래 공지");
+    expect(titles).not.toContain("먼 미래 공지"); // +93일 창 밖
     expect(titles).not.toContain("개인약속(비공개)"); // personal 제외
     expect(titles).not.toContain("업무마감(비공개)"); // task 제외
   });

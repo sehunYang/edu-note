@@ -144,6 +144,30 @@ export const studentElectiveMappings = pgTable(
   ],
 );
 
+// 담임반 시간표 캐시(컴시간 학년파싱 → grade/classNo 슬롯). 0028. 공개 페이지 시간표 소스.
+export const homeroomTimetableSlots = pgTable(
+  "homeroom_timetable_slots",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    grade: integer("grade").notNull(),
+    classNo: integer("class_no").notNull(),
+    weekday: integer("weekday").notNull(),
+    period: integer("period").notNull(),
+    subjectName: text("subject_name").notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    unique("uq_homeroom_timetable_slots").on(
+      t.ownerId,
+      t.grade,
+      t.classNo,
+      t.weekday,
+      t.period,
+    ),
+  ],
+);
+
 // 업무 (데드라인 to-do + 진척)
 export const tasks = pgTable("tasks", {
   id: pk(),

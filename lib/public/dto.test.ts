@@ -94,9 +94,15 @@ describe("buildPublicPagePayload — 골든 페이로드", () => {
     expect(JSON.stringify(payload.grades)).not.toContain("물리학");
   });
 
-  it("timetable 은 room 을 버리고 요일·교시·과목명만", () => {
+  it("timetable 은 room 을 버리고 요일·교시·과목명(+isFixed·electiveMapped 기본값)만", () => {
     expect(payload.timetable).toEqual([
-      { weekday: 1, period: 3, subjectName: "물리학" },
+      {
+        weekday: 1,
+        period: 3,
+        subjectName: "물리학",
+        isFixed: false,
+        electiveMapped: null,
+      },
     ]);
   });
 
@@ -142,11 +148,15 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
     // 허용 키 집합이 정확히 고정
     expect(Object.keys(parsed).sort()).toEqual(
       [
+        "attendance2D",
         "attendanceSummary",
         "commonNotice",
+        "counselSlots",
         "grades",
         "meals",
+        "notices",
         "personalMessage",
+        "studentName",
         "timetable",
         "weekTodos",
       ].sort(),
@@ -154,6 +164,88 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
     expect(Object.keys(parsed.attendanceSummary).sort()).toEqual(
       ["absent", "absentPeriod", "earlyLeave", "hasUnsubmittedReport", "late"].sort(),
     );
+  });
+
+  it("새 필드(studentName·notices·attendance2D·counselSlots·slot 확장)도 allowlist 로 파싱", () => {
+    const raw = {
+      studentName: "홍길동",
+      notices: ["한마디1", "한마디2", 42], // 비문자열은 버림
+      timetable: [
+        {
+          weekday: 1,
+          period: 3,
+          subjectName: "물리학",
+          isFixed: true,
+          electiveMapped: null,
+          room: "secret-internal", // 절대 반영 금지
+        },
+        {
+          weekday: 2,
+          period: 4,
+          subjectName: "선택",
+          isFixed: false,
+          electiveMapped: "생활과학",
+        },
+      ],
+      attendance2D: {
+        late: { accepted: 1, illness: 2, unaccepted: 0, etc: 0, noteField: "생리통" },
+        earlyLeave: { illness: 1 },
+        absentPeriod: {},
+        absent: { unaccepted: 3 },
+      },
+      counselSlots: [
+        { date: "2026-06-20", remaining: 2, reserved: false, studentYearId: "other-student" },
+        { date: "2026-06-21", remaining: 0, reserved: true },
+      ],
+    };
+    const parsed = parsePublicPagePayload(raw);
+    assertNoForbidden(parsed);
+    expect(parsed.studentName).toBe("홍길동");
+    expect(parsed.notices).toEqual(["한마디1", "한마디2"]);
+    expect(parsed.timetable[0]).toEqual({
+      weekday: 1,
+      period: 3,
+      subjectName: "물리학",
+      isFixed: true,
+      electiveMapped: null,
+    });
+    expect(parsed.timetable[1]).toEqual({
+      weekday: 2,
+      period: 4,
+      subjectName: "선택",
+      isFixed: false,
+      electiveMapped: "생활과학",
+    });
+    expect(parsed.attendance2D.late).toEqual({
+      accepted: 1,
+      illness: 2,
+      unaccepted: 0,
+      etc: 0,
+    });
+    expect(parsed.attendance2D.absent.unaccepted).toBe(3);
+    expect(parsed.attendance2D.absentPeriod).toEqual({
+      accepted: 0,
+      illness: 0,
+      unaccepted: 0,
+      etc: 0,
+    });
+    expect(parsed.counselSlots).toEqual([
+      { date: "2026-06-20", remaining: 2, reserved: false },
+      { date: "2026-06-21", remaining: 0, reserved: true },
+    ]);
+  });
+
+  it("slot 의 isFixed/electiveMapped 누락 시 기본값(false/null)", () => {
+    const parsed = parsePublicPagePayload({
+      timetable: [{ weekday: 3, period: 1, subjectName: "수학" }],
+    });
+    expect(parsed.timetable[0]).toEqual({
+      weekday: 3,
+      period: 1,
+      subjectName: "수학",
+      isFixed: false,
+      electiveMapped: null,
+    });
   });
 
   it("빈/이상 입력도 안전한 기본 DTO", () => {

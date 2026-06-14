@@ -111,7 +111,7 @@
       "id": "US-B13",
       "title": "학생 안내 페이지 + get_public_page 재정의 (AC-12.x)",
       "priority": 8,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "get_public_page create or replace: (a)출결 성격×사유 2D집계(reason 노출=승인됨), (b)상담슬롯 잔여, (c)다중 teacher_notes 배열, (d)컴시간 담임반 시간표(enrollments→파싱본 교체). NULL-safe graceful(throw 시 학생페이지 500 방지)",
         "app/p/[token]: 이름 헤더, 일정 캘린더(학사+할일, 오늘강조, 월이동), 시간표(월~금×1~7, 고정반 과목명/선택과목 자가매핑 토글), 급식 당일, 출결 2D표, 성적 제거, 상담신청 캘린더(슬롯 잔여)",
