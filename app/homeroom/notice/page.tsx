@@ -1,19 +1,27 @@
 import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
-import { getPublicNotice, listNoticeEvents } from "@/lib/db/queries";
 import {
-  setNoticeAction,
-  addNoticeEventAction,
-  deleteNoticeEventAction,
-} from "./actions";
+  listTeacherNotes,
+  listNoticeEvents,
+  listGradeClasses,
+  listFixedClassSettings,
+  getTeacherSettings,
+  type GradeClassOffering,
+} from "@/lib/db/queries";
+import { fetchTimetableBySchool } from "@/lib/integrations/comcigan-client";
+import { NotesManager } from "./notes-manager";
+import { EventsManager } from "./events-manager";
+import { FixedClassPanel } from "./fixed-class-panel";
 
 export const dynamic = "force-dynamic";
 
 /**
- * 공지실 (계획 §4 Phase2-I). 학생 공개 페이지(/p/[token])에 표시되는 공통 안내 관리.
- *  - 교사 한마디(공통): 모든 공개 페이지 상단에 노출
- *  - 이번 주 할 일: 7일 내 항목이 공개 페이지에 표시
+ * 공지실 (계획 §4 Phase2-I + QC v3 Part B US-B10). 학생 공개 페이지(/p/[token])에 표시되는
+ * 공통 안내 관리.
+ *  - 교사 한마디(다중): 공개 페이지에서 순서대로 노출
+ *  - 할 일 / 공지(제목·날짜·내용): 7일 내 항목이 공개 페이지에 표시
+ *  - 고정반 설정: 담임 학년 시간표 기반 원반/이동반 지정(컴시간, 비차단)
  * 공개 페이지는 allowlist DTO 만 통과하므로, 민감 정보는 입력하지 않는다.
  */
 export default async function NoticePage() {
@@ -21,10 +29,37 @@ export default async function NoticePage() {
   const db = getDb();
   const today = new Date().toISOString().slice(0, 10);
 
-  const [notice, events] = await Promise.all([
-    getPublicNotice(db, ownerId),
+  const [notes, events, settings] = await Promise.all([
+    listTeacherNotes(db, ownerId),
     listNoticeEvents(db, ownerId),
+    getTeacherSettings(db, ownerId),
   ]);
+
+  const grade = settings?.homeroomGrade ?? null;
+  const school = settings?.comciganSchool ?? null;
+
+  // 고정반 패널: 담임 학년 시간표를 컴시간에서 읽어 (반,과목) 제공목록 도출(비차단).
+  let offerings: GradeClassOffering[] | null = null;
+  let syncError: string | null = null;
+  let fixedKeys: string[] = [];
+  if (grade) {
+    const saved = await listFixedClassSettings(db, ownerId, grade);
+    fixedKeys = saved.filter((s) => s.isFixed).map((s) => `${s.classNo}::${s.subjectName}`);
+    if (school) {
+      try {
+        const res = await fetchTimetableBySchool(school);
+        if (!res.ok) {
+          syncError = res.error;
+        } else {
+          offerings = listGradeClasses(res.data, grade);
+        }
+      } catch (e) {
+        syncError = e instanceof Error ? e.message : "동기화 실패";
+      }
+    } else {
+      syncError = "컴시간 학교 설정이 없습니다.";
+    }
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
@@ -39,86 +74,16 @@ export default async function NoticePage() {
         민감한 개인정보는 입력하지 마세요.
       </p>
 
-      {/* ── 교사 한마디(공통) ── */}
-      <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-        <h2 className="text-sm font-semibold text-neutral-700">
-          교사 한마디 (공통)
-        </h2>
-        <form action={setNoticeAction} className="mt-3 space-y-3">
-          <textarea
-            name="notice"
-            rows={3}
-            defaultValue={notice ?? ""}
-            placeholder="모든 학생 공개 페이지 상단에 표시할 안내 문구"
-            className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
-          />
-          <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
-            저장
-          </button>
-        </form>
-      </section>
+      <NotesManager notes={notes} />
 
-      {/* ── 이번 주 할 일 / 공지 ── */}
-      <section className="mt-8">
-        <h2 className="text-sm font-semibold text-neutral-700">할 일 / 공지</h2>
-        <p className="mt-1 text-xs text-neutral-400">
-          공개 페이지에는 오늘부터 7일 이내 항목이 “이번 주 할 일”로 표시됩니다.
-        </p>
-        <form
-          action={addNoticeEventAction}
-          className="mt-3 flex flex-wrap items-center gap-2"
-        >
-          <input
-            type="date"
-            name="date"
-            defaultValue={today}
-            className="rounded border border-neutral-300 px-2 py-1.5 text-sm"
-          />
-          <input
-            name="title"
-            required
-            placeholder="공지/할 일 제목"
-            className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
-          />
-          <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
-            추가
-          </button>
-        </form>
+      <EventsManager events={events} today={today} />
 
-        {events.length === 0 ? (
-          <p className="mt-3 text-sm text-neutral-400">등록된 공지가 없습니다.</p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {events.map((e) => {
-              const upcoming = e.date >= today;
-              return (
-                <li
-                  key={e.id}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-neutral-200 p-3 text-sm"
-                >
-                  <span>
-                    <span
-                      className={`mr-2 text-xs ${upcoming ? "text-neutral-500" : "text-neutral-300"}`}
-                    >
-                      {e.date}
-                    </span>
-                    {e.title}
-                    {!upcoming && (
-                      <span className="ml-2 text-xs text-neutral-300">(지난 항목)</span>
-                    )}
-                  </span>
-                  <form action={deleteNoticeEventAction} className="inline">
-                    <input type="hidden" name="id" value={e.id} />
-                    <button className="text-xs text-red-500 hover:underline">
-                      삭제
-                    </button>
-                  </form>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      <FixedClassPanel
+        grade={grade}
+        offerings={offerings}
+        fixedKeys={fixedKeys}
+        syncError={syncError}
+      />
     </main>
   );
 }

@@ -63,7 +63,7 @@
       "id": "US-B9",
       "title": "상담실 — rename·수정·슬롯예약·코워크CSV (AC-9.x)",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "app/homeroom/counsel(rename) + 상담기록 수정 액션(counsel_record_update audit)",
         "counsel_slots/reservations 쿼리+액션: 교사 슬롯 오픈(capacity), 선착순 예약, 정원초과/중복예약 거부",
@@ -75,7 +75,7 @@
       "id": "US-B10",
       "title": "공지실 — 다중 한마디·할일 수정/내용·고정반 설정 (AC-10.x)",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "teacher_notes 다중 CRUD+순서(teacher_note_create/update/delete audit), 공개 스와이프용 배열 반환",
         "할일(todos) 수정 + content 필드 추가 표시/저장",
@@ -99,7 +99,7 @@
       "id": "US-B12",
       "title": "생기부 작성 (신규, AC-11.x)",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "app/homeroom/record(신규): 세특 동일 틀, 3영역(자율/진로/행발) 원천 CSV 내보내기→코워크→결과 CSV 업로드(초안 저장)",
         "원천 매핑: 자율←activities자율, 진로←activities진로, 행발←behavior+상담CSV+class_roles",
