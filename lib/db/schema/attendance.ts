@@ -3,6 +3,7 @@ import {
   uuid,
   text,
   date,
+  integer,
   boolean,
   timestamp,
   check,
@@ -33,6 +34,8 @@ export const attendanceRecords = pgTable(
     reportRequired: boolean("report_required").notNull().default(false), // 파생 저장
     reportSubmitted: boolean("report_submitted").notNull().default(false),
     noteField: text("note_field"), // 자유텍스트(공개 DTO 절대 미포함)
+    // 교시(지각/조퇴 기점·결과 다중선택). QC v3 Part B (0020). nullable.
+    periods: integer("periods").array(),
     ...timestamps(),
   },
   (t) => [

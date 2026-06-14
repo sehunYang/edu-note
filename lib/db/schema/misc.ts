@@ -59,6 +59,115 @@ export const counselingLogs = pgTable("counseling_logs", {
   ...timestamps(),
 });
 
+// ── QC v3 Part B (담임 교실 허브) ──
+
+// 상담 슬롯(교사 오픈 날짜별 정원) + 예약(학생 선착순). 0021.
+export const counselSlots = pgTable(
+  "counsel_slots",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    date: date("date").notNull(),
+    capacity: integer("capacity").notNull().default(1),
+    ...timestamps(),
+  },
+  (t) => [unique("uq_counsel_slots").on(t.ownerId, t.date)],
+);
+
+export const counselReservations = pgTable(
+  "counsel_reservations",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    slotId: uuid("slot_id")
+      .notNull()
+      .references(() => counselSlots.id, { onDelete: "cascade" }),
+    studentYearId: uuid("student_year_id")
+      .notNull()
+      .references(() => studentYears.id, { onDelete: "cascade" }),
+    ...timestamps(),
+  },
+  (t) => [unique("uq_counsel_reservations").on(t.slotId, t.studentYearId)],
+);
+
+// 다중 교사 한마디(공개 페이지 스와이프). 0022. 기존 단일 publicNotice 이행.
+export const teacherNotes = pgTable("teacher_notes", {
+  id: pk(),
+  ownerId: ownerId(),
+  body: text("body").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  ...timestamps(),
+});
+
+// 고정반 수업 설정(컴시간 학년파싱 기반, 미체크=선택과목). 0023.
+export const fixedClassSettings = pgTable(
+  "fixed_class_settings",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    grade: integer("grade").notNull(),
+    classNo: integer("class_no").notNull(),
+    subjectName: text("subject_name").notNull(),
+    isFixed: boolean("is_fixed").notNull().default(true),
+    ...timestamps(),
+  },
+  (t) => [
+    unique("uq_fixed_class_settings").on(
+      t.ownerId,
+      t.grade,
+      t.classNo,
+      t.subjectName,
+    ),
+  ],
+);
+
+// 학생 선택과목 자가매핑(요일·교시→과목, 1:1 영속). 0024.
+export const studentElectiveMappings = pgTable(
+  "student_elective_mappings",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    studentYearId: uuid("student_year_id")
+      .notNull()
+      .references(() => studentYears.id, { onDelete: "cascade" }),
+    weekday: integer("weekday").notNull(),
+    period: integer("period").notNull(),
+    mappedSubject: text("mapped_subject").notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    unique("uq_student_elective_mappings").on(
+      t.studentYearId,
+      t.weekday,
+      t.period,
+    ),
+  ],
+);
+
+// 담임반 시간표 캐시(컴시간 학년파싱 → grade/classNo 슬롯). 0028. 공개 페이지 시간표 소스.
+export const homeroomTimetableSlots = pgTable(
+  "homeroom_timetable_slots",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    grade: integer("grade").notNull(),
+    classNo: integer("class_no").notNull(),
+    weekday: integer("weekday").notNull(),
+    period: integer("period").notNull(),
+    subjectName: text("subject_name").notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    unique("uq_homeroom_timetable_slots").on(
+      t.ownerId,
+      t.grade,
+      t.classNo,
+      t.weekday,
+      t.period,
+    ),
+  ],
+);
+
 // 업무 (데드라인 to-do + 진척)
 export const tasks = pgTable("tasks", {
   id: pk(),
@@ -100,6 +209,8 @@ export const calendarEvents = pgTable("calendar_events", {
   title: text("title").notNull(),
   // 키워드 자동 분류 + 시험 학기/회차 (QC v1 C3, AC-3.1~3.4)
   eventKind: eventKind("event_kind").notNull().default("self_activity"),
+  // 공지(할일=manual source)의 본문 '내용' 필드. QC v3 Part B (0022). nullable.
+  content: text("content"),
   examSemester: integer("exam_semester"),
   examOrdinal: integer("exam_ordinal"),
   // 미분류 자동분류(self_activity fallback) 경고 플래그 (QC v2 2-1 B).

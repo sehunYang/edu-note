@@ -16,6 +16,7 @@ import {
   homeroomClasses,
   homeroomMembers,
 } from "../schema/classes";
+import { teacherProfile } from "../schema/misc";
 import {
   addSubjectObservation,
   listSubjectObservations,
@@ -99,6 +100,7 @@ describe.skipIf(!RUN)("관찰/행특 기록", () => {
     await db.delete(subjects).where(eq(subjects.ownerId, owner));
     await db.delete(studentYears).where(eq(studentYears.ownerId, owner));
     await db.delete(persons).where(eq(persons.ownerId, owner));
+    await db.delete(teacherProfile).where(eq(teacherProfile.ownerId, owner));
     await sql.end();
   });
 
@@ -242,5 +244,104 @@ describe.skipIf(!RUN)("관찰/행특 기록", () => {
     const members = await listHomeroomStudents(db, owner, YEAR);
     expect(members.map((m) => m.id)).toContain(s1);
     expect(members.map((m) => m.id)).not.toContain(s2);
+  });
+
+  it("listHomeroomStudents — FD1 백필: teacher_profile 설정 후 homeroom_members 채우면 담임반 3명만 반환", async () => {
+    // AC-8.1 실제 버그: teacher_profile 은 존재하지만 homeroom_members 가 비어 있으면
+    // listHomeroomStudents 가 빈 배열 반환. 0027 백필 로직을 인-테스트로 재현.
+
+    const HR_GRADE = 2;
+    const HR_CLASS = 3; // grade=2, classNo=7 은 위 테스트에서 사용 중이므로 classNo=3 사용
+
+    // 1) teacher_profile: is_homeroom=true, homeroomGrade=2, homeroomClassNo=3
+    await db.insert(teacherProfile).values({
+      ownerId: owner,
+      isHomeroom: true,
+      homeroomGrade: HR_GRADE,
+      homeroomClassNo: HR_CLASS,
+    });
+
+    // 2) 매칭 학생 3명 (grade=2, classNo=3)
+    async function mkHrStudent(sid: string, name: string): Promise<string> {
+      const [p] = await db
+        .insert(persons)
+        .values({ ownerId: owner, displayName: name })
+        .returning({ id: persons.id });
+      const [sy] = await db
+        .insert(studentYears)
+        .values({
+          ownerId: owner,
+          personId: p.id,
+          schoolYear: YEAR,
+          sid,
+          grade: HR_GRADE,
+          classNo: HR_CLASS,
+          number: Number(sid.slice(3)),
+          name,
+        })
+        .returning({ id: studentYears.id });
+      return sy.id;
+    }
+
+    const m1 = await mkHrStudent("20301", "박세이");
+    const m2 = await mkHrStudent("20302", "최하늘");
+    const m3 = await mkHrStudent("20303", "정바람");
+
+    // 비매칭 학생 2명 (grade=2, classNo=4 — 다른 반)
+    async function mkOtherStudent(sid: string, name: string): Promise<string> {
+      const [p] = await db
+        .insert(persons)
+        .values({ ownerId: owner, displayName: name })
+        .returning({ id: persons.id });
+      const [sy] = await db
+        .insert(studentYears)
+        .values({
+          ownerId: owner,
+          personId: p.id,
+          schoolYear: YEAR,
+          sid,
+          grade: HR_GRADE,
+          classNo: 4,
+          number: Number(sid.slice(3)),
+          name,
+        })
+        .returning({ id: studentYears.id });
+      return sy.id;
+    }
+
+    const o1 = await mkOtherStudent("20401", "김타반");
+    const o2 = await mkOtherStudent("20402", "이타반");
+
+    // 3) 0027 백필 재현:
+    //    step 1 — homeroom_classes (owner, YEAR, grade=2, classNo=3)
+    const [hc] = await db
+      .insert(homeroomClasses)
+      .values({ ownerId: owner, schoolYear: YEAR, grade: HR_GRADE, classNo: HR_CLASS })
+      .returning({ id: homeroomClasses.id });
+
+    //    step 2 — homeroom_members: 매칭 학생만
+    await db.insert(homeroomMembers).values([
+      { ownerId: owner, homeroomId: hc.id, studentYearId: m1 },
+      { ownerId: owner, homeroomId: hc.id, studentYearId: m2 },
+      { ownerId: owner, homeroomId: hc.id, studentYearId: m3 },
+    ]);
+
+    // 4) 검증
+    const members = await listHomeroomStudents(db, owner, YEAR);
+    const ids = members.map((m) => m.id);
+
+    // 매칭 3명이 정확히 포함돼야 함
+    expect(ids).toContain(m1);
+    expect(ids).toContain(m2);
+    expect(ids).toContain(m3);
+
+    // 비매칭 2명은 제외돼야 함
+    expect(ids).not.toContain(o1);
+    expect(ids).not.toContain(o2);
+
+    // 담임반 학생 집합 = grade==HR_GRADE && classNo==HR_CLASS 조건과 일치
+    // (owner 전체 ids 에는 위 테스트의 s1 도 포함되므로 교집합으로 검증)
+    const hrIds = ids.filter((id) => [m1, m2, m3, o1, o2].includes(id));
+    expect(new Set(hrIds)).toEqual(new Set([m1, m2, m3]));
   });
 });

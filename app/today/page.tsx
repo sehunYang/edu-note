@@ -106,7 +106,7 @@ export default async function TodayPage() {
             {nudges.pendingReports && (
               <li>
                 미제출 신고서 {nudges.pendingReports.total}건 ·{" "}
-                <Link href="/attendance" className="underline">
+                <Link href="/homeroom/attendance" className="underline">
                   확인
                 </Link>
               </li>
@@ -191,7 +191,7 @@ export default async function TodayPage() {
             </div>
           </dl>
           <div className="mt-3 flex gap-2 text-xs">
-            <Link href="/attendance" className="underline text-neutral-500">출결</Link>
+            <Link href="/homeroom/attendance" className="underline text-neutral-500">출결</Link>
             <Link href="/sessions" className="underline text-neutral-500">시수</Link>
           </div>
         </section>

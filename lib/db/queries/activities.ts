@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import { studentActivityEntries } from "../schema/records";
@@ -99,4 +99,87 @@ export async function deleteStudentActivityEntry(
         eq(studentActivityEntries.ownerId, ownerId),
       ),
     );
+}
+
+export interface UpdateActivityInput {
+  body: string;
+  tag?: ActivityTag;
+}
+
+/** 활동 기입 수정(body·tag 변경 시 placement 재산출). */
+export async function updateStudentActivityEntry(
+  db: DB,
+  ownerId: string,
+  id: string,
+  input: UpdateActivityInput,
+): Promise<void> {
+  const set: Record<string, unknown> = {
+    body: input.body,
+    updatedAt: new Date(),
+  };
+  if (input.tag !== undefined) {
+    set.tag = input.tag;
+    set.placement = resolvePlacement(input.tag);
+  }
+  await db
+    .update(studentActivityEntries)
+    .set(set)
+    .where(
+      and(
+        eq(studentActivityEntries.id, id),
+        eq(studentActivityEntries.ownerId, ownerId),
+      ),
+    );
+}
+
+/** 담임반 학생 전원의 활동 기입 목록(담임 교실용). studentYearIds 미전달 시 소유자 전체. */
+export async function listHomeroomActivities(
+  db: DB,
+  ownerId: string,
+  studentYearIds: string[],
+): Promise<ActivityRow[]> {
+  if (studentYearIds.length === 0) return [];
+  const rows = await db
+    .select({
+      id: studentActivityEntries.id,
+      studentYearId: studentActivityEntries.studentYearId,
+      tag: studentActivityEntries.tag,
+      placement: studentActivityEntries.placement,
+      body: studentActivityEntries.body,
+      createdAt: studentActivityEntries.createdAt,
+    })
+    .from(studentActivityEntries)
+    .where(
+      and(
+        eq(studentActivityEntries.ownerId, ownerId),
+        inArray(studentActivityEntries.studentYearId, studentYearIds),
+      ),
+    )
+    .orderBy(desc(studentActivityEntries.createdAt));
+
+  return rows.map((r) => ({ ...r, placement: r.placement as ActivityPlacement }));
+}
+
+/** 일괄 생성(복수 학생 선택 → 1건씩 행 삽입). 생성된 id 목록 반환. */
+export async function bulkCreateStudentActivityEntries(
+  db: DB,
+  ownerId: string,
+  studentYearIds: string[],
+  tag: ActivityTag,
+  body: string,
+): Promise<string[]> {
+  if (studentYearIds.length === 0) return [];
+  const placement = resolvePlacement(tag);
+  const values = studentYearIds.map((studentYearId) => ({
+    ownerId,
+    studentYearId,
+    tag,
+    placement,
+    body,
+  }));
+  const rows = await db
+    .insert(studentActivityEntries)
+    .values(values)
+    .returning({ id: studentActivityEntries.id });
+  return rows.map((r) => r.id);
 }

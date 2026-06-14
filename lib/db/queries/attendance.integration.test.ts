@@ -11,6 +11,7 @@ import {
   setReportSubmitted,
   listAttendanceByDate,
 } from "./attendance";
+import { submissionTier } from "@/lib/domain/attendance";
 
 /**
  * 출결 실DB 통합. reportRequired 파생 + report_tracking 생성/정리 검증.
@@ -136,5 +137,38 @@ describe.skipIf(!RUN)("출결 — reportRequired + report_tracking", () => {
     await setReportSubmitted(db, owner, list[0].id, true);
     const after = await listAttendanceByDate(db, owner, "2099-03-02");
     expect(after[0].reportSubmitted).toBe(true);
+  });
+
+  it("지각 교시: 조회(0)부터 기점까지 영속+조회", async () => {
+    const r = await upsertAttendance(db, owner, {
+      studentYearId: s1,
+      date: "2099-03-06",
+      reason: "etc",
+      kind: "late",
+      pivotPeriod: 2,
+    });
+    expect(r.periods).toEqual([0, 1, 2]);
+    const list = await listAttendanceByDate(db, owner, "2099-03-06");
+    expect(list[0].periods).toEqual([0, 1, 2]);
+  });
+
+  it("결과 교시: 다중·비연속 선택 그대로 영속+조회", async () => {
+    const r = await upsertAttendance(db, owner, {
+      studentYearId: s1,
+      date: "2099-03-07",
+      reason: "illness",
+      kind: "absent_period",
+      selectedPeriods: [2, 5, 7],
+    });
+    expect(r.periods).toEqual([2, 5, 7]);
+    const list = await listAttendanceByDate(db, owner, "2099-03-07");
+    expect(list[0].periods).toEqual([2, 5, 7]);
+  });
+
+  it("submissionTier 경계값(남은 수업일 기준)", () => {
+    expect(submissionTier(3)).toBe("normal");
+    expect(submissionTier(2)).toBe("warning");
+    expect(submissionTier(0)).toBe("warning");
+    expect(submissionTier(-1)).toBe("critical");
   });
 });

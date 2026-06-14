@@ -26,10 +26,19 @@ function dateAtUtc(dateStr: string): Date {
   return new Date(dateStr + "T00:00:00Z");
 }
 
-/** base 이후 5번째 수업일(신고서 마감일). 없으면 null. */
-function fifthSchoolDayAfter(sortedSchoolDays: string[], base: string): string | null {
+/** 출결 신고서 마감 = 기준일 이후 수업일 5일. */
+export const ATTENDANCE_REPORT_DEADLINE_SCHOOL_DAYS = 5;
+/** 교외체험 사후보고서 마감 = 체험일 이후 수업일 10일(QC v3 Part B, AC-7.2). */
+export const FIELD_TRIP_POST_REPORT_DEADLINE_SCHOOL_DAYS = 10;
+
+/** base 이후 n번째 수업일(신고서 마감일). 없으면 null. */
+function nthSchoolDayAfter(
+  sortedSchoolDays: string[],
+  base: string,
+  n: number,
+): string | null {
   const after = sortedSchoolDays.filter((d) => d > base);
-  return after.length >= 5 ? after[4] : null;
+  return after.length >= n ? after[n - 1] : null;
 }
 
 export interface FieldTripInput {
@@ -129,7 +138,11 @@ export async function recomputeEscalation(
     const newTier: ReportTier = submitted
       ? "normal"
       : tierFromDates(dateAtUtc(base), asOf, isSchoolDay);
-    const deadline = fifthSchoolDayAfter(sortedSchoolDays, base);
+    // 마감일: 출결=수업일 5일, 교외체험 사후보고서=수업일 10일.
+    const deadlineDays = r.fieldTripId
+      ? FIELD_TRIP_POST_REPORT_DEADLINE_SCHOOL_DAYS
+      : ATTENDANCE_REPORT_DEADLINE_SCHOOL_DAYS;
+    const deadline = nthSchoolDayAfter(sortedSchoolDays, base, deadlineDays);
 
     if (newTier !== r.lastTier) {
       transitions += 1;

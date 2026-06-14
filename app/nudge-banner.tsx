@@ -55,7 +55,7 @@ export function NudgeBanner({
                 </span>
               )}
             </span>
-            <Link href="/attendance" className="shrink-0 underline">
+            <Link href="/homeroom/attendance" className="shrink-0 underline">
               확인하기 →
             </Link>
           </li>

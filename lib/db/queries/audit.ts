@@ -22,6 +22,8 @@ export type AuditEvent =
   | "sync_neis"
   | "session_generate"
   | "activity_create"
+  | "activity_update"
+  | "activity_delete"
   | "observation_create"
   | "behavior_note_create"
   | "attendance_record"
@@ -76,7 +78,21 @@ export type AuditEvent =
   // QC v3 세특 추가입력 CRUD
   | "extra_note_save"
   | "extra_note_update"
-  | "extra_note_delete";
+  | "extra_note_delete"
+  // QC v3 Part B (담임 교실 허브)
+  | "attendance_period_record"
+  | "counsel_slot_open"
+  | "counsel_slot_close"
+  | "counsel_reserve"
+  | "counsel_cancel"
+  | "counsel_record_update"
+  | "teacher_note_create"
+  | "teacher_note_update"
+  | "teacher_note_delete"
+  | "fixed_class_save"
+  | "elective_map_save"
+  | "homeroom_record_save"
+  | "homeroom_backfill";
 
 export async function writeAudit(
   db: DB,

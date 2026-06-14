@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -8",
-    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run lib/db/queries/grades.integration.test.ts 2>&1 | tail -15",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -6 && echo BUILD_DONE",
+    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run lib/db/queries/attendance.integration.test.ts lib/db/queries/activities.integration.test.ts lib/db/queries/counsel.integration.test.ts lib/db/queries/notice.integration.test.ts lib/db/queries/homeroom-record.integration.test.ts lib/db/queries/homeroom-timetable.integration.test.ts lib/db/queries/observations.integration.test.ts lib/db/queries/integration.test.ts 2>&1 | tail -16",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -165,26 +165,32 @@
   "hotPaths": [
     {
       "path": "lib\\db\\queries\\index.ts",
-      "accessCount": 48,
-      "lastAccessed": 1781438066260,
+      "accessCount": 60,
+      "lastAccessed": 1781469971037,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\misc.ts",
-      "accessCount": 33,
-      "lastAccessed": 1781437819249,
-      "type": "file"
-    },
-    {
-      "path": "app\\page.tsx",
-      "accessCount": 31,
-      "lastAccessed": 1781248475843,
+      "accessCount": 47,
+      "lastAccessed": 1781474945865,
       "type": "file"
     },
     {
       "path": "lib\\db\\queries\\audit.ts",
-      "accessCount": 29,
-      "lastAccessed": 1781438014415,
+      "accessCount": 38,
+      "lastAccessed": 1781469649094,
+      "type": "file"
+    },
+    {
+      "path": "app\\page.tsx",
+      "accessCount": 36,
+      "lastAccessed": 1781441352197,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\schema\\classes.ts",
+      "accessCount": 31,
+      "lastAccessed": 1781441240400,
       "type": "file"
     },
     {
@@ -194,21 +200,27 @@
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\classes.ts",
-      "accessCount": 28,
-      "lastAccessed": 1781278716791,
-      "type": "file"
-    },
-    {
       "path": "lib\\db\\queries\\roster.ts",
-      "accessCount": 24,
-      "lastAccessed": 1781278685208,
+      "accessCount": 26,
+      "lastAccessed": 1781469716941,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\records.ts",
-      "accessCount": 20,
-      "lastAccessed": 1781280205593,
+      "accessCount": 24,
+      "lastAccessed": 1781442722493,
+      "type": "file"
+    },
+    {
+      "path": "lib\\public\\dto.ts",
+      "accessCount": 17,
+      "lastAccessed": 1781474938617,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\schema\\identity.ts",
+      "accessCount": 14,
+      "lastAccessed": 1781469624825,
       "type": "file"
     },
     {
@@ -219,14 +231,26 @@
     },
     {
       "path": "lib\\integrations\\neis.ts",
-      "accessCount": 12,
-      "lastAccessed": 1781052335035,
+      "accessCount": 13,
+      "lastAccessed": 1781475108463,
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\identity.ts",
+      "path": "lib\\integrations\\comcigan.ts",
       "accessCount": 11,
-      "lastAccessed": 1781247419822,
+      "lastAccessed": 1781469631627,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\index.ts",
+      "accessCount": 11,
+      "lastAccessed": 1781469725407,
+      "type": "file"
+    },
+    {
+      "path": "lib\\public\\get-public-page.ts",
+      "accessCount": 11,
+      "lastAccessed": 1781474978204,
       "type": "file"
     },
     {
@@ -236,33 +260,27 @@
       "type": "file"
     },
     {
-      "path": "lib\\db\\index.ts",
-      "accessCount": 10,
-      "lastAccessed": 1781069311667,
-      "type": "file"
-    },
-    {
-      "path": "lib\\integrations\\comcigan.ts",
-      "accessCount": 9,
-      "lastAccessed": 1781278452244,
-      "type": "file"
-    },
-    {
-      "path": "lib\\public\\get-public-page.ts",
-      "accessCount": 8,
-      "lastAccessed": 1780915872571,
-      "type": "file"
-    },
-    {
       "path": "lib\\db\\queries\\public-page.ts",
-      "accessCount": 8,
-      "lastAccessed": 1781053901069,
+      "accessCount": 10,
+      "lastAccessed": 1781469624996,
       "type": "file"
     },
     {
-      "path": "lib\\public\\dto.ts",
-      "accessCount": 7,
-      "lastAccessed": 1780915871984,
+      "path": "app\\p\\[token]\\page.tsx",
+      "accessCount": 9,
+      "lastAccessed": 1781474973190,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\schema\\_shared.ts",
+      "accessCount": 8,
+      "lastAccessed": 1781442349801,
+      "type": "file"
+    },
+    {
+      "path": "lib\\domain\\types.ts",
+      "accessCount": 8,
+      "lastAccessed": 1781469699374,
       "type": "file"
     },
     {
@@ -272,15 +290,15 @@
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\_shared.ts",
-      "accessCount": 7,
-      "lastAccessed": 1781235603676,
-      "type": "file"
-    },
-    {
       "path": "lib\\setech\\verify.ts",
       "accessCount": 7,
       "lastAccessed": 1781247765192,
+      "type": "file"
+    },
+    {
+      "path": "lib\\domain\\byte-count.ts",
+      "accessCount": 7,
+      "lastAccessed": 1781442731140,
       "type": "file"
     },
     {
@@ -290,27 +308,21 @@
       "type": "file"
     },
     {
-      "path": "lib\\domain\\byte-count.ts",
-      "accessCount": 6,
-      "lastAccessed": 1781247785734,
-      "type": "file"
-    },
-    {
       "path": "lib\\setech\\types.ts",
       "accessCount": 6,
       "lastAccessed": 1781248009885,
       "type": "file"
     },
     {
-      "path": "vitest.config.ts",
-      "accessCount": 5,
-      "lastAccessed": 1780878015681,
+      "path": "lib\\csv\\parse.ts",
+      "accessCount": 6,
+      "lastAccessed": 1781442776199,
       "type": "file"
     },
     {
-      "path": "app\\p\\[token]\\page.tsx",
+      "path": "vitest.config.ts",
       "accessCount": 5,
-      "lastAccessed": 1780902146335,
+      "lastAccessed": 1780878015681,
       "type": "file"
     },
     {
@@ -338,18 +350,6 @@
       "type": "file"
     },
     {
-      "path": "lib\\domain\\types.ts",
-      "accessCount": 4,
-      "lastAccessed": 1781236339164,
-      "type": "file"
-    },
-    {
-      "path": "lib\\csv\\parse.ts",
-      "accessCount": 4,
-      "lastAccessed": 1781247785253,
-      "type": "file"
-    },
-    {
       "path": "lib\\setech\\labels.ts",
       "accessCount": 4,
       "lastAccessed": 1781247817072,
@@ -359,6 +359,12 @@
       "path": "lib\\setech\\index.ts",
       "accessCount": 4,
       "lastAccessed": 1781247991720,
+      "type": "file"
+    },
+    {
+      "path": "lib\\integrations\\comcigan-client.ts",
+      "accessCount": 4,
+      "lastAccessed": 1781469648529,
       "type": "file"
     },
     {
@@ -387,26 +393,20 @@
     },
     {
       "path": "app\\p\\[token]\\gone.tsx",
-      "accessCount": 2,
-      "lastAccessed": 1780730174902,
+      "accessCount": 3,
+      "lastAccessed": 1781469617990,
       "type": "file"
     },
     {
       "path": "lib\\domain\\index.ts",
-      "accessCount": 2,
-      "lastAccessed": 1780878442879,
+      "accessCount": 3,
+      "lastAccessed": 1781469707931,
       "type": "file"
     },
     {
       "path": "lib\\db\\queries\\integration.test.ts",
-      "accessCount": 2,
-      "lastAccessed": 1781048361632,
-      "type": "file"
-    },
-    {
-      "path": "lib\\integrations\\comcigan-client.ts",
-      "accessCount": 2,
-      "lastAccessed": 1781051739900,
+      "accessCount": 3,
+      "lastAccessed": 1781474813626,
       "type": "file"
     },
     {

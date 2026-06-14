@@ -17,6 +17,8 @@ export interface PublicTimetableSlot {
   weekday: number; // 1=월 .. 7=일
   period: number;
   subjectName: string;
+  isFixed: boolean; // 고정반(원반) 여부. false 면 선택과목 칸(자가매핑 대상).
+  electiveMapped: string | null; // 학생이 자가매핑한 선택과목(없으면 null).
 }
 export interface PublicMeal {
   date: string; // YYYY-MM-DD
@@ -44,14 +46,43 @@ export type PublicGradeStatus =
   | { status: "preparing" }
   | { status: "ready"; items: PublicGradeItem[] };
 
+/**
+ * 출결 2D 매트릭스: 성격(kind) × 사유(reason) 의 **횟수 집계**(승인된 노출 — 사유 카테고리
+ * 카운트). reason 자유텍스트(note_field)는 절대 포함하지 않는다. 카운트 숫자만.
+ */
+export interface PublicAttendanceReasonCounts {
+  accepted: number; // 인정
+  illness: number; // 질병
+  unaccepted: number; // 미인정
+  etc: number; // 기타
+}
+export interface PublicAttendance2D {
+  late: PublicAttendanceReasonCounts; // 지각
+  earlyLeave: PublicAttendanceReasonCounts; // 조퇴
+  absentPeriod: PublicAttendanceReasonCounts; // 결과
+  absent: PublicAttendanceReasonCounts; // 결석
+}
+
+/** 상담 신청 가능 슬롯(잔여>0 또는 본인 예약분). 학생이 신청/확인하는 최소 정보만. */
+export interface PublicCounselSlot {
+  date: string; // YYYY-MM-DD
+  remaining: number; // 잔여 정원
+  reserved: boolean; // 이 학생 본인의 예약 여부
+}
+
 export interface PublicPagePayload {
+  // 머리말
+  studentName: string | null; // 학생 본인 이름(본인 페이지 — 노출 OK)
   // 공통칸
   weekTodos: PublicWeekTodo[];
-  commonNotice: string | null; // 교사 한마디
+  commonNotice: string | null; // 교사 한마디(단일, 하위호환)
+  notices: string[]; // 다중 교사 한마디(스와이프)
   timetable: PublicTimetableSlot[];
   meals: PublicMeal[];
   // 개별칸
-  attendanceSummary: PublicAttendanceSummary;
+  attendanceSummary: PublicAttendanceSummary; // 1D(하위호환)
+  attendance2D: PublicAttendance2D; // 성격×사유 매트릭스
+  counselSlots: PublicCounselSlot[]; // 상담 신청
   grades: PublicGradeStatus;
   personalMessage: string | null; // 교사 개별 메시지
 }
@@ -117,32 +148,64 @@ export function summarizeAttendance(
  * 출결은 횟수로 집계되고 reason/note_field 는 읽지 않는다. grades 가 목업이면 '준비중'.
  */
 export interface RawPublicPageInput {
+  studentName?: string | null;
   // common (room 등 추가 필드가 와도 무시)
   weekTodos: { title: string; at: string }[];
   commonNotice: string | null;
-  timetable: { weekday: number; period: number; subjectName: string }[];
+  notices?: string[];
+  timetable: {
+    weekday: number;
+    period: number;
+    subjectName: string;
+    isFixed?: boolean;
+    electiveMapped?: string | null;
+  }[];
   meals: { date: string; menu: string }[];
   // 출결 원자료 (집계 전용)
   attendance: AttendanceRowForSummary[];
+  attendance2D?: PublicAttendance2D;
+  counselSlots?: { date: string; remaining: number; reserved: boolean }[];
   // 성적
   gradesMock: boolean;
   grades: { subjectName: string; rank: number | null; grade5: number | null; achievement: string | null }[];
   personalMessage: string | null;
 }
 
+function emptyReasonCounts(): PublicAttendanceReasonCounts {
+  return { accepted: 0, illness: 0, unaccepted: 0, etc: 0 };
+}
+function emptyAttendance2D(): PublicAttendance2D {
+  return {
+    late: emptyReasonCounts(),
+    earlyLeave: emptyReasonCounts(),
+    absentPeriod: emptyReasonCounts(),
+    absent: emptyReasonCounts(),
+  };
+}
+
 export function buildPublicPagePayload(
   input: RawPublicPageInput,
 ): PublicPagePayload {
   return {
+    studentName: input.studentName ?? null,
     weekTodos: input.weekTodos.map((t) => ({ title: t.title, at: t.at })),
     commonNotice: input.commonNotice,
+    notices: (input.notices ?? []).filter((n): n is string => typeof n === "string"),
     timetable: input.timetable.map((s) => ({
       weekday: s.weekday,
       period: s.period,
       subjectName: s.subjectName,
+      isFixed: s.isFixed ?? false,
+      electiveMapped: s.electiveMapped ?? null,
     })),
     meals: input.meals.map((m) => ({ date: m.date, menu: m.menu })),
     attendanceSummary: summarizeAttendance(input.attendance),
+    attendance2D: input.attendance2D ?? emptyAttendance2D(),
+    counselSlots: (input.counselSlots ?? []).map((c) => ({
+      date: c.date,
+      remaining: c.remaining,
+      reserved: c.reserved,
+    })),
     grades: input.gradesMock
       ? { status: "preparing" }
       : {
@@ -171,6 +234,9 @@ function asNumber(v: unknown): number | null {
 function asArray(v: unknown): unknown[] {
   return Array.isArray(v) ? v : [];
 }
+function parseStringArray(v: unknown): string[] {
+  return asArray(v).filter((x): x is string => typeof x === "string");
+}
 function rec(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
 }
@@ -188,7 +254,13 @@ function parseSlot(v: unknown): PublicTimetableSlot | null {
   const period = asNumber(o.period);
   const subjectName = asString(o.subjectName);
   if (weekday === null || period === null || subjectName === null) return null;
-  return { weekday, period, subjectName };
+  return {
+    weekday,
+    period,
+    subjectName,
+    isFixed: o.isFixed === true,
+    electiveMapped: asString(o.electiveMapped),
+  };
 }
 function parseMeal(v: unknown): PublicMeal | null {
   const o = rec(v);
@@ -226,6 +298,34 @@ function parseGrades(v: unknown): PublicGradeStatus {
   }
   return { status: "preparing" };
 }
+function parseReasonCounts(v: unknown): PublicAttendanceReasonCounts {
+  const o = rec(v);
+  return {
+    accepted: asNumber(o.accepted) ?? 0,
+    illness: asNumber(o.illness) ?? 0,
+    unaccepted: asNumber(o.unaccepted) ?? 0,
+    etc: asNumber(o.etc) ?? 0,
+  };
+}
+function parseAttendance2D(v: unknown): PublicAttendance2D {
+  const o = rec(v);
+  return {
+    late: parseReasonCounts(o.late),
+    earlyLeave: parseReasonCounts(o.earlyLeave),
+    absentPeriod: parseReasonCounts(o.absentPeriod),
+    absent: parseReasonCounts(o.absent),
+  };
+}
+function parseCounselSlot(v: unknown): PublicCounselSlot | null {
+  const o = rec(v);
+  const date = asString(o.date);
+  if (date === null) return null;
+  return {
+    date,
+    remaining: asNumber(o.remaining) ?? 0,
+    reserved: o.reserved === true,
+  };
+}
 
 /**
  * 임의의 입력(SQL jsonb 등)에서 **허용 키만** 골라 DTO 를 만든다.
@@ -234,11 +334,15 @@ function parseGrades(v: unknown): PublicGradeStatus {
 export function parsePublicPagePayload(raw: unknown): PublicPagePayload {
   const o = rec(raw);
   return {
+    studentName: asString(o.studentName),
     weekTodos: asArray(o.weekTodos).map(parseTodo).filter((x): x is PublicWeekTodo => x !== null),
     commonNotice: asString(o.commonNotice),
+    notices: parseStringArray(o.notices),
     timetable: asArray(o.timetable).map(parseSlot).filter((x): x is PublicTimetableSlot => x !== null),
     meals: asArray(o.meals).map(parseMeal).filter((x): x is PublicMeal => x !== null),
     attendanceSummary: parseAttendance(o.attendanceSummary),
+    attendance2D: parseAttendance2D(o.attendance2D),
+    counselSlots: asArray(o.counselSlots).map(parseCounselSlot).filter((x): x is PublicCounselSlot => x !== null),
     grades: parseGrades(o.grades),
     personalMessage: asString(o.personalMessage),
   };
