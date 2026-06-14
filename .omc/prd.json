@@ -124,7 +124,7 @@
       "id": "US-B14",
       "title": "회귀 + architect 검증 + 배포",
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "전체 npm run typecheck 0 + npm run build exit0 + 전체 단위테스트 green + Part B itest green",
         "architect(THOROUGH/Opus) APPROVED + deslop(ai-slop-cleaner) 후 재회귀 green",
