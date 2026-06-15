@@ -85,6 +85,8 @@ export const counselReservations = pgTable(
     studentYearId: uuid("student_year_id")
       .notNull()
       .references(() => studentYears.id, { onDelete: "cascade" }),
+    // 학생 취소 요청 플래그(교사 승인 대기). 승인 시 예약 행 삭제로 정원 환원. 0035.
+    cancelRequested: boolean("cancel_requested").notNull().default(false),
     ...timestamps(),
   },
   (t) => [unique("uq_counsel_reservations").on(t.slotId, t.studentYearId)],
@@ -327,6 +329,8 @@ export const setupState = pgTable(
 );
 
 // 급식 캐시
+// payload = { meals: [ { mealType, menu: text[], calInfo, ntrInfo } ] }.
+// 영양정보(ntrInfo)는 jsonb payload 안에 함께 저장 — 별도 컬럼 없음(0035, DDL 불필요).
 export const mealCache = pgTable(
   "meal_cache",
   {

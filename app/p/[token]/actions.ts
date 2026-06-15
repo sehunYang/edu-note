@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import {
   saveElectiveMapping,
   reserveCounsel,
+  requestCounselCancel,
   type StudentWriteResult,
 } from "@/lib/public/student-write";
 
@@ -30,6 +31,15 @@ export async function reserveCounselAction(
   date: string,
 ): Promise<StudentWriteResult> {
   const res = await reserveCounsel(token, date);
+  if (res.ok) revalidatePath(`/p/${token}`);
+  return res;
+}
+
+export async function requestCounselCancelAction(
+  token: string,
+  date: string,
+): Promise<StudentWriteResult> {
+  const res = await requestCounselCancel(token, date);
   if (res.ok) revalidatePath(`/p/${token}`);
   return res;
 }

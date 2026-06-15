@@ -135,6 +135,7 @@ export interface CounselReservationRow {
   slotId: string;
   studentYearId: string;
   date: string;
+  cancelRequested: boolean;
   createdAt: Date;
 }
 
@@ -235,6 +236,7 @@ export async function listCounselReservations(
       slotId: counselReservations.slotId,
       studentYearId: counselReservations.studentYearId,
       date: counselSlots.date,
+      cancelRequested: counselReservations.cancelRequested,
       createdAt: counselReservations.createdAt,
     })
     .from(counselReservations)
@@ -325,4 +327,53 @@ export async function cancelReservation(
       ),
     );
   await writeAudit(db, ownerId, "counsel_cancel", reservationId);
+}
+
+// ── AC-6.7: 학생 취소요청 → 교사 승인 ──────────────────────────────────────
+
+/**
+ * 학생 본인 예약의 취소요청 플래그 설정(토큰 스코프에서 호출). (slotId, studentYearId)
+ * 본인 행만. 교사가 별도로 승인(approve)해야 실제 삭제(정원 환원)된다.
+ */
+export async function requestCancelReservation(
+  db: DB,
+  ownerId: string,
+  slotId: string,
+  studentYearId: string,
+): Promise<void> {
+  await db
+    .update(counselReservations)
+    .set({ cancelRequested: true, updatedAt: new Date() })
+    .where(
+      and(
+        eq(counselReservations.ownerId, ownerId),
+        eq(counselReservations.slotId, slotId),
+        eq(counselReservations.studentYearId, studentYearId),
+      ),
+    );
+  await writeAudit(db, ownerId, "counsel_cancel_request", slotId, {
+    studentYearId,
+  });
+}
+
+/**
+ * 교사 취소요청 승인 — 예약 행 삭제(정원 환원) + 캘린더 자동 반영(get_public_page 가
+ * 예약을 weekTodos 에 합류시키므로, 삭제만으로 캘린더에서도 제거된다). 본인 소유만.
+ * audit counsel_cancel_approve.
+ */
+export async function approveCancelReservation(
+  db: DB,
+  ownerId: string,
+  reservationId: string,
+): Promise<void> {
+  await db
+    .delete(counselReservations)
+    .where(
+      and(
+        eq(counselReservations.id, reservationId),
+        eq(counselReservations.ownerId, ownerId),
+        eq(counselReservations.cancelRequested, true),
+      ),
+    );
+  await writeAudit(db, ownerId, "counsel_cancel_approve", reservationId);
 }

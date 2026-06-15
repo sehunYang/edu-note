@@ -73,7 +73,7 @@
       "id": "US-6",
       "title": "Phase 5 — 학생 안내 페이지 + get_public_page v4 + 급식영양",
       "priority": 5,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "마이그 meal_nutrition(meal_cache.ntr_info) + NEIS parseMealService NTR_INFO 파싱 + calendar.ts upsert 확장",
         "get_public_page_v4(마이그 레인 최후): 상담예약 캘린더 반영(AC-6.1), 급식 menu/calInfo/ntrInfo 분리노출(AC-6.6), 개별공지 전체+대상학생 병렬(AC-5.3). NULL-safe",

@@ -5,7 +5,23 @@ import type {
   PublicAttendance2D,
   PublicCounselSlot,
 } from "@/lib/public";
-import { saveElectiveAction, reserveCounselAction } from "./actions";
+import {
+  saveElectiveAction,
+  reserveCounselAction,
+  requestCounselCancelAction,
+} from "./actions";
+
+/** KST(UTC+9) 기준 오늘 날짜(YYYY-MM-DD). 12시간 고정이 아닌 날짜 경계로 산출. */
+function kstToday(now: Date = new Date()): string {
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().slice(0, 10);
+}
+/** KST 기준 오늘의 요일(1=월 .. 7=일). 시간표 열 강조용. */
+function kstWeekday(now: Date = new Date()): number {
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const dow = kst.getUTCDay(); // 0=일 .. 6=토
+  return dow === 0 ? 7 : dow;
+}
 
 /**
  * 공개 학생 안내 페이지 클라이언트 뷰 (QC v3 Part B, US-B13, AC-12.1~12.8).
@@ -32,6 +48,7 @@ export function PublicPageView({
       </header>
 
       <Notices notices={payload.notices} commonNotice={payload.commonNotice} />
+      <IndividualNotices notices={payload.individualNotices} />
       <CalendarSection todos={payload.weekTodos} />
       <Timetable token={token} slots={payload.timetable} />
       <Meals meals={payload.meals} />
@@ -103,6 +120,23 @@ function Notices({
   );
 }
 
+// ── 개별 공지(이 학생 대상 — 전체 공지와 병렬) ──────────────────────────────
+function IndividualNotices({ notices }: { notices: string[] }) {
+  if (notices.length === 0) return null;
+  return (
+    <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+      <h2 className="text-sm font-semibold text-amber-600">개별 공지</h2>
+      <ul className="mt-2 space-y-2 text-sm">
+        {notices.map((n, i) => (
+          <li key={i} className="whitespace-pre-line">
+            {n}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 // ── 일정 안내(월간 달력 + 네비) ─────────────────────────────────────────────
 function ymd(d: Date): string {
   const y = d.getFullYear();
@@ -116,11 +150,15 @@ function CalendarSection({
 }: {
   todos: PublicPagePayload["weekTodos"];
 }) {
-  const today = useMemo(() => new Date(), []);
-  const todayStr = ymd(today);
+  // 오늘 강조는 KST 날짜 경계 기준(12시간 고정 아님 — 날짜가 바뀌면 자동 갱신).
+  const todayStr = useMemo(() => kstToday(), []);
+  const [ty, tm] = useMemo(() => {
+    const [y, m] = todayStr.split("-").map(Number);
+    return [y, m - 1] as const; // month 0-based
+  }, [todayStr]);
   const [month, setMonth] = useState(() => ({
-    year: today.getFullYear(),
-    month: today.getMonth(), // 0-based
+    year: ty,
+    month: tm,
   }));
 
   // 날짜(YYYY-MM-DD) → 제목 목록.
@@ -236,6 +274,8 @@ function Timetable({
     for (const s of slots) map.set(`${s.weekday}::${s.period}`, s);
     return map;
   }, [slots]);
+  // 오늘 요일 열 강조(KST 날짜 경계). 토·일이면 강조 없음(1~5 만 표시).
+  const todayWeekday = useMemo(() => kstWeekday(), []);
 
   return (
     <Card title="시간표">
@@ -249,7 +289,11 @@ function Timetable({
               {TT_WEEKDAYS.map((w) => (
                 <th
                   key={w}
-                  className="border border-neutral-200 bg-neutral-50 py-1 font-medium"
+                  className={`border border-neutral-200 py-1 font-medium ${
+                    w === todayWeekday
+                      ? "bg-blue-100 text-blue-700"
+                      : "bg-neutral-50"
+                  }`}
                 >
                   {TT_WEEKDAY_LABEL[w]}
                 </th>
@@ -267,7 +311,9 @@ function Timetable({
                   return (
                     <td
                       key={w}
-                      className="h-10 border border-neutral-200 align-middle"
+                      className={`h-10 border border-neutral-200 align-middle ${
+                        w === todayWeekday ? "bg-blue-50" : ""
+                      }`}
                     >
                       {slot ? (
                         <TimetableCell token={token} slot={slot} />
@@ -350,20 +396,43 @@ function TimetableCell({
   );
 }
 
-// ── 급식(당일) ──────────────────────────────────────────────────────────────
+// ── 급식(당일) — 메뉴/칼로리/영양 표 (AC-6.6) ───────────────────────────────
 function Meals({ meals }: { meals: PublicPagePayload["meals"] }) {
   return (
     <Card title="오늘 급식">
       {meals.length === 0 ? (
         <p className="text-sm text-neutral-400">오늘 급식 정보가 없습니다.</p>
       ) : (
-        <ul className="space-y-1 text-sm">
-          {meals.map((m, i) => (
-            <li key={i} className="whitespace-pre-line">
-              {m.menu}
-            </li>
-          ))}
-        </ul>
+        <table className="w-full border-collapse text-left text-sm">
+          <thead>
+            <tr>
+              <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+                메뉴
+              </th>
+              <th className="w-20 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+                칼로리
+              </th>
+              <th className="w-40 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+                영양
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {meals.map((m, i) => (
+              <tr key={i}>
+                <td className="border border-neutral-200 px-2 py-1 align-top whitespace-pre-line">
+                  {m.menu}
+                </td>
+                <td className="border border-neutral-200 px-2 py-1 align-top text-neutral-600">
+                  {m.calInfo ?? "-"}
+                </td>
+                <td className="border border-neutral-200 px-2 py-1 align-top whitespace-pre-line text-xs text-neutral-600">
+                  {m.ntrInfo ?? "-"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </Card>
   );
@@ -463,6 +532,14 @@ function CounselSlotRow({
     });
   }
 
+  function requestCancel() {
+    setErr(null);
+    start(async () => {
+      const res = await requestCounselCancelAction(token, slot.date);
+      if (!res.ok) setErr(res.message);
+    });
+  }
+
   return (
     <li className="flex items-center justify-between gap-2 rounded border border-neutral-100 px-3 py-2">
       <span>
@@ -470,8 +547,25 @@ function CounselSlotRow({
         <span className="text-xs text-neutral-400">잔여 {slot.remaining}</span>
       </span>
       {slot.reserved ? (
-        <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
-          신청됨
+        <span className="flex items-center gap-2">
+          {err && <span className="text-[11px] text-red-600">{err}</span>}
+          <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
+            신청됨
+          </span>
+          {slot.cancelRequested ? (
+            <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+              취소 요청됨
+            </span>
+          ) : (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={requestCancel}
+              className="rounded border border-neutral-300 px-2 py-0.5 text-xs hover:bg-neutral-50 disabled:opacity-40"
+            >
+              {pending ? "요청…" : "취소 요청"}
+            </button>
+          )}
         </span>
       ) : (
         <span className="flex items-center gap-2">

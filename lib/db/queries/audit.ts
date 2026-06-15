@@ -85,6 +85,8 @@ export type AuditEvent =
   | "counsel_slot_close"
   | "counsel_reserve"
   | "counsel_cancel"
+  | "counsel_cancel_request"
+  | "counsel_cancel_approve"
   | "counsel_record_update"
   | "teacher_note_create"
   | "teacher_note_update"

@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===BUILD===\" && npm run build 2>&1 | tail -6 && echo BUILD_DONE",
-    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -5 && echo \"===UNIT(all)===\" && node ./node_modules/vitest/vitest.mjs run 2>&1 | tail -10",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===DTO/NEIS===\" && node ./node_modules/vitest/vitest.mjs run lib/public/dto.test.ts lib/integrations/neis.test.ts 2>&1 | tail -6 && echo \"===BUILD===\" && npm run build 2>&1 | tail -5 && echo BUILD_DONE",
+    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===DTO/NEIS===\" && node ./node_modules/vitest/vitest.mjs run lib/public/dto.test.ts lib/integrations/neis.test.ts 2>&1 | tail -6 && echo \"===BUILD===\" && npm run build 2>&1 | tail -5 && echo BUILD_DONE",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -165,20 +165,20 @@
   "hotPaths": [
     {
       "path": "lib\\db\\queries\\index.ts",
-      "accessCount": 65,
-      "lastAccessed": 1781509895389,
+      "accessCount": 66,
+      "lastAccessed": 1781510488296,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\misc.ts",
-      "accessCount": 50,
-      "lastAccessed": 1781509915832,
+      "accessCount": 53,
+      "lastAccessed": 1781510655965,
       "type": "file"
     },
     {
       "path": "lib\\db\\queries\\audit.ts",
-      "accessCount": 44,
-      "lastAccessed": 1781509920474,
+      "accessCount": 46,
+      "lastAccessed": 1781510954877,
       "type": "file"
     },
     {
@@ -191,6 +191,12 @@
       "path": "lib\\db\\schema\\classes.ts",
       "accessCount": 31,
       "lastAccessed": 1781441240400,
+      "type": "file"
+    },
+    {
+      "path": "lib\\public\\dto.ts",
+      "accessCount": 31,
+      "lastAccessed": 1781510616740,
       "type": "file"
     },
     {
@@ -212,9 +218,9 @@
       "type": "file"
     },
     {
-      "path": "lib\\public\\dto.ts",
-      "accessCount": 20,
-      "lastAccessed": 1781498879291,
+      "path": "lib\\integrations\\neis.ts",
+      "accessCount": 17,
+      "lastAccessed": 1781510526915,
       "type": "file"
     },
     {
@@ -224,15 +230,15 @@
       "type": "file"
     },
     {
-      "path": "lib\\integrations\\neis.ts",
-      "accessCount": 14,
-      "lastAccessed": 1781493214705,
-      "type": "file"
-    },
-    {
       "path": "lib\\csv\\student-roster.ts",
       "accessCount": 13,
       "lastAccessed": 1781247779282,
+      "type": "file"
+    },
+    {
+      "path": "lib\\public\\get-public-page.ts",
+      "accessCount": 12,
+      "lastAccessed": 1781510451955,
       "type": "file"
     },
     {
@@ -248,27 +254,21 @@
       "type": "file"
     },
     {
-      "path": "lib\\public\\get-public-page.ts",
+      "path": "app\\p\\[token]\\page.tsx",
       "accessCount": 11,
-      "lastAccessed": 1781474978204,
+      "lastAccessed": 1781510469556,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\queries\\public-page.ts",
+      "accessCount": 11,
+      "lastAccessed": 1781510500845,
       "type": "file"
     },
     {
       "path": "README.md",
       "accessCount": 10,
       "lastAccessed": 1780767768822,
-      "type": "file"
-    },
-    {
-      "path": "lib\\db\\queries\\public-page.ts",
-      "accessCount": 10,
-      "lastAccessed": 1781469624996,
-      "type": "file"
-    },
-    {
-      "path": "app\\p\\[token]\\page.tsx",
-      "accessCount": 10,
-      "lastAccessed": 1781488096055,
       "type": "file"
     },
     {
@@ -317,6 +317,12 @@
       "path": "lib\\csv\\parse.ts",
       "accessCount": 6,
       "lastAccessed": 1781442776199,
+      "type": "file"
+    },
+    {
+      "path": "lib\\integrations\\neis.test.ts",
+      "accessCount": 6,
+      "lastAccessed": 1781510551953,
       "type": "file"
     },
     {
@@ -371,12 +377,6 @@
       "path": "lib\\integrations\\comcigan-client.ts",
       "accessCount": 4,
       "lastAccessed": 1781469648529,
-      "type": "file"
-    },
-    {
-      "path": "lib\\integrations\\neis.test.ts",
-      "accessCount": 3,
-      "lastAccessed": 1780766714549,
       "type": "file"
     },
     {

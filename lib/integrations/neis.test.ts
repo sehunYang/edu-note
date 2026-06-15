@@ -136,6 +136,7 @@ describe("parseMealService", () => {
             MMEAL_SC_NM: "중식",
             DDISH_NM: "쌀밥 (1.5)<br/>미역국 5.6.<br/>제육볶음 (10)",
             CAL_INFO: "850.5 Kcal",
+            NTR_INFO: "탄수화물(g) : 100.0<br/>단백질(g) : 30.0",
           },
         ],
       },
@@ -150,9 +151,29 @@ describe("parseMealService", () => {
       mealType: "중식",
       menu: ["쌀밥", "미역국", "제육볶음"],
       calInfo: "850.5 Kcal",
+      ntrInfo: "탄수화물(g) : 100.0\n단백질(g) : 30.0",
     });
     expect(out[0].rawMenu).toContain("쌀밥 (1.5)");
     expect(out[0].rawMenu).toContain("\n");
+  });
+
+  it("NTR_INFO 누락 시 ntrInfo=null", () => {
+    const j = {
+      mealServiceDietInfo: [
+        { head: [{ RESULT: { CODE: "INFO-000" } }] },
+        {
+          row: [
+            {
+              MLSV_YMD: "20260602",
+              MMEAL_SC_NM: "중식",
+              DDISH_NM: "백미밥<br/>된장국",
+              CAL_INFO: "700 Kcal",
+            },
+          ],
+        },
+      ],
+    };
+    expect(parseMealService(j)[0].ntrInfo).toBeNull();
   });
 
   it("무데이터는 빈 배열", () => {

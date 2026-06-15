@@ -128,6 +128,7 @@ export async function syncSchoolCalendar(
         mealType: i.mealType,
         menu: i.menu,
         calInfo: i.calInfo,
+        ntrInfo: i.ntrInfo, // 영양정보(NTR_INFO) — payload 에 함께 저장(별도 컬럼 없음). 0035.
       })),
     },
   }));

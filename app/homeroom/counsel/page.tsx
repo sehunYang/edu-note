@@ -15,6 +15,7 @@ import {
   closeSlotAction,
   reserveSlotAction,
   cancelReservationAction,
+  approveCancelAction,
   getCounselCsvAction,
 } from "./actions";
 import { CounselCsvPanel } from "./counsel-csv-panel";
@@ -186,21 +187,40 @@ export default async function CounselPage() {
                             key={r.id}
                             className="flex items-center justify-between text-xs text-neutral-600"
                           >
-                            <span>
+                            <span className="flex items-center gap-1.5">
                               {st
                                 ? `${st.sid} ${st.name}`
                                 : "(미등록 학생)"}
+                              {r.cancelRequested && (
+                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
+                                  취소 요청
+                                </span>
+                              )}
                             </span>
-                            <form action={cancelReservationAction} className="inline">
-                              <input
-                                type="hidden"
-                                name="reservationId"
-                                value={r.id}
-                              />
-                              <button className="text-red-400 hover:underline">
-                                취소
-                              </button>
-                            </form>
+                            <span className="flex items-center gap-2">
+                              {r.cancelRequested && (
+                                <form action={approveCancelAction} className="inline">
+                                  <input
+                                    type="hidden"
+                                    name="reservationId"
+                                    value={r.id}
+                                  />
+                                  <button className="text-amber-600 hover:underline">
+                                    취소 승인
+                                  </button>
+                                </form>
+                              )}
+                              <form action={cancelReservationAction} className="inline">
+                                <input
+                                  type="hidden"
+                                  name="reservationId"
+                                  value={r.id}
+                                />
+                                <button className="text-red-400 hover:underline">
+                                  취소
+                                </button>
+                              </form>
+                            </span>
                           </li>
                         );
                       })}

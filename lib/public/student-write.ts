@@ -6,6 +6,7 @@ import * as schema from "@/lib/db/schema";
 import {
   upsertStudentElectiveMapping,
   reserveCounselSlot,
+  requestCancelReservation,
   writeAudit,
 } from "@/lib/db/queries";
 
@@ -141,5 +142,47 @@ export async function reserveCounsel(
   } catch (e) {
     // 정원 초과·중복 예약 등은 안내 메시지로.
     return { ok: false, message: e instanceof Error ? e.message : "신청 실패" };
+  }
+}
+
+/**
+ * 상담 예약 취소 요청(토큰 스코프, AC-6.7). 본인 확정 예약의 취소를 '요청'만 한다
+ * (cancel_requested=true). 실제 삭제·정원 환원은 교사 승인(approveCancelReservation)에서.
+ *
+ * 슬롯 id 는 공개 DTO 가 노출하지 않으므로 학생은 **날짜**로 요청하고, 서버가 (owner, date)
+ * 로 슬롯을 해석한다(reserveCounsel 과 동일 패턴).
+ */
+export async function requestCounselCancel(
+  token: string,
+  date: string,
+): Promise<StudentWriteResult> {
+  if (!date) return { ok: false, message: "날짜가 지정되지 않았습니다." };
+  const db = publicDb();
+  const resolved = await resolveToken(db, token);
+  if (!resolved) return { ok: false, message: "유효하지 않은 링크입니다." };
+
+  const slots = await db
+    .select({ id: schema.counselSlots.id })
+    .from(schema.counselSlots)
+    .where(
+      and(
+        eq(schema.counselSlots.ownerId, resolved.ownerId),
+        eq(schema.counselSlots.date, date),
+      ),
+    )
+    .limit(1);
+  const slotId = slots[0]?.id;
+  if (!slotId) return { ok: false, message: "해당 날짜의 상담 슬롯이 없습니다." };
+
+  try {
+    await requestCancelReservation(
+      db,
+      resolved.ownerId,
+      slotId,
+      resolved.studentYearId,
+    );
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "취소 요청에 실패했습니다." };
   }
 }
