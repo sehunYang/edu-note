@@ -181,3 +181,31 @@
 - [x] US-B14 회귀: typecheck0/build0/unit235/Part B itest 전부 green. architect 검증: 1차 REJECT(meal payload->>'menu' 버그+예약 race) → 둘 다 수정(meal 배열평탄화 재적용·검증, reserve FOR UPDATE) → 재검증.
 - ⚠ 학습: meal_cache.payload={meals:[{mealType,menu:text[],calInfo}]} — get_public_page는 jsonb_array_elements+string_agg로 평탄화해야 함(스칼라 ->>'menu' 아님). 0029 create or replace라 재적용 안전.
 - 검증명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>. 마이그 apply: node --env-file=.env.local scripts/apply-sql.mjs <file>(사용자 승인 게이트). 마이그 0020~0024,0027,0028,0029 prod 적용완료.
+
+═══════════════════════════════════════════════════════════
+# QC v4 — 9개 컴포넌트 (ralph, 2026-06-15~)
+═══════════════════════════════════════════════════════════
+계획: .omc/plans/qc-v4-plan.md (Architect SOUND-WITH-CHANGES + Critic APPROVED-WITH-NITS 반영). 스펙: .omc/specs/deep-interview-qc-v4.md(모호도4.7%). 브랜치 feat/qc-v4(main 분기).
+순서: US-1 Phase0공유 → US-2 수업계획실2단계 → US-3 진척도 → US-4 출결 → US-5 공지실 → US-6 학생페이지+get_public_page_v4 → US-7 오늘의학교 넛지 → US-8 담임허브+페이지네이션잔여 → US-9 회귀+배포.
+
+## 마이그레이션 규율(재확인, 필수)
+- drizzle journal은 0000만 추적 → **손작성 00NN_name.sql(add column/table if not exists) + node --env-file=.env.local scripts/apply-sql.mjs <file>**. drizzle-kit generate/migrate 절대 금지(stale 스냅샷 오작동).
+- 최신 prod 마이그=0029. v4 신규는 0030+. get_public_page_v4 최후 순번.
+- prod 마이그 적용 = **사용자 승인 게이트**. 코드/스키마는 먼저, 적용은 승인 후.
+- apply-sql.mjs는 파일 전체 단일 simple-query(암묵 tx). enum ADD VALUE는 단독파일 분리.
+
+## 단계 상태 (v4)
+- [x] US-1 Phase0: lib/device.ts(isMobileUserAgent)+test, lib/db/pagination.ts(toLimitOffset/pageCount/paginate)+test, lib/ui/paginator.tsx(번호식 …축약), middleware.ts(인증후 루트+모바일→/today, location헤더로 리다이렉트판별). 단위10 green, typecheck0, build exit0.
+- [x] US-2 수업계획실 2단계(코드완료): 마이그 0030_lesson_units.sql(lesson_units 대/중/소단원+6자리코드+keywords+minOrdinals, exam_targets from/to code, lesson_plans.unit_id, RLS owner_rw) + schema records.ts 동기화 [orchestrator 직접]. 나머지 opus executor: lib/domain/lesson-unit.ts(sixDigitCode/parseSixDigit/sortUnitsByCode/validateMinOrdinals)+test6, lesson-plan.ts 쿼리확장(listLessonUnits/upsert/delete/lookupUnitByCode/listExamTargets/upsertExamTarget/countOrdinalsPerUnit/isSemesterPlanComplete/assignLessonPlanUnit), actions(saveLessonUnit/deleteLessonUnit/saveExamTarget/saveSessionPlanBulk: 무효코드차단AC-1.6+초과시 exceededUnits/confirmMinOrdinals AC-1.8), audit 3종, 라우트 분리(plan/semester+plan/session, isSemesterPlanComplete 게이팅), UI(semester-editor 단원트리+시험목표 토글, session-editor 6자리자동채움+확인모달+10페이지네이션). typecheck0+build0+단위16 green. ⚠ itest는 작성됐으나 마이그 미적용으로 미실행(최종배치).
+- [ ] US-3~US-9 진행 예정.
+
+## ⚠ 마이그레이션/통합테스트 배치 전략(중요)
+- 마이그(0030+)는 코드와 함께 손작성하되 **prod 미적용**. 모든 스토리 코드완료 후 **최종 배치로 일괄 적용→통합테스트 실행→배포**(플랜 마이그레이션 레인 + prod 노출 최소화). get_public_page_v4 최후.
+- 각 스토리는 typecheck0/build0/단위테스트로 검증, itest는 배치까지 작성만.
+
+## v4 학습
+- vitest include=lib/**/*.test.ts(node). 컴포넌트 단위테스트 불가 → 순수로직 lib/ 아래.
+- 공유 UI=lib/ui/. components/ 없음.
+- meal_cache.payload={meals:[{mealType,menu:text[],calInfo}]}. get_public_page는 jsonb_array_elements+string_agg 평탄화. v4 급식표는 calInfo/ntrInfo 분리노출 필요(NEIS NTR_INFO 파싱 추가).
+- attendance reason enum=illness|accepted|unaccepted|etc. kind=late|early_leave|absent_period|absent. report_required=영속 파생컬럼(백필 필요). trip_date 소비=escalation.ts(46/60/121/134/180/197/206/212)+0005 pg_cron.
+- NudgeResult.unrecordedObservation=단일객체(73-76)→리스트 shape변경. 소비자 app/page.tsx+app/today/page.tsx.

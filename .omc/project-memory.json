@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -6 && echo BUILD_DONE",
-    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run lib/db/queries/attendance.integration.test.ts lib/db/queries/activities.integration.test.ts lib/db/queries/counsel.integration.test.ts lib/db/queries/notice.integration.test.ts lib/db/queries/homeroom-record.integration.test.ts lib/db/queries/homeroom-timetable.integration.test.ts lib/db/queries/observations.integration.test.ts lib/db/queries/integration.test.ts 2>&1 | tail -16",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -8 && echo BUILD_DONE",
+    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -5 && echo \"===UNIT===\" && node ./node_modules/vitest/vitest.mjs run lib/domain/lesson-unit.test.ts lib/device.test.ts lib/db/pagination.test.ts 2>&1 | tail -8",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -165,8 +165,8 @@
   "hotPaths": [
     {
       "path": "lib\\db\\queries\\index.ts",
-      "accessCount": 60,
-      "lastAccessed": 1781469971037,
+      "accessCount": 61,
+      "lastAccessed": 1781499916130,
       "type": "file"
     },
     {
@@ -177,14 +177,14 @@
     },
     {
       "path": "lib\\db\\queries\\audit.ts",
-      "accessCount": 38,
-      "lastAccessed": 1781469649094,
+      "accessCount": 40,
+      "lastAccessed": 1781499968758,
       "type": "file"
     },
     {
       "path": "app\\page.tsx",
-      "accessCount": 36,
-      "lastAccessed": 1781441352197,
+      "accessCount": 37,
+      "lastAccessed": 1781498848325,
       "type": "file"
     },
     {
@@ -200,21 +200,21 @@
       "type": "file"
     },
     {
+      "path": "lib\\db\\schema\\records.ts",
+      "accessCount": 27,
+      "lastAccessed": 1781499896431,
+      "type": "file"
+    },
+    {
       "path": "lib\\db\\queries\\roster.ts",
       "accessCount": 26,
       "lastAccessed": 1781469716941,
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\records.ts",
-      "accessCount": 24,
-      "lastAccessed": 1781442722493,
-      "type": "file"
-    },
-    {
       "path": "lib\\public\\dto.ts",
-      "accessCount": 17,
-      "lastAccessed": 1781474938617,
+      "accessCount": 20,
+      "lastAccessed": 1781498879291,
       "type": "file"
     },
     {
@@ -224,15 +224,15 @@
       "type": "file"
     },
     {
-      "path": "lib\\csv\\student-roster.ts",
-      "accessCount": 13,
-      "lastAccessed": 1781247779282,
+      "path": "lib\\integrations\\neis.ts",
+      "accessCount": 14,
+      "lastAccessed": 1781493214705,
       "type": "file"
     },
     {
-      "path": "lib\\integrations\\neis.ts",
+      "path": "lib\\csv\\student-roster.ts",
       "accessCount": 13,
-      "lastAccessed": 1781475108463,
+      "lastAccessed": 1781247779282,
       "type": "file"
     },
     {
@@ -267,20 +267,20 @@
     },
     {
       "path": "app\\p\\[token]\\page.tsx",
-      "accessCount": 9,
-      "lastAccessed": 1781474973190,
+      "accessCount": 10,
+      "lastAccessed": 1781488096055,
+      "type": "file"
+    },
+    {
+      "path": "lib\\domain\\types.ts",
+      "accessCount": 10,
+      "lastAccessed": 1781498563098,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\_shared.ts",
       "accessCount": 8,
       "lastAccessed": 1781442349801,
-      "type": "file"
-    },
-    {
-      "path": "lib\\domain\\types.ts",
-      "accessCount": 8,
-      "lastAccessed": 1781469699374,
       "type": "file"
     },
     {
@@ -368,6 +368,12 @@
       "type": "file"
     },
     {
+      "path": "lib\\domain\\attendance-rules.test.ts",
+      "accessCount": 4,
+      "lastAccessed": 1781499459403,
+      "type": "file"
+    },
+    {
       "path": "lib\\integrations\\neis.test.ts",
       "accessCount": 3,
       "lastAccessed": 1780766714549,
@@ -407,12 +413,6 @@
       "path": "lib\\db\\queries\\integration.test.ts",
       "accessCount": 3,
       "lastAccessed": 1781474813626,
-      "type": "file"
-    },
-    {
-      "path": "lib\\domain\\attendance-rules.test.ts",
-      "accessCount": 1,
-      "lastAccessed": 1780729331606,
       "type": "file"
     },
     {

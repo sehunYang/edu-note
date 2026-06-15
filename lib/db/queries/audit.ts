@@ -92,7 +92,11 @@ export type AuditEvent =
   | "fixed_class_save"
   | "elective_map_save"
   | "homeroom_record_save"
-  | "homeroom_backfill";
+  | "homeroom_backfill"
+  // QC v4 수업계획 학기계획 단계 (US-2)
+  | "lesson_unit_save"
+  | "lesson_unit_delete"
+  | "exam_target_save";
 
 export async function writeAudit(
   db: DB,
