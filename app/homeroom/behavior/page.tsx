@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { listHomeroomStudents, listBehaviorNotes } from "@/lib/db/queries";
@@ -26,7 +25,8 @@ export default async function HomeroomBehaviorPage({
 
   const [homeroomStudents, behaviorNotes] = await Promise.all([
     listHomeroomStudents(db, ownerId, year),
-    listBehaviorNotes(db, ownerId, { limit: 30 }),
+    // 페이지네이션(10개씩)으로 전체를 클라이언트에서 분할하므로 상한 없이 로드.
+    listBehaviorNotes(db, ownerId),
   ]);
 
   const students: HomeroomStudent[] = homeroomStudents.map((s) => ({
@@ -44,18 +44,11 @@ export default async function HomeroomBehaviorPage({
   }));
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">행동특성 기록 ({year})</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            담임반 학생의 행동특성을 누가기록합니다(매일 16시 후 넛지).
-          </p>
-        </div>
-        <Link href="/" className="text-sm text-neutral-500 hover:underline">
-          ← 홈
-        </Link>
-      </div>
+    <div>
+      <h2 className="text-lg font-semibold text-neutral-800">행동특성 기록 ({year})</h2>
+      <p className="mt-1 text-sm text-neutral-500">
+        담임반 학생의 행동특성을 누가기록합니다(매일 16시 후 넛지).
+      </p>
 
       {students.length === 0 ? (
         <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
@@ -69,6 +62,6 @@ export default async function HomeroomBehaviorPage({
           initialStudentId={preStudentId}
         />
       )}
-    </main>
+    </div>
   );
 }

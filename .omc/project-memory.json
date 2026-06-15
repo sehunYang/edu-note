@@ -47,7 +47,7 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===NUDGE===\" && node ./node_modules/vitest/vitest.mjs run lib/domain/nudge.test.ts 2>&1 | tail -5 && echo \"===BUILD===\" && npm run build 2>&1 | tail -5 && echo BUILD_DONE",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===BUILD===\" && npm run build 2>&1 | tail -5 && echo BUILD_DONE",
     "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===NUDGE===\" && node ./node_modules/vitest/vitest.mjs run lib/domain/nudge.test.ts 2>&1 | tail -5 && echo \"===BUILD===\" && npm run build 2>&1 | tail -5 && echo BUILD_DONE",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",

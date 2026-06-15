@@ -100,7 +100,7 @@
       "id": "US-8",
       "title": "Phase 7 — 담임교실 허브화 + 페이지네이션 잔여 8개",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "app/homeroom/layout.tsx 신규(탭바, classroom layout 패턴), page.tsx 묶음만, 하위 ← 홈 제거(AC-3.1/3.2)",
         "페이지네이션 잔여 적용(AC-8.2/8.3 16개 전수): 교과관찰/세특·학생추가/자율진로/상담기록/행동특성/상담슬롯 10개, 학사일정/학생명단 20개",

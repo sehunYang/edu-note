@@ -204,7 +204,14 @@
 - [x] US-6 학생페이지+get_public_page v4(코드완료, opus executor): 마이그 0035_meal_nutrition(counsel_reservations.cancel_requested; 영양은 meal_cache.payload.meals[].ntrInfo jsonb=DDL 없음)·0036_get_public_page_v4(최후 마이그: 예약상담 캘린더 union, 급식 menu/calInfo/ntrInfo 분리, 개별공지 teacher_note_targets 병렬, NULL-safe). DTO triple lockstep(PublicMeal calInfo/ntrInfo + PublicCounselSlot cancelRequested + individualNotices + parseMeal/build/parse allowlist + dto.test 16). neis.ts NTR_INFO 파싱+test15. calendar.ts 영양 upsert. 상담취소: counseling.ts requestCancelReservation/approveCancelReservation(승인=삭제=정원복구), student-write requestCounselCancel, homeroom/counsel 승인 UI, audit 2종. public-page-view: KST 날짜경계 오늘강조·시간표 오늘열강조·선택과목 상시수정·급식표·취소요청버튼·개별공지섹션. itest get-public-page-v4(예약반영·영양분리·개별공지 대상유무·NULL-safe·취소승인 정원복구) 게이트. typecheck0+build0+dto16+neis15 green.
   ⚠ get_public_page는 create or replace(재적용 안전). 마이그 배치 끝=0036(0034·0035 이후).
 - [x] US-7 오늘의학교 넛지(코드완료, opus executor): nudge.ts shape 변경(unrecordedObservation 단일→unrecordedObservations 리스트 {sectionKey,sectionLabel,suggestedStudentId,suggestedStudentName,candidateCount}[], 분반 수업당 1개+기록시 해결, 16시 게이트 제거=종일)+test13. nudge.ts collectTodaySectionObservations(오늘 KST 요일 분반, 관찰완료 제외). 소비자 둘다 갱신: app/page.tsx(EMPTY_NUDGES 신shape+listStudents 제거)+app/today/page.tsx(리스트 순회). nudge-banner 리스트화+딥링크. counseling.ts listHomeroomUpcomingReservations(담임전체 예약 집계 신규 AC-7.9). 모달 app/today/nudge-modal.tsx(sessionStorage dismiss). events-calendar.tsx(학사+전체상담 오버레이). notice-widget.tsx(한마디 캐러셀+할일·공지). 사전선택 딥링크: observations/behavior page+client(studentYearId/sectionId 파라미터 옵셔널), 미제출→/homeroom/attendance?view=unsubmitted. 오늘시간표 색상+시간, 급식표. typecheck0+build0+nudge13 green. 마이그 없음.
-- [ ] US-8~US-9 진행 예정.
+- [x] US-8 담임허브+페이지네이션 잔여(코드완료, opus executor): app/homeroom/layout.tsx 신규(classroom 패턴 탭바 6탭+담임 게이트 layout으로 이동), page.tsx 묶음만, 하위 6페이지 ←홈 제거. 페이지네이션 8개: 교과관찰(observations-client)·세특 초안+추가입력(setech-bulk-client)·자율진로(activities-client)·상담기록+상담슬롯(counsel-lists-client 신규)·행동특성(behavior-client) 각 10, 학사일정(calendar-attrs)·학생명단(student-roster) 각 20. ⚠ observations/behavior 서버 limit:30 캡 제거(전체 페이지네이션 위해). typecheck0+build0. 마이그 없음.
+- [ ] US-9 회귀+배포: ★남음★ = 마이그 prod 일괄적용(0030→0031→0033→0032→0034→0035→0036)·RUN_DB_ITEST 통합테스트 green·architect THOROUGH·deslop·git push→main→Vercel. **사용자 승인 게이트(prod 마이그+배포). 다음 세션.**
+
+## 📍 QC v4 현재 상태 (2026-06-15 세션 종료 시점)
+- 코드 8/9 스토리 완료·커밋(feat/qc-v4): US-1~US-8. 전부 typecheck0/build0/단위테스트 green.
+- 미적용 마이그 7개: 0030(lesson_units/exam_targets)·0031(attendance ranges)·0032(report 백필)·0033(pg_cron end_date)·0034(teacher_note_target)·0035(meal nutrition/counsel cancel)·0036(get_public_page v4). **배치 적용 순서: 0030→0031→0033→0032→0034→0035→0036.**
+- 다음 세션 US-9: (1) 마이그 일괄 apply(scripts/apply-sql.mjs, 사용자 승인), (2) RUN_DB_ITEST=1 통합테스트 green 확인, (3) architect 검증+deslop, (4) git push→main 머지→Vercel 배포.
+- 커밋: fa8b753(US1+2)·b04901c(US3)·a913b54(US4규칙)·436e808(US4)·33fc7cd(US5)·0f093b3(US6)·88b758e(US7)·[US8 커밋예정].
 
 ## ⚠ 마이그레이션/통합테스트 배치 전략(중요)
 - 마이그(0030+)는 코드와 함께 손작성하되 **prod 미적용**. 모든 스토리 코드완료 후 **최종 배치로 일괄 적용→통합테스트 실행→배포**(플랜 마이그레이션 레인 + prod 노출 최소화). get_public_page_v4 최후.

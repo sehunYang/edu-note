@@ -38,7 +38,8 @@ export default async function ClassroomObservationsPage({
   const [students, subjectsWithSections, observations] = await Promise.all([
     listStudents(db, ownerId, year),
     listSubjectsWithSections(db, ownerId, year, sem),
-    listSubjectObservations(db, ownerId, { limit: 30 }),
+    // 페이지네이션(10개씩)으로 전체를 클라이언트에서 분할하므로 상한 없이 로드.
+    listSubjectObservations(db, ownerId),
   ]);
 
   // 활성 학기 분반 옵션(과목명 + 라벨) 평탄화.

@@ -82,13 +82,8 @@ export default async function AttendancePage({
   const todayRecords = records.filter((r) => studentIdSet.has(r.studentYearId));
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">출결 관리</h1>
-        <Link href="/" className="text-sm text-neutral-500 hover:underline">
-          ← 홈
-        </Link>
-      </div>
+    <div>
+      <h2 className="text-lg font-semibold text-neutral-800">출결 관리</h2>
 
       <nav className="mt-4 flex flex-wrap gap-1 border-b border-neutral-200 text-sm">
         {VIEWS.map((v) => (
@@ -229,6 +224,6 @@ export default async function AttendancePage({
         </p>
         <FieldTripSection students={students} trips={fieldTrips} />
       </section>
-    </main>
+    </div>
   );
 }

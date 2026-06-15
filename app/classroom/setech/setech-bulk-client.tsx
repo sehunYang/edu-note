@@ -1,5 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
+import { Paginator } from "@/lib/ui/paginator";
+import { paginate } from "@/lib/db/pagination";
 import {
   exportBulkSourceAction,
   importBulkResultAction,
@@ -9,6 +11,8 @@ import {
 } from "./actions";
 import { downloadCsv } from "@/lib/ui/download-csv";
 import { bulkResultCsvExample } from "@/lib/setech";
+
+const PAGE_SIZE = 10;
 
 interface SubjectOpt {
   id: string;
@@ -57,6 +61,12 @@ export function SetechBulkClient({
     skipped: { sid: string; subject: string; reason: string }[];
   } | null>(null);
   const [pending, startTransition] = useTransition();
+  const [draftPage, setDraftPage] = useState(1);
+  const {
+    pageItems: draftPageItems,
+    totalPages: draftTotalPages,
+    currentPage: draftCurrentPage,
+  } = paginate(drafts, draftPage, PAGE_SIZE);
 
   const subject = subjects.find((s) => s.id === subjectId);
 
@@ -222,22 +232,30 @@ export function SetechBulkClient({
         {drafts.length === 0 ? (
           <p className="mt-2 text-sm text-neutral-400">아직 저장된 세특 초안이 없습니다.</p>
         ) : (
-          <ul className="mt-2 space-y-2">
-            {drafts.map((d) => {
-              const st = students.find((s) => s.id === d.studentYearId);
-              return (
-                <li key={d.id} className="rounded-lg border border-neutral-200 p-3 text-sm">
-                  <div className="flex justify-between text-xs text-neutral-400">
-                    <span>{st?.label ?? "—"}</span>
-                    <span>
-                      {d.byteCount}/{d.byteLimit} byte
-                    </span>
-                  </div>
-                  <p className="mt-1 whitespace-pre-wrap text-neutral-700">{d.content}</p>
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            <ul className="mt-2 space-y-2">
+              {draftPageItems.map((d) => {
+                const st = students.find((s) => s.id === d.studentYearId);
+                return (
+                  <li key={d.id} className="rounded-lg border border-neutral-200 p-3 text-sm">
+                    <div className="flex justify-between text-xs text-neutral-400">
+                      <span>{st?.label ?? "—"}</span>
+                      <span>
+                        {d.byteCount}/{d.byteLimit} byte
+                      </span>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-neutral-700">{d.content}</p>
+                  </li>
+                );
+              })}
+            </ul>
+            <Paginator
+              currentPage={draftCurrentPage}
+              totalPages={draftTotalPages}
+              onPageChange={setDraftPage}
+              className="mt-3"
+            />
+          </>
         )}
       </section>
     </div>
@@ -261,6 +279,12 @@ function ExtraNoteForm({
   const [body, setBody] = useState("");
   const [msg, setMsg] = useState("");
   const [pending, startTransition] = useTransition();
+  const [page, setPage] = useState(1);
+  const { pageItems, totalPages, currentPage } = paginate(
+    extraNotes,
+    page,
+    PAGE_SIZE,
+  );
 
   // AC-4.2 과목 선택 시 그 과목 수강생만 드롭다운.
   const enrolledIds = new Set(enrollmentBySubject[subjectId] ?? []);
@@ -352,18 +376,26 @@ function ExtraNoteForm({
         {extraNotes.length === 0 ? (
           <p className="mt-1 text-xs text-neutral-400">아직 추가 입력이 없습니다.</p>
         ) : (
-          <ul className="mt-2 space-y-2">
-            {extraNotes.map((n) => (
-              <ExtraNoteItem
-                key={n.id}
-                note={n}
-                studentLabel={labelById.get(n.studentYearId) ?? "—"}
-                subjectName={
-                  n.subjectId ? (subjectNameById.get(n.subjectId) ?? "—") : "공통"
-                }
-              />
-            ))}
-          </ul>
+          <>
+            <ul className="mt-2 space-y-2">
+              {pageItems.map((n) => (
+                <ExtraNoteItem
+                  key={n.id}
+                  note={n}
+                  studentLabel={labelById.get(n.studentYearId) ?? "—"}
+                  subjectName={
+                    n.subjectId ? (subjectNameById.get(n.subjectId) ?? "—") : "공통"
+                  }
+                />
+              ))}
+            </ul>
+            <Paginator
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              className="mt-3"
+            />
+          </>
         )}
       </div>
     </section>

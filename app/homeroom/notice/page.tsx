@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import {
@@ -71,13 +70,8 @@ export default async function NoticePage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">공지실</h1>
-        <Link href="/" className="text-sm text-neutral-500 hover:underline">
-          ← 홈
-        </Link>
-      </div>
+    <div>
+      <h2 className="text-lg font-semibold text-neutral-800">공지실</h2>
       <p className="mt-2 text-xs text-neutral-400">
         여기서 설정한 내용은 학생별 공개 페이지(<code>/p/…</code>)에 그대로 노출됩니다.
         민감한 개인정보는 입력하지 마세요.
@@ -93,6 +87,6 @@ export default async function NoticePage() {
         fixedKeys={fixedKeys}
         syncError={syncError}
       />
-    </main>
+    </div>
   );
 }

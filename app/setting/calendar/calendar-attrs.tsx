@@ -1,5 +1,7 @@
 "use client";
 import { useActionState, useState } from "react";
+import { Paginator } from "@/lib/ui/paginator";
+import { paginate } from "@/lib/db/pagination";
 import {
   calendarSyncAction,
   bulkSaveCalendarAction,
@@ -8,6 +10,8 @@ import {
 } from "../actions";
 import type { CalendarEventAttrView } from "@/lib/db/queries";
 import type { EventKind } from "@/lib/domain/calendar-keywords";
+
+const PAGE_SIZE = 20;
 
 const KIND_LABEL: Record<EventKind, string> = {
   exam: "지필평가",
@@ -58,6 +62,13 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
   function patch(id: string, p: Partial<Draft>) {
     setDrafts((d) => ({ ...d, [id]: { ...d[id], ...p } }));
   }
+
+  const [page, setPage] = useState(1);
+  const {
+    pageItems: eventsPage,
+    totalPages,
+    currentPage,
+  } = paginate(events, page, PAGE_SIZE);
 
   const reviewCount = events.filter((e) => e.needsReview).length;
   const updatesJson = JSON.stringify(
@@ -143,7 +154,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
           </p>
         ) : (
           <div className="mt-3 space-y-2">
-            {events.map((e) => {
+            {eventsPage.map((e) => {
               const d = drafts[e.id];
               return (
                 <div
@@ -201,6 +212,12 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
                 </div>
               );
             })}
+            <Paginator
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              className="mt-3"
+            />
           </div>
         )}
       </section>

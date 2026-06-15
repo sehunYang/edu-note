@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
+import { Paginator } from "@/lib/ui/paginator";
+import { paginate } from "@/lib/db/pagination";
 import {
   addObservationAction,
   updateObservationAction,
@@ -7,6 +9,8 @@ import {
   loadSectionStudentsAction,
   loadStudentSectionsAction,
 } from "./actions";
+
+const PAGE_SIZE = 10;
 
 /**
  * 교과 관찰 클라이언트 (교실 2-2 단계5). 분반 필수 + 두 필터 모드:
@@ -68,6 +72,12 @@ export function ObservationsClient({
   const [body, setBody] = useState("");
   const [keywords, setKeywords] = useState("");
   const [pending, startTransition] = useTransition();
+  const [page, setPage] = useState(1);
+  const {
+    pageItems: recentPage,
+    totalPages,
+    currentPage,
+  } = paginate(recent, page, PAGE_SIZE);
 
   // 넛지 사전선택 딥링크(AC-7.3): 분반이 미리 지정되면 그 분반 학생으로 명단을 좁힌다.
   // 진입 시 1회만(빈 의존성) — 이후 사용자 조작은 onPickSection 가 담당.
@@ -241,10 +251,16 @@ export function ObservationsClient({
           최근 관찰 {recent.length}
         </h3>
         <ul className="mt-2 space-y-2">
-          {recent.map((o) => (
+          {recentPage.map((o) => (
             <ObservationRow key={o.id} obs={o} />
           ))}
         </ul>
+        <Paginator
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          className="mt-3"
+        />
       </section>
     </div>
   );

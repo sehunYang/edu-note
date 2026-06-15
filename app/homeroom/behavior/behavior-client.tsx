@@ -1,10 +1,14 @@
 "use client";
 import { useState, useTransition } from "react";
+import { Paginator } from "@/lib/ui/paginator";
+import { paginate } from "@/lib/db/pagination";
 import {
   addBehaviorNoteAction,
   updateBehaviorNoteAction,
   deleteBehaviorNoteAction,
 } from "./actions";
+
+const PAGE_SIZE = 10;
 
 /**
  * 행동특성 기록 클라이언트 (교실 2-2 단계5 인접보정). 담임반 학생 셀렉트 +
@@ -43,6 +47,12 @@ export function BehaviorClient({
   const [body, setBody] = useState("");
   const [keywords, setKeywords] = useState("");
   const [pending, startTransition] = useTransition();
+  const [page, setPage] = useState(1);
+  const { pageItems, totalPages, currentPage } = paginate(
+    recent,
+    page,
+    PAGE_SIZE,
+  );
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -123,10 +133,16 @@ export function BehaviorClient({
           최근 행특 {recent.length}
         </h3>
         <ul className="mt-2 space-y-2">
-          {recent.map((b) => (
+          {pageItems.map((b) => (
             <BehaviorRow key={b.id} note={b} />
           ))}
         </ul>
+        <Paginator
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          className="mt-3"
+        />
       </section>
     </div>
   );

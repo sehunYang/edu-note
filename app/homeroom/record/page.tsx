@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import {
@@ -26,19 +25,12 @@ export default async function HomeroomRecordPage() {
   ]);
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">생기부 작성 ({year})</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            자율·진로·행동발달 원천자료를 CSV로 내보내 코워크에서 작성하고, 결과
-            CSV를 다시 올려 저장합니다(연말 1회).
-          </p>
-        </div>
-        <Link href="/homeroom" className="text-sm text-neutral-500 hover:underline">
-          ← 담임 교실
-        </Link>
-      </div>
+    <div>
+      <h2 className="text-lg font-semibold text-neutral-800">생기부 작성 ({year})</h2>
+      <p className="mt-1 text-sm text-neutral-500">
+        자율·진로·행동발달 원천자료를 CSV로 내보내 코워크에서 작성하고, 결과
+        CSV를 다시 올려 저장합니다(연말 1회).
+      </p>
 
       {students.length === 0 ? (
         <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
@@ -58,6 +50,6 @@ export default async function HomeroomRecordPage() {
           }))}
         />
       )}
-    </main>
+    </div>
   );
 }
