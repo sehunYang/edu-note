@@ -34,7 +34,7 @@
       "id": "US-3",
       "title": "Phase 2 — 진척도 (계획 vs 실제, 진도율 통계)",
       "priority": 2,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "lib/domain/progress.ts 순수함수: 목표진도율=계획상 오늘까지차시÷시험목표총차시, 실제=실제진행÷총차시(둘다 차시기준), 빨강=계획대비 2차시 이상 뒤짐(AC-2.4/2.5) + 단위테스트",
         "progress-board UI: 좌계획/우실제(복사+수정), 저장 후 통계 활성화, 분반별 통계, 초록/빨강",

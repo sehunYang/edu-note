@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -8 && echo BUILD_DONE",
-    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -5 && echo \"===UNIT===\" && node ./node_modules/vitest/vitest.mjs run lib/domain/lesson-unit.test.ts lib/device.test.ts lib/db/pagination.test.ts 2>&1 | tail -8",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -6 && echo \"===BUILD===\" && npm run build 2>&1 | tail -8 && echo BUILD_DONE",
+    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -8 && echo \"===UNIT===\" && node ./node_modules/vitest/vitest.mjs run lib/domain/progress.test.ts 2>&1 | tail -8",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -165,8 +165,8 @@
   "hotPaths": [
     {
       "path": "lib\\db\\queries\\index.ts",
-      "accessCount": 61,
-      "lastAccessed": 1781499916130,
+      "accessCount": 62,
+      "lastAccessed": 1781500628005,
       "type": "file"
     },
     {
@@ -201,8 +201,8 @@
     },
     {
       "path": "lib\\db\\schema\\records.ts",
-      "accessCount": 27,
-      "lastAccessed": 1781499896431,
+      "accessCount": 28,
+      "lastAccessed": 1781500621490,
       "type": "file"
     },
     {
