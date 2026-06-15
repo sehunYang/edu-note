@@ -1,7 +1,12 @@
 import { and, asc, eq } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
-import { teacherProfile, calendarEvents, teacherNotes } from "../schema/misc";
+import {
+  teacherProfile,
+  calendarEvents,
+  teacherNotes,
+  teacherNoteTargets,
+} from "../schema/misc";
 
 /**
  * 공지실 쿼리 계층 (계획 §4 Phase2-I). 공개 학생 페이지의 공통 안내를 관리한다.
@@ -49,34 +54,99 @@ export async function setPublicNotice(
 
 // ── 다중 교사 한마디 (teacher_notes, 0022). 공개 페이지 스와이프. ──
 
+export type TeacherNoteScope = "all" | "individual";
+
 export interface TeacherNoteRow {
   id: string;
   body: string;
   sortOrder: number;
+  targetScope: TeacherNoteScope;
+  /** targetScope='individual' 일 때 대상 student_year_id 목록(전체 공개면 빈 배열). */
+  targetStudentYearIds: string[];
 }
 
-/** 교사 한마디 목록(sortOrder 오름차순). */
+/** 한 owner 의 모든 한마디 대상 매핑을 noteId→student_year_id[] 로 묶는다. */
+async function loadNoteTargets(
+  db: DB,
+  ownerId: string,
+): Promise<Map<string, string[]>> {
+  const rows = await db
+    .select({
+      noteId: teacherNoteTargets.noteId,
+      studentYearId: teacherNoteTargets.studentYearId,
+    })
+    .from(teacherNoteTargets)
+    .where(eq(teacherNoteTargets.ownerId, ownerId));
+  const map = new Map<string, string[]>();
+  for (const r of rows) {
+    const list = map.get(r.noteId) ?? [];
+    list.push(r.studentYearId);
+    map.set(r.noteId, list);
+  }
+  return map;
+}
+
+/** 단일 한마디의 개별 대상 매핑을 교체(delete-all → insert). */
+async function replaceNoteTargets(
+  db: DB,
+  ownerId: string,
+  noteId: string,
+  studentYearIds: string[],
+): Promise<void> {
+  await db
+    .delete(teacherNoteTargets)
+    .where(
+      and(
+        eq(teacherNoteTargets.ownerId, ownerId),
+        eq(teacherNoteTargets.noteId, noteId),
+      ),
+    );
+  const unique = [...new Set(studentYearIds.filter((s) => s))];
+  if (unique.length) {
+    await db.insert(teacherNoteTargets).values(
+      unique.map((studentYearId) => ({ ownerId, noteId, studentYearId })),
+    );
+  }
+}
+
+/** 교사 한마디 목록(sortOrder 오름차순) + 개별 대상 매핑 포함. */
 export async function listTeacherNotes(
   db: DB,
   ownerId: string,
 ): Promise<TeacherNoteRow[]> {
-  return db
-    .select({
-      id: teacherNotes.id,
-      body: teacherNotes.body,
-      sortOrder: teacherNotes.sortOrder,
-    })
-    .from(teacherNotes)
-    .where(eq(teacherNotes.ownerId, ownerId))
-    .orderBy(asc(teacherNotes.sortOrder), asc(teacherNotes.createdAt));
+  const [notes, targets] = await Promise.all([
+    db
+      .select({
+        id: teacherNotes.id,
+        body: teacherNotes.body,
+        sortOrder: teacherNotes.sortOrder,
+        targetScope: teacherNotes.targetScope,
+      })
+      .from(teacherNotes)
+      .where(eq(teacherNotes.ownerId, ownerId))
+      .orderBy(asc(teacherNotes.sortOrder), asc(teacherNotes.createdAt)),
+    loadNoteTargets(db, ownerId),
+  ]);
+  return notes.map((n) => ({
+    id: n.id,
+    body: n.body,
+    sortOrder: n.sortOrder,
+    targetScope: (n.targetScope === "individual" ? "individual" : "all"),
+    targetStudentYearIds: targets.get(n.id) ?? [],
+  }));
 }
 
-/** 교사 한마디 추가. sortOrder 미지정 시 현재 최대값+1 로 말미에 추가. */
+/**
+ * 교사 한마디 추가. sortOrder 미지정 시 현재 최대값+1 로 말미에 추가.
+ * targetScope='individual' 면 studentYearIds 를 teacher_note_targets 에 매핑.
+ */
 export async function createTeacherNote(
   db: DB,
   ownerId: string,
   body: string,
   sortOrder?: number,
+  targetScope: TeacherNoteScope = "all",
+  studentYearIds: string[] = [],
 ): Promise<{ id: string }> {
   const order =
     sortOrder ??
@@ -86,22 +156,39 @@ export async function createTeacherNote(
     );
   const [row] = await db
     .insert(teacherNotes)
-    .values({ ownerId, body: body.trim(), sortOrder: order })
+    .values({ ownerId, body: body.trim(), sortOrder: order, targetScope })
     .returning({ id: teacherNotes.id });
+  if (targetScope === "individual") {
+    await replaceNoteTargets(db, ownerId, row.id, studentYearIds);
+  }
   return row;
 }
 
-/** 교사 한마디 내용 수정(본인 소유만). */
+/**
+ * 교사 한마디 내용 수정(본인 소유만). targetScope 지정 시 대상 범위/매핑도 갱신.
+ * 'all' 로 바꾸면 기존 개별 대상 매핑을 비운다.
+ */
 export async function updateTeacherNote(
   db: DB,
   ownerId: string,
   id: string,
   body: string,
+  targetScope?: TeacherNoteScope,
+  studentYearIds: string[] = [],
 ): Promise<void> {
   await db
     .update(teacherNotes)
-    .set({ body: body.trim(), updatedAt: new Date() })
+    .set({
+      body: body.trim(),
+      ...(targetScope ? { targetScope } : {}),
+      updatedAt: new Date(),
+    })
     .where(and(eq(teacherNotes.id, id), eq(teacherNotes.ownerId, ownerId)));
+  if (targetScope === "individual") {
+    await replaceNoteTargets(db, ownerId, id, studentYearIds);
+  } else if (targetScope === "all") {
+    await replaceNoteTargets(db, ownerId, id, []);
+  }
 }
 
 /** 교사 한마디 순서 변경(본인 소유만). */
@@ -115,6 +202,37 @@ export async function reorderTeacherNote(
     .update(teacherNotes)
     .set({ sortOrder, updatedAt: new Date() })
     .where(and(eq(teacherNotes.id, id), eq(teacherNotes.ownerId, ownerId)));
+}
+
+/**
+ * 교사 한마디를 한 칸 위/아래로 이동(AC-5.1). 현재 목록에서 인접 항목과 sortOrder 를
+ * 교환(swap)하여 안정적으로 재정렬한다. 본인 소유만. 경계(맨 위에서 up 등)는 무시.
+ */
+export async function moveTeacherNote(
+  db: DB,
+  ownerId: string,
+  id: string,
+  direction: "up" | "down",
+): Promise<void> {
+  const notes = await listTeacherNotes(db, ownerId);
+  const idx = notes.findIndex((n) => n.id === id);
+  if (idx < 0) return;
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= notes.length) return;
+  const a = notes[idx];
+  const b = notes[swapIdx];
+  // sortOrder 값이 같을 수 있으므로(기본 0) 순서 인덱스 기반으로 명확히 교환한다.
+  await reorderTeacherNote(db, ownerId, a.id, b.sortOrder);
+  await reorderTeacherNote(db, ownerId, b.id, a.sortOrder);
+  if (a.sortOrder === b.sortOrder) {
+    // 동률이면 swap 만으로 순서가 안 바뀌므로 a 를 한 단계 밀어 분리한다.
+    await reorderTeacherNote(
+      db,
+      ownerId,
+      direction === "up" ? a.id : b.id,
+      a.sortOrder - 1,
+    );
+  }
 }
 
 /** 교사 한마디 삭제(본인 소유만). */

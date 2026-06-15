@@ -2,7 +2,6 @@ import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { getTeacherSettings } from "@/lib/db/queries";
-import { HomeroomTimetableSync } from "./homeroom-timetable-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +77,6 @@ export default async function HomeroomPage() {
             title="생기부 작성"
             desc="담임반 학생의 학교생활기록부를 작성합니다."
           />
-          <HomeroomTimetableSync />
         </section>
       )}
     </main>

@@ -47,7 +47,7 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | tail -6 && echo BUILD_DONE",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===BUILD===\" && npm run build 2>&1 | tail -6 && echo BUILD_DONE",
     "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -5 && echo \"===UNIT(all)===\" && node ./node_modules/vitest/vitest.mjs run 2>&1 | tail -10",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
@@ -165,20 +165,20 @@
   "hotPaths": [
     {
       "path": "lib\\db\\queries\\index.ts",
-      "accessCount": 63,
-      "lastAccessed": 1781509117585,
+      "accessCount": 65,
+      "lastAccessed": 1781509895389,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\misc.ts",
-      "accessCount": 48,
-      "lastAccessed": 1781509110986,
+      "accessCount": 50,
+      "lastAccessed": 1781509915832,
       "type": "file"
     },
     {
       "path": "lib\\db\\queries\\audit.ts",
-      "accessCount": 42,
-      "lastAccessed": 1781509272590,
+      "accessCount": 44,
+      "lastAccessed": 1781509920474,
       "type": "file"
     },
     {
@@ -219,8 +219,8 @@
     },
     {
       "path": "lib\\db\\schema\\identity.ts",
-      "accessCount": 14,
-      "lastAccessed": 1781469624825,
+      "accessCount": 15,
+      "lastAccessed": 1781509863749,
       "type": "file"
     },
     {

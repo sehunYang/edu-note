@@ -11,6 +11,7 @@ import {
   getEvalSettingsForYear,
   getTeacherTimetable,
   getTeacherProfile,
+  getTeacherSettings,
   listStudents,
 } from "@/lib/db/queries";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
@@ -18,6 +19,7 @@ import { StageGate } from "../stage-gate";
 import { LockedNotice } from "../locked-notice";
 import { CoursesManager, type SubjectView } from "./courses-manager";
 import { TimetableSync } from "./timetable-sync";
+import { HomeroomTimetableSync } from "./homeroom-timetable-sync";
 import { WeeklyGrid } from "./weekly-grid";
 
 export const dynamic = "force-dynamic";
@@ -37,11 +39,12 @@ export default async function CoursesStagePage({
   // 기본=활성 학기, ?semester=1|2 로 과거/타 학기 조회.
   const sp = await searchParams;
   const semester = sp.semester === "1" ? 1 : sp.semester === "2" ? 2 : activeSem;
-  const [completed, subjects, slots, profile] = await Promise.all([
+  const [completed, subjects, slots, profile, settings] = await Promise.all([
     isStageComplete(db, ownerId, "courses"),
     listSubjectsWithSections(db, ownerId, year, semester),
     getTeacherTimetable(db, ownerId, year, semester),
     getTeacherProfile(db, ownerId),
+    getTeacherSettings(db, ownerId),
   ]);
 
   // P3: N+1 제거 — 연도·학기·집합 단위 배치 조회 후 메모리 조립(쿼리 수 데이터 무관 상수).
@@ -111,6 +114,7 @@ export default async function CoursesStagePage({
           />
         </div>
         <WeeklyGrid slots={slots} />
+        {settings?.isHomeroom && <HomeroomTimetableSync />}
       </section>
 
       <CoursesManager subjects={views} students={students} />

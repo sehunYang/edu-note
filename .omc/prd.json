@@ -60,7 +60,7 @@
       "id": "US-5",
       "title": "Phase 4 — 공지실 (개별공지·순서·시간표동기화통합)",
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "마이그 teacher_note_target: teacher_notes에 target_scope(전체/개별) + 대상학생 매핑(다수) + notice_events.content 컬럼 add",
         "교사 한마디 순서변경 UI(updateTeacherNoteOrder 연결)(AC-5.1), 대상 필드 전체/특정학생다수 CRUD(AC-5.2)",

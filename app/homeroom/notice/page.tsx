@@ -7,8 +7,10 @@ import {
   listGradeClasses,
   listFixedClassSettings,
   getTeacherSettings,
+  listHomeroomStudents,
   type GradeClassOffering,
 } from "@/lib/db/queries";
+import { activeSchoolYear } from "@/lib/domain/school-year";
 import { fetchTimetableBySchool } from "@/lib/integrations/comcigan-client";
 import { NotesManager } from "./notes-manager";
 import { EventsManager } from "./events-manager";
@@ -28,12 +30,19 @@ export default async function NoticePage() {
   const ownerId = await getOwnerId();
   const db = getDb();
   const today = new Date().toISOString().slice(0, 10);
+  const year = activeSchoolYear(new Date());
 
-  const [notes, events, settings] = await Promise.all([
+  const [notes, events, settings, homeroomStudents] = await Promise.all([
     listTeacherNotes(db, ownerId),
     listNoticeEvents(db, ownerId),
     getTeacherSettings(db, ownerId),
+    listHomeroomStudents(db, ownerId, year),
   ]);
+
+  const students = homeroomStudents.map((s) => ({
+    id: s.id,
+    label: `${s.sid} ${s.name}`,
+  }));
 
   const grade = settings?.homeroomGrade ?? null;
   const school = settings?.comciganSchool ?? null;
@@ -74,7 +83,7 @@ export default async function NoticePage() {
         민감한 개인정보는 입력하지 마세요.
       </p>
 
-      <NotesManager notes={notes} />
+      <NotesManager notes={notes} students={students} />
 
       <EventsManager events={events} today={today} />
 

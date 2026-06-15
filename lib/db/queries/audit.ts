@@ -99,7 +99,9 @@ export type AuditEvent =
   | "exam_target_save"
   // QC v4 출결 (US-4)
   | "field_trip_add"
-  | "attendance_update";
+  | "attendance_update"
+  // QC v4 공지실 (US-5)
+  | "teacher_note_reorder";
 
 export async function writeAudit(
   db: DB,

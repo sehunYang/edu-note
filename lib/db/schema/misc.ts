@@ -91,13 +91,32 @@ export const counselReservations = pgTable(
 );
 
 // 다중 교사 한마디(공개 페이지 스와이프). 0022. 기존 단일 publicNotice 이행.
+// targetScope: 'all'(전체 공개) | 'individual'(특정 학생만 — teacher_note_targets 매핑). 0034.
 export const teacherNotes = pgTable("teacher_notes", {
   id: pk(),
   ownerId: ownerId(),
   body: text("body").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
+  targetScope: text("target_scope").notNull().default("all"),
   ...timestamps(),
 });
+
+// 개별 공지 대상 매핑(한마디↔학생 다대다). targetScope='individual' 일 때만 사용. 0034.
+export const teacherNoteTargets = pgTable(
+  "teacher_note_targets",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => teacherNotes.id, { onDelete: "cascade" }),
+    studentYearId: uuid("student_year_id")
+      .notNull()
+      .references(() => studentYears.id, { onDelete: "cascade" }),
+    ...timestamps(),
+  },
+  (t) => [unique("uq_teacher_note_targets").on(t.noteId, t.studentYearId)],
+);
 
 // 고정반 수업 설정(컴시간 학년파싱 기반, 미체크=선택과목). 0023.
 export const fixedClassSettings = pgTable(
