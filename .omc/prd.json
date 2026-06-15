@@ -46,7 +46,7 @@
       "id": "US-4",
       "title": "Phase 3 — 출결 (판정반전+백필+기간자동생성+수정)",
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "attendance-rules.ts: isReportRequired=(reason==='illness'&&kind==='absent')||note.includes('생리통'). 기존 단위테스트 새규칙으로 재작성(absent+etc/unaccepted, accepted late/early → false)(AC-4.1)",
         "백필 마이그(승인게이트): 전 report_required AC-4.1로 재계산 + 고아 report_tracking 정리 + deadline_date 재계산 + pre/post 스냅샷 회귀테스트",

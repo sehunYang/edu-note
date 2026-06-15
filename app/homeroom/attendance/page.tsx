@@ -9,41 +9,15 @@ import {
   listUnsubmittedAttendance,
   listFieldTrips,
 } from "@/lib/db/queries";
-import {
-  toggleReportSubmittedAction,
-  deleteAttendanceAction,
-  addFieldTripAction,
-  toggleFieldTripAction,
-  recomputeEscalationAction,
-} from "./actions";
+import { recomputeEscalationAction } from "./actions";
 import { AttendancePeriodClient } from "./attendance-period-client";
-import type { AttendanceStudentRow } from "@/lib/db/queries";
-
-const TIER_LABEL: Record<string, string> = {
-  normal: "정상",
-  warning: "위험",
-  critical: "심각",
-};
-const TIER_CLASS: Record<string, string> = {
-  normal: "text-neutral-400",
-  warning: "text-orange-600",
-  critical: "font-semibold text-red-600",
-};
+import {
+  EditableAttendanceTable,
+  UnsubmittedTable,
+} from "./attendance-tables-client";
+import { FieldTripSection } from "./field-trip-client";
 
 export const dynamic = "force-dynamic";
-
-const REASON_LABEL: Record<string, string> = {
-  illness: "질병",
-  accepted: "인정",
-  unaccepted: "미인정",
-  etc: "기타",
-};
-const KIND_LABEL: Record<string, string> = {
-  late: "지각",
-  early_leave: "조퇴",
-  absent_period: "결과",
-  absent: "결석",
-};
 
 function todayStr(): string {
   return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -51,12 +25,6 @@ function todayStr(): string {
 
 function thisMonthStr(): string {
   return todayStr().slice(0, 7);
-}
-
-/** 교시 배열 → 라벨(조회=0). */
-function periodsLabel(periods: number[] | null): string {
-  if (!periods || periods.length === 0) return "—";
-  return periods.map((p) => (p === 0 ? "조회" : `${p}교시`)).join(", ");
 }
 
 type View = "today" | "month" | "student" | "unsubmitted";
@@ -68,8 +36,9 @@ const VIEWS: { key: View; label: string }[] = [
 ];
 
 /**
- * 출결 화면 (계획 §4 F, AC-F). 날짜별 사유×성격 기록 + 신고서 필요 자동 판정 +
- * 제출 마킹. 결석=항상 신고서, 인정사유·'생리통' 비고 시 신고서 필요.
+ * 출결 화면 (QC v4 US-4, AC-4.1~4.7). 날짜별 사유×성격 기록 + 신고서 필요
+ * 자동 판정(질병결석·'생리통') + 제출 마킹 + 기록 수정 + 기간 입력.
+ * 신고서 제출(미제출/교외체험 사후보고서)은 하단에 묶어 단일 렌더한다.
  */
 export default async function AttendancePage({
   searchParams,
@@ -167,7 +136,7 @@ export default async function AttendancePage({
               <AttendancePeriodClient students={students} date={date} />
             )}
             <p className="mt-2 text-xs text-neutral-400">
-              결석은 항상, 인정 사유·비고 ‘생리통’은 신고서가 필요합니다(자동 판정).
+              질병결석·비고 ‘생리통’은 신고서가 필요합니다(자동 판정).
             </p>
           </section>
 
@@ -175,7 +144,7 @@ export default async function AttendancePage({
             <h2 className="text-sm font-semibold text-neutral-700">
               {date} 출결 {todayRecords.length}건
             </h2>
-            <AttendanceTable rows={todayRecords} withActions />
+            <EditableAttendanceTable rows={todayRecords} />
           </section>
         </>
       )}
@@ -198,7 +167,7 @@ export default async function AttendancePage({
           <h2 className="mt-4 text-sm font-semibold text-neutral-700">
             {month} 출결 {monthRows.length}건
           </h2>
-          <AttendanceTable rows={monthRows} withDate />
+          <EditableAttendanceTable rows={monthRows} withDate />
         </section>
       )}
 
@@ -228,7 +197,7 @@ export default async function AttendancePage({
               <h2 className="mt-4 text-sm font-semibold text-neutral-700">
                 출결 {studentRows.length}건
               </h2>
-              <AttendanceTable rows={studentRows} withDate />
+              <EditableAttendanceTable rows={studentRows} withDate />
             </>
           ) : (
             <p className="mt-4 text-sm text-neutral-400">학생을 선택하세요.</p>
@@ -241,60 +210,11 @@ export default async function AttendancePage({
           <h2 className="text-sm font-semibold text-neutral-700">
             미제출 신고서 {unsubmitted.length}건
           </h2>
-          {unsubmitted.length === 0 ? (
-            <p className="mt-3 text-sm text-neutral-400">미제출 신고서가 없습니다.</p>
-          ) : (
-            <table className="mt-3 w-full text-sm">
-              <thead className="text-left text-neutral-400">
-                <tr>
-                  <th className="py-1 font-medium">학생</th>
-                  <th className="py-1 font-medium">날짜</th>
-                  <th className="py-1 font-medium">성격</th>
-                  <th className="py-1 font-medium">교시</th>
-                  <th className="py-1 font-medium">마감</th>
-                  <th className="py-1 font-medium">상태</th>
-                  <th className="py-1" />
-                </tr>
-              </thead>
-              <tbody>
-                {unsubmitted.map((r) => (
-                  <tr key={r.id} className="border-t border-neutral-100">
-                    <td className="py-2">
-                      {r.sid} {r.name}
-                    </td>
-                    <td className="py-2">{r.date}</td>
-                    <td className="py-2">{KIND_LABEL[r.kind]}</td>
-                    <td className="py-2 text-xs text-neutral-500">
-                      {periodsLabel(r.periods)}
-                    </td>
-                    <td className="py-2 text-xs text-neutral-500">
-                      {r.deadlineDate ?? "—"}
-                      {r.remainingSchoolDays != null && (
-                        <span className="ml-1 text-neutral-400">
-                          ({r.remainingSchoolDays >= 0 ? `D-${r.remainingSchoolDays}` : `+${-r.remainingSchoolDays}`})
-                        </span>
-                      )}
-                    </td>
-                    <td className={`py-2 text-xs ${TIER_CLASS[r.tier]}`}>
-                      {TIER_LABEL[r.tier]}
-                    </td>
-                    <td className="py-2 text-right">
-                      <form action={toggleReportSubmittedAction} className="inline">
-                        <input type="hidden" name="id" value={r.id} />
-                        <input type="hidden" name="submitted" value="true" />
-                        <button className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-                          제출 처리
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <UnsubmittedTable rows={unsubmitted} />
         </section>
       )}
 
+      {/* 신고서 제출 묶음: 교외체험 사후보고서를 단일 섹션으로 렌더(탭별 중복 제거). */}
       <section className="mt-10">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-neutral-700">교외체험학습 사후보고서</h2>
@@ -305,156 +225,10 @@ export default async function AttendancePage({
           </form>
         </div>
         <p className="mt-1 text-xs text-neutral-400">
-          체험일 기준 수업일 10일 마감으로 미제출 시 티어가 오릅니다.
+          체험 종료일 기준 수업일 마감으로 미제출 시 티어가 오릅니다.
         </p>
-
-        {students.length > 0 && (
-          <form action={addFieldTripAction} className="mt-3 flex flex-wrap items-center gap-2">
-            <select
-              name="studentYearId"
-              required
-              className="rounded border border-neutral-300 px-2 py-1 text-sm"
-            >
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.sid} {s.name}
-                </option>
-              ))}
-            </select>
-            <input
-              type="date"
-              name="tripDate"
-              required
-              className="rounded border border-neutral-300 px-2 py-1 text-sm"
-            />
-            <button className="rounded bg-neutral-800 px-3 py-1 text-sm text-white hover:bg-neutral-700">
-              체험 추가
-            </button>
-          </form>
-        )}
-
-        {fieldTrips.length > 0 && (
-          <ul className="mt-3 space-y-1 text-sm">
-            {fieldTrips.map((t) => (
-              <li key={t.id} className="flex items-center justify-between gap-2 border-t border-neutral-100 py-2">
-                <span>
-                  {t.sid} {t.name} · 체험 {t.tripDate}
-                  {t.deadlineDate && (
-                    <span className="ml-2 text-xs text-neutral-400">마감 {t.deadlineDate}</span>
-                  )}
-                  {!t.postReportSubmitted && (
-                    <span className={`ml-2 text-xs ${TIER_CLASS[t.tier]}`}>
-                      {TIER_LABEL[t.tier]}
-                    </span>
-                  )}
-                </span>
-                <form action={toggleFieldTripAction} className="inline">
-                  <input type="hidden" name="id" value={t.id} />
-                  <input type="hidden" name="submitted" value={(!t.postReportSubmitted).toString()} />
-                  <button
-                    className={`rounded border px-2 py-0.5 text-xs ${
-                      t.postReportSubmitted
-                        ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                        : "border-amber-300 bg-amber-50 text-amber-700"
-                    }`}
-                  >
-                    {t.postReportSubmitted ? "제출됨" : "미제출"}
-                  </button>
-                </form>
-              </li>
-            ))}
-          </ul>
-        )}
+        <FieldTripSection students={students} trips={fieldTrips} />
       </section>
     </main>
-  );
-}
-
-/** 출결 기록 테이블(오늘=신고서 토글·삭제, 월별/학생별=날짜·교시 표시). */
-function AttendanceTable({
-  rows,
-  withActions = false,
-  withDate = false,
-}: {
-  rows: AttendanceStudentRow[];
-  withActions?: boolean;
-  withDate?: boolean;
-}) {
-  if (rows.length === 0) {
-    return <p className="mt-3 text-sm text-neutral-400">출결 기록이 없습니다.</p>;
-  }
-  return (
-    <table className="mt-3 w-full text-sm">
-      <thead className="text-left text-neutral-400">
-        <tr>
-          <th className="py-1 font-medium">학생</th>
-          {withDate && <th className="py-1 font-medium">날짜</th>}
-          <th className="py-1 font-medium">성격</th>
-          <th className="py-1 font-medium">교시</th>
-          <th className="py-1 font-medium">사유</th>
-          <th className="py-1 font-medium">신고서</th>
-          {withActions && <th className="py-1" />}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.id} className="border-t border-neutral-100">
-            <td className="py-2">
-              {r.sid} {r.name}
-            </td>
-            {withDate && <td className="py-2">{r.date}</td>}
-            <td className="py-2">{KIND_LABEL[r.kind]}</td>
-            <td className="py-2 text-xs text-neutral-500">{periodsLabel(r.periods)}</td>
-            <td className="py-2">
-              {REASON_LABEL[r.reason]}
-              {r.noteField ? (
-                <span className="ml-1 text-xs text-neutral-400">({r.noteField})</span>
-              ) : null}
-            </td>
-            <td className="py-2">
-              {r.reportRequired ? (
-                withActions ? (
-                  <form action={toggleReportSubmittedAction} className="inline">
-                    <input type="hidden" name="id" value={r.id} />
-                    <input
-                      type="hidden"
-                      name="submitted"
-                      value={(!r.reportSubmitted).toString()}
-                    />
-                    <button
-                      className={`rounded border px-2 py-0.5 text-xs ${
-                        r.reportSubmitted
-                          ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                          : "border-amber-300 bg-amber-50 text-amber-700"
-                      }`}
-                    >
-                      {r.reportSubmitted ? "제출됨" : "미제출"}
-                    </button>
-                  </form>
-                ) : (
-                  <span
-                    className={`text-xs ${
-                      r.reportSubmitted ? "text-emerald-700" : "text-amber-700"
-                    }`}
-                  >
-                    {r.reportSubmitted ? "제출됨" : "미제출"}
-                  </span>
-                )
-              ) : (
-                <span className="text-xs text-neutral-300">불필요</span>
-              )}
-            </td>
-            {withActions && (
-              <td className="py-2 text-right">
-                <form action={deleteAttendanceAction} className="inline">
-                  <input type="hidden" name="id" value={r.id} />
-                  <button className="text-xs text-red-500 hover:underline">삭제</button>
-                </form>
-              </td>
-            )}
-          </tr>
-        ))}
-      </tbody>
-    </table>
   );
 }

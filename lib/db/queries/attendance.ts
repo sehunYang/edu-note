@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, gte, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, lte } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import {
   attendanceRecords,
+  fieldTripReports,
   reportTracking,
 } from "../schema/attendance";
 import { studentYears } from "../schema/identity";
@@ -14,7 +15,9 @@ import type {
   AttendanceKind,
   ReportTier,
 } from "@/lib/domain/types";
+import { applyPaging } from "../pagination";
 import { listHomeroomStudents } from "./observations";
+import { writeAudit } from "./audit";
 
 /**
  * 출결 쿼리 계층 (계획 §3.3 F, §3.4 attendanceRules, AC-F).
@@ -155,6 +158,202 @@ function toRow(r: typeof attendanceRecords.$inferSelect): AttendanceRow {
     noteField: r.noteField,
     periods: r.periods,
   };
+}
+
+/** owner 의 수업일(is_school_day=true) 집합을 [start,end] 범위로 조회(정렬). */
+async function schoolDaysInRange(
+  db: DB,
+  ownerId: string,
+  start: string,
+  end: string,
+): Promise<string[]> {
+  const rows = await db
+    .select({ date: schoolDayCalendar.date })
+    .from(schoolDayCalendar)
+    .where(
+      and(
+        eq(schoolDayCalendar.ownerId, ownerId),
+        eq(schoolDayCalendar.isSchoolDay, true),
+        gte(schoolDayCalendar.date, start),
+        lte(schoolDayCalendar.date, end),
+      ),
+    )
+    .orderBy(asc(schoolDayCalendar.date));
+  return rows.map((r) => r.date);
+}
+
+/**
+ * 범위 내 수업일마다 결석(kind='absent') 출결을 자동 생성한다(AC-4.2~4.4).
+ * unique(owner,student,date,kind) 기반 onConflictDoNothing 로 멱등(수동 입력 보존).
+ * report_required 는 도메인 규칙으로 파생, 필요 시 tracking 동기화. 생성 건수 반환.
+ */
+async function createAbsenceRangeRecords(
+  db: DB,
+  ownerId: string,
+  studentYearId: string,
+  start: string,
+  end: string,
+  reason: AttendanceReason,
+  noteField: string | null,
+): Promise<number> {
+  const days = await schoolDaysInRange(db, ownerId, start, end);
+  const reportRequired = isReportRequired({ kind: "absent", reason, noteField });
+  let created = 0;
+  for (const date of days) {
+    // 결석=하루 전체 교시(periods 파생).
+    const periods = absentPeriods("absent", 0, [], DEFAULT_PERIOD_LIST);
+    const [row] = await db
+      .insert(attendanceRecords)
+      .values({
+        ownerId,
+        studentYearId,
+        date,
+        reason,
+        kind: "absent",
+        reportRequired,
+        noteField,
+        periods,
+      })
+      .onConflictDoNothing({
+        target: [
+          attendanceRecords.ownerId,
+          attendanceRecords.studentYearId,
+          attendanceRecords.date,
+          attendanceRecords.kind,
+        ],
+      })
+      .returning({ id: attendanceRecords.id });
+    if (row) {
+      await syncTracking(db, ownerId, row.id, reportRequired);
+      created += 1;
+    }
+  }
+  return created;
+}
+
+/**
+ * 교외체험학습 추가(AC-4.2). 사후보고서 추적 행 + 기간 내 수업일마다 인정결석
+ * 출결 자동 생성. endDate null=당일. trip_date=start_date 미러, 마감 기준=end_date.
+ * 인정결석(reason='accepted')은 신고서 불필요(사후보고서가 곧 보고) — report_required=false.
+ */
+export async function addFieldTrip(
+  db: DB,
+  ownerId: string,
+  studentYearId: string,
+  startDate: string,
+  endDate?: string | null,
+): Promise<{ id: string; createdRecords: number }> {
+  const end = endDate ?? startDate;
+  const [trip] = await db
+    .insert(fieldTripReports)
+    .values({
+      ownerId,
+      studentYearId,
+      tripDate: startDate,
+      startDate,
+      endDate: end,
+    })
+    .returning({ id: fieldTripReports.id });
+  await db.insert(reportTracking).values({ ownerId, fieldTripId: trip.id });
+
+  const createdRecords = await createAbsenceRangeRecords(
+    db,
+    ownerId,
+    studentYearId,
+    startDate,
+    end,
+    "accepted",
+    null,
+  );
+
+  await writeAudit(db, ownerId, "field_trip_add", trip.id, {
+    studentYearId,
+    startDate,
+    endDate: end,
+    createdRecords,
+  });
+  return { id: trip.id, createdRecords };
+}
+
+/**
+ * 결석 기간 입력(AC-4.4). [start,end] 의 수업일마다 결석 출결 자동 생성(멱등).
+ * reason 은 호출자 지정(예: illness). 생성 건수 반환.
+ */
+export async function addAbsenceRange(
+  db: DB,
+  ownerId: string,
+  studentYearId: string,
+  startDate: string,
+  endDate: string,
+  reason: AttendanceReason,
+  noteField?: string | null,
+): Promise<{ createdRecords: number }> {
+  const createdRecords = await createAbsenceRangeRecords(
+    db,
+    ownerId,
+    studentYearId,
+    startDate,
+    endDate,
+    reason,
+    noteField ?? null,
+  );
+  await writeAudit(db, ownerId, "attendance_record", null, {
+    studentYearId,
+    startDate,
+    endDate,
+    reason,
+    createdRecords,
+  });
+  return { createdRecords };
+}
+
+export interface UpdateAttendanceInput {
+  reason: AttendanceReason;
+  kind: AttendanceKind;
+  noteField?: string | null;
+  periods?: number[] | null;
+}
+
+/**
+ * 출결 기록 수정(AC-4.5). 사유/성격/비고/교시를 갱신하고 report_required 를
+ * 재계산, tracking 을 동기화한다. owner-scoped. 갱신된 행 반환(없으면 null).
+ */
+export async function updateAttendanceRecord(
+  db: DB,
+  ownerId: string,
+  recordId: string,
+  input: UpdateAttendanceInput,
+): Promise<AttendanceRow | null> {
+  const reportRequired = isReportRequired({
+    kind: input.kind,
+    reason: input.reason,
+    noteField: input.noteField,
+  });
+  const [row] = await db
+    .update(attendanceRecords)
+    .set({
+      reason: input.reason,
+      kind: input.kind,
+      noteField: input.noteField ?? null,
+      reportRequired,
+      periods: input.periods ?? null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(attendanceRecords.id, recordId),
+        eq(attendanceRecords.ownerId, ownerId),
+      ),
+    )
+    .returning();
+  if (!row) return null;
+  await syncTracking(db, ownerId, row.id, reportRequired);
+  await writeAudit(db, ownerId, "attendance_update", row.id, {
+    reason: input.reason,
+    kind: input.kind,
+    reportRequired,
+  });
+  return toRow(row);
 }
 
 /** 신고서 제출 여부 마킹. */
@@ -298,12 +497,26 @@ const STUDENT_ROW_COLUMNS = {
   name: studentYears.name,
 } as const;
 
+/** 페이지네이션 옵션(limit/offset). 미지정 시 전체 반환. */
+export interface PageOpts {
+  limit?: number;
+  offset?: number;
+}
+
+/** 담임 필터 이후 메모리 슬라이스(limit/offset). 담임 필터가 SQL 후처리라 인메모리. */
+function slicePage<T>(rows: T[], opts?: PageOpts): T[] {
+  if (!opts || opts.limit == null) return rows;
+  const offset = opts.offset != null && opts.offset > 0 ? opts.offset : 0;
+  return rows.slice(offset, offset + opts.limit);
+}
+
 /** (a) 월별 출결 목록 — 해당 월(YYYY-MM)의 담임 학생 기록을 날짜순. */
 export async function listAttendanceByMonth(
   db: DB,
   ownerId: string,
   year: number,
   month: string,
+  opts?: PageOpts,
 ): Promise<AttendanceStudentRow[]> {
   const start = `${month}-01`;
   // 다음 달 1일 미만(상한). 12월이면 다음 해 1월.
@@ -324,7 +537,8 @@ export async function listAttendanceByMonth(
       ),
     )
     .orderBy(asc(attendanceRecords.date), asc(studentYears.sid));
-  return rows.filter((r) => ids.has(r.studentYearId)).map(toStudentRow);
+  const filtered = rows.filter((r) => ids.has(r.studentYearId)).map(toStudentRow);
+  return slicePage(filtered, opts);
 }
 
 /** (b) 학생별 검색 — 담임 학생 1명의 출결 기록(최신순). */
@@ -333,10 +547,11 @@ export async function searchAttendanceByStudent(
   ownerId: string,
   year: number,
   studentYearId: string,
+  opts?: PageOpts,
 ): Promise<AttendanceStudentRow[]> {
   const ids = await homeroomStudentIds(db, ownerId, year);
   if (!ids.has(studentYearId)) return [];
-  const rows = await db
+  const q = db
     .select(STUDENT_ROW_COLUMNS)
     .from(attendanceRecords)
     .innerJoin(studentYears, eq(attendanceRecords.studentYearId, studentYears.id))
@@ -346,7 +561,9 @@ export async function searchAttendanceByStudent(
         eq(attendanceRecords.studentYearId, studentYearId),
       ),
     )
-    .orderBy(desc(attendanceRecords.date));
+    .orderBy(desc(attendanceRecords.date))
+    .$dynamic();
+  const rows = await applyPaging(q, opts);
   return rows.map(toStudentRow);
 }
 
@@ -365,6 +582,7 @@ export async function listUnsubmittedAttendance(
   ownerId: string,
   year: number,
   asOf: Date = new Date(),
+  opts?: PageOpts,
 ): Promise<UnsubmittedAttendanceRow[]> {
   const ids = await homeroomStudentIds(db, ownerId, year);
   const rows = await db
@@ -400,7 +618,7 @@ export async function listUnsubmittedAttendance(
   const sortedSchoolDays = cal.map((c) => c.date).sort();
   const today = asOf.toISOString().slice(0, 10);
 
-  return rows
+  const mapped = rows
     .filter((r) => ids.has(r.studentYearId))
     .map((r) => {
       const remaining =
@@ -414,6 +632,7 @@ export async function listUnsubmittedAttendance(
         tier: submissionTier(remaining ?? 0),
       };
     });
+  return slicePage(mapped, opts);
 }
 
 /** today(제외) 다음 날부터 deadline(포함)까지 남은 수업일. deadline 지났으면 음수. */

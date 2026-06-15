@@ -23,6 +23,20 @@ export function pageCount(total: number, pageSize: number = DEFAULT_PAGE_SIZE): 
   return Math.ceil(total / pageSize);
 }
 
+/**
+ * 드리즐 `$dynamic()` 쿼리에 limit/offset 을 선택 적용한다(서버 페이지네이션).
+ * opts 미지정·limit 없음 = 페이징 미적용(전체 반환). offset 만 단독 적용은 무시.
+ */
+export function applyPaging<Q extends { limit: (n: number) => Q; offset: (n: number) => Q }>(
+  query: Q,
+  opts?: { limit?: number; offset?: number },
+): Q {
+  if (!opts || opts.limit == null) return query;
+  let q = query.limit(opts.limit);
+  if (opts.offset != null && opts.offset > 0) q = q.offset(opts.offset);
+  return q;
+}
+
 /** 메모리 배열을 현재 페이지로 슬라이스(클라이언트 페이지네이션용). */
 export function paginate<T>(
   items: readonly T[],

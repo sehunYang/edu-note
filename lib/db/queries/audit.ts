@@ -96,7 +96,10 @@ export type AuditEvent =
   // QC v4 수업계획 학기계획 단계 (US-2)
   | "lesson_unit_save"
   | "lesson_unit_delete"
-  | "exam_target_save";
+  | "exam_target_save"
+  // QC v4 출결 (US-4)
+  | "field_trip_add"
+  | "attendance_update";
 
 export async function writeAudit(
   db: DB,
