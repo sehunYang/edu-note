@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { listHomeroomStudents, listHomeroomActivities } from "@/lib/db/queries";
@@ -69,20 +68,13 @@ export default async function HomeroomActivitiesPage() {
   }));
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            자율·진로활동 ({year})
-          </h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            담임반 학생의 자율·진로 활동 특기 내역을 기입합니다.
-          </p>
-        </div>
-        <Link href="/homeroom" className="text-sm text-neutral-500 hover:underline">
-          ← 담임 교실
-        </Link>
-      </div>
+    <div>
+      <h2 className="text-lg font-semibold text-neutral-800">
+        자율·진로활동 ({year})
+      </h2>
+      <p className="mt-1 text-sm text-neutral-500">
+        담임반 학생의 자율·진로 활동 특기 내역을 기입합니다.
+      </p>
 
       {students.length === 0 ? (
         <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
@@ -96,6 +88,6 @@ export default async function HomeroomActivitiesPage() {
           entries={entries}
         />
       )}
-    </main>
+    </div>
   );
 }

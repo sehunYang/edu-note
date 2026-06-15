@@ -6,8 +6,9 @@ import {
 } from "./timetable-actions";
 
 /**
- * 담임반 시간표 컴시간 동기화 트리거 (QC v3 Part B, US-B13, AC-12.3).
- * 세팅실 컴시간 학교 + 담임 학년/반으로 시간표를 가져와 공개 페이지 시간표 소스를 갱신한다.
+ * 담임반 시간표 컴시간 동기화 트리거 (QC v4 US-5 AC-5.4 — 공지실에서 세팅실 컴시간
+ * 시간표 동기화 섹션으로 이관). 세팅실 컴시간 학교 + 담임 학년/반으로 시간표를 가져와
+ * 학생 안내(공개) 페이지 시간표 소스를 갱신한다.
  */
 export function HomeroomTimetableSync() {
   const [state, action, pending] = useActionState<HomeroomSyncState, FormData>(
@@ -18,11 +19,11 @@ export function HomeroomTimetableSync() {
   return (
     <form
       action={action}
-      className="rounded-lg border border-neutral-200 p-4 text-sm"
+      className="mt-4 rounded-lg border border-neutral-200 p-4 text-sm"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-semibold">담임반 시간표 동기화</h2>
+          <h4 className="font-semibold">담임반 시간표 동기화</h4>
           <p className="mt-1 text-xs text-neutral-500">
             컴시간에서 담임반 시간표를 가져와 학생 안내 페이지에 표시합니다.
           </p>
@@ -32,7 +33,7 @@ export function HomeroomTimetableSync() {
           disabled={pending}
           className="shrink-0 rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-60"
         >
-          {pending ? "동기화 중…" : "컴시간 동기화"}
+          {pending ? "동기화 중…" : "담임반 동기화"}
         </button>
       </div>
 

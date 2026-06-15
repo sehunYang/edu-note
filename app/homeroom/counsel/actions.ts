@@ -10,6 +10,7 @@ import {
   closeCounselSlot,
   reserveCounselSlot,
   cancelReservation,
+  approveCancelReservation,
   writeAudit,
   type CounselTarget,
 } from "@/lib/db/queries";
@@ -130,6 +131,22 @@ export async function cancelReservationAction(
 
   const db = getDb();
   await cancelReservation(db, ownerId, reservationId);
+  revalidatePath("/homeroom/counsel");
+}
+
+/**
+ * AC-6.7: 학생 취소요청 승인 — 예약 삭제(정원 환원) + 캘린더 반영.
+ * cancel_requested=true 인 본인 예약만 삭제된다(approveCancelReservation 가드).
+ */
+export async function approveCancelAction(
+  formData: FormData,
+): Promise<void> {
+  const ownerId = await getOwnerId();
+  const reservationId = String(formData.get("reservationId") ?? "").trim();
+  if (!reservationId) return;
+
+  const db = getDb();
+  await approveCancelReservation(db, ownerId, reservationId);
   revalidatePath("/homeroom/counsel");
 }
 

@@ -1,11 +1,15 @@
 "use client";
 import { useState, useTransition } from "react";
+import { Paginator } from "@/lib/ui/paginator";
+import { paginate } from "@/lib/db/pagination";
 import {
   bulkSaveActivityAction,
   updateActivityAction,
   deleteActivityAction,
 } from "./actions";
 import type { ActivityTag } from "@/lib/domain/types";
+
+const PAGE_SIZE = 10;
 
 /**
  * 자율·진로활동 클라이언트 (US-B11).
@@ -457,6 +461,12 @@ export function ActivitiesClient({
   entries: ActivityEntry[];
 }) {
   const nameById = new Map(students.map((s) => [s.id, `${s.sid} ${s.name}`]));
+  const [page, setPage] = useState(1);
+  const { pageItems, totalPages, currentPage } = paginate(
+    entries,
+    page,
+    PAGE_SIZE,
+  );
 
   return (
     <div className="mt-6 space-y-6">
@@ -470,11 +480,19 @@ export function ActivitiesClient({
         {entries.length === 0 ? (
           <p className="mt-2 text-sm text-neutral-400">아직 저장된 활동 기입이 없습니다.</p>
         ) : (
-          <ul className="mt-2 space-y-2">
-            {entries.map((e) => (
-              <ActivityRow key={e.id} entry={e} nameById={nameById} />
-            ))}
-          </ul>
+          <>
+            <ul className="mt-2 space-y-2">
+              {pageItems.map((e) => (
+                <ActivityRow key={e.id} entry={e} nameById={nameById} />
+              ))}
+            </ul>
+            <Paginator
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              className="mt-3"
+            />
+          </>
         )}
       </section>
     </div>

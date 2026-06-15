@@ -56,7 +56,12 @@ export const fieldTripReports = pgTable("field_trip_reports", {
   studentYearId: uuid("student_year_id")
     .notNull()
     .references(() => studentYears.id, { onDelete: "cascade" }),
+  // ⚠ trip_date 는 start_date 미러로 NOT NULL 유지(0031 불변식). out-of-band cron 이
+  //   물리 컬럼 참조 — rename/drop 금지. 마감 기준일은 end_date(폴백 trip_date).
   tripDate: date("trip_date").notNull(),
+  // 교외체험 기간(QC v4, 0031). end_date null=당일. 마감 기준=end_date.
+  startDate: date("start_date"),
+  endDate: date("end_date"),
   postReportSubmitted: boolean("post_report_submitted")
     .notNull()
     .default(false),

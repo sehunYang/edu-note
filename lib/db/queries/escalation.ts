@@ -10,6 +10,7 @@ import { schoolDayCalendar } from "../schema/misc";
 import { studentYears } from "../schema/identity";
 import { tierFromDates } from "@/lib/domain/escalation";
 import type { ReportTier } from "@/lib/domain/types";
+import { applyPaging } from "../pagination";
 import { writeAudit } from "./audit";
 
 /**
@@ -44,20 +45,29 @@ function nthSchoolDayAfter(
 export interface FieldTripInput {
   studentYearId: string;
   tripDate: string;
+  /** 기간 종료일(QC v4, 0031). 미지정=당일(=tripDate). */
+  endDate?: string | null;
 }
 
-/** 교외체험 사후보고서 추적 시작(보고서 행 + tracking 생성). */
+/**
+ * 교외체험 사후보고서 추적 시작(보고서 행 + tracking 생성).
+ * trip_date=start_date 미러, end_date=종료일(미지정 시 trip_date)로 영속.
+ * 출결 자동생성이 필요하면 attendance.ts 의 addFieldTrip 을 사용한다.
+ */
 export async function addFieldTripReport(
   db: DB,
   ownerId: string,
   input: FieldTripInput,
 ): Promise<{ id: string }> {
+  const endDate = input.endDate ?? input.tripDate;
   const [trip] = await db
     .insert(fieldTripReports)
     .values({
       ownerId,
       studentYearId: input.studentYearId,
       tripDate: input.tripDate,
+      startDate: input.tripDate,
+      endDate,
     })
     .returning({ id: fieldTripReports.id });
   await db.insert(reportTracking).values({ ownerId, fieldTripId: trip.id });
@@ -119,6 +129,7 @@ export async function recomputeEscalation(
       attDate: attendanceRecords.date,
       attSubmitted: attendanceRecords.reportSubmitted,
       tripDate: fieldTripReports.tripDate,
+      tripEndDate: fieldTripReports.endDate,
       tripSubmitted: fieldTripReports.postReportSubmitted,
     })
     .from(reportTracking)
@@ -131,7 +142,8 @@ export async function recomputeEscalation(
 
   let transitions = 0;
   for (const r of rows) {
-    const base = r.attDate ?? r.tripDate;
+    // 마감 기준일: 출결=결석일, 교외체험=종료일(end_date, 폴백 trip_date).
+    const base = r.attDate ?? r.tripEndDate ?? r.tripDate;
     if (!base) continue; // 손상된 추적행 방어
     const submitted = r.attSubmitted ?? r.tripSubmitted ?? false;
 
@@ -178,6 +190,8 @@ export interface FieldTripRow {
   sid: string;
   name: string;
   tripDate: string;
+  startDate: string | null;
+  endDate: string | null;
   postReportSubmitted: boolean;
   tier: ReportTier;
   deadlineDate: string | null;
@@ -187,14 +201,17 @@ export interface FieldTripRow {
 export async function listFieldTrips(
   db: DB,
   ownerId: string,
+  opts?: { limit?: number; offset?: number },
 ): Promise<FieldTripRow[]> {
-  const rows = await db
+  const q = db
     .select({
       id: fieldTripReports.id,
       studentYearId: fieldTripReports.studentYearId,
       sid: studentYears.sid,
       name: studentYears.name,
       tripDate: fieldTripReports.tripDate,
+      startDate: fieldTripReports.startDate,
+      endDate: fieldTripReports.endDate,
       postReportSubmitted: fieldTripReports.postReportSubmitted,
       tier: reportTracking.lastTier,
       deadlineDate: reportTracking.deadlineDate,
@@ -203,13 +220,17 @@ export async function listFieldTrips(
     .innerJoin(studentYears, eq(fieldTripReports.studentYearId, studentYears.id))
     .leftJoin(reportTracking, eq(reportTracking.fieldTripId, fieldTripReports.id))
     .where(eq(fieldTripReports.ownerId, ownerId))
-    .orderBy(fieldTripReports.tripDate);
+    .orderBy(fieldTripReports.tripDate)
+    .$dynamic();
+  const rows = await applyPaging(q, opts);
   return rows.map((r) => ({
     id: r.id,
     studentYearId: r.studentYearId,
     sid: r.sid,
     name: r.name,
     tripDate: r.tripDate,
+    startDate: r.startDate,
+    endDate: r.endDate,
     postReportSubmitted: r.postReportSubmitted,
     tier: (r.tier ?? "normal") as ReportTier,
     deadlineDate: r.deadlineDate,

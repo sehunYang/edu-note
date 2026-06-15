@@ -5,9 +5,11 @@ import {
   listProgressPopup,
   getSectionSessions,
   getSessionRecord,
+  getSectionProgressStats,
   type SessionRow,
 } from "@/lib/db/queries";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
+import type { SectionProgressStat } from "@/lib/db/queries/progress";
 import {
   ProgressBoard,
   type SectionView,
@@ -41,9 +43,10 @@ export default async function ProgressPage({
   const sem: 1 | 2 =
     sp.semester === "1" ? 1 : sp.semester === "2" ? 2 : activeSem;
 
-  const [sections, popup] = await Promise.all([
+  const [sections, popup, stats] = await Promise.all([
     listSectionsForSemester(db, ownerId, year, sem),
     listProgressPopup(db, ownerId, year, sem),
+    getSectionProgressStats(db, ownerId, year, sem),
   ]);
 
   // 분반별 차시 + 기존 기록 조립.
@@ -89,6 +92,7 @@ export default async function ProgressPage({
         semester={sem}
         sections={sectionViews}
         popup={popupViews}
+        stats={stats satisfies SectionProgressStat[]}
         statusLabel={STATUS_LABEL}
       />
     </div>

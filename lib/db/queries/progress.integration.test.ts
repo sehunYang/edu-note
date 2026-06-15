@@ -10,13 +10,19 @@ import {
   classSessions,
   timetableSlots,
 } from "../schema/classes";
-import { lessonPlans, sessionRecords } from "../schema/records";
+import {
+  lessonPlans,
+  sessionRecords,
+  lessonUnits,
+  examTargets,
+} from "../schema/records";
 import { schoolDayCalendar, calendarEvents } from "../schema/misc";
 import {
   generateSemesterSessions,
   listProgressPopup,
   markSessionDone,
   getPlanForSession,
+  getSectionProgressStats,
 } from "./progress";
 
 /**
@@ -277,5 +283,127 @@ describe.skipIf(!RUN)("수업 진척도 쿼리", () => {
     // 3번째 차시 → 계획 ordinal 3 없음 → null(graceful).
     const p3 = await getPlanForSession(db, owner, third);
     expect(p3).toBeNull();
+  });
+});
+
+// QC v4 US-3: 분반별 진척도 통계(목표·실제 진도율, 초록/빨강, 시험목표 범위 필터).
+describe.skipIf(!RUN)("getSectionProgressStats (QC v4 US-3)", () => {
+  let sql2: ReturnType<typeof postgres>;
+  let db2: PostgresJsDatabase<typeof schema>;
+  const owner2 = randomUUID();
+  const Y = 2097;
+
+  beforeAll(async () => {
+    sql2 = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    db2 = drizzle(sql2, { schema, casing: "snake_case" });
+  });
+  afterAll(async () => {
+    await db2.delete(sessionRecords).where(eq(sessionRecords.ownerId, owner2));
+    await db2.delete(classSessions).where(eq(classSessions.ownerId, owner2));
+    await db2.delete(lessonPlans).where(eq(lessonPlans.ownerId, owner2));
+    await db2.delete(examTargets).where(eq(examTargets.ownerId, owner2));
+    await db2.delete(lessonUnits).where(eq(lessonUnits.ownerId, owner2));
+    await db2.delete(courseSections).where(eq(courseSections.ownerId, owner2));
+    await db2.delete(subjects).where(eq(subjects.ownerId, owner2));
+    await sql2.end();
+  });
+
+  function rel(days: number): string {
+    const d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
+  it("시험목표 범위 필터 + 분반별 목표/실제 진도율 + 초록/빨강", async () => {
+    const [subj] = await db2
+      .insert(subjects)
+      .values({ ownerId: owner2, name: "통계과목", schoolYear: Y, semester: 1 })
+      .returning({ id: subjects.id });
+    const [secA] = await db2
+      .insert(courseSections)
+      .values({ ownerId: owner2, subjectId: subj.id, label: "A" })
+      .returning({ id: courseSections.id });
+    const [secB] = await db2
+      .insert(courseSections)
+      .values({ ownerId: owner2, subjectId: subj.id, label: "B" })
+      .returning({ id: courseSections.id });
+
+    // 세부단원 3개(코드 10101/10102/20101).
+    const units = await db2
+      .insert(lessonUnits)
+      .values([
+        { ownerId: owner2, subjectId: subj.id, majorNo: 1, midNo: 1, minorNo: 1, majorName: "대1", midName: "중1", minorName: "소1", minOrdinals: 1 },
+        { ownerId: owner2, subjectId: subj.id, majorNo: 1, midNo: 1, minorNo: 2, majorName: "대1", midName: "중1", minorName: "소2", minOrdinals: 1 },
+        { ownerId: owner2, subjectId: subj.id, majorNo: 2, midNo: 1, minorNo: 1, majorName: "대2", midName: "중1", minorName: "소1", minOrdinals: 1 },
+      ])
+      .returning({ id: lessonUnits.id, majorNo: lessonUnits.majorNo, midNo: lessonUnits.midNo, minorNo: lessonUnits.minorNo });
+    const codeOf = (u: { majorNo: number; midNo: number; minorNo: number }) =>
+      u.majorNo * 10000 + u.midNo * 100 + u.minorNo;
+    const u1 = units.find((u) => codeOf(u) === 10101)!;
+    const u2 = units.find((u) => codeOf(u) === 10102)!;
+    const u3 = units.find((u) => codeOf(u) === 20101)!;
+
+    // 차시계획 3개(unit 연결). 시험목표 범위 10101~10102 → 2개만 포함(u3 제외).
+    await db2.insert(lessonPlans).values([
+      { ownerId: owner2, subjectId: subj.id, ordinal: 1, content: "c1", unitId: u1.id },
+      { ownerId: owner2, subjectId: subj.id, ordinal: 2, content: "c2", unitId: u2.id },
+      { ownerId: owner2, subjectId: subj.id, ordinal: 3, content: "c3", unitId: u3.id },
+    ]);
+    await db2.insert(examTargets).values({
+      ownerId: owner2, subjectId: subj.id, examOrdinal: 1, unitFromCode: 10101, unitToCode: 10102,
+    });
+
+    // 분반 A: 과거 planned 1 + 과거 done 1 + 미래 planned 1 → plannedToToday=2, done=1.
+    await db2.insert(classSessions).values([
+      { ownerId: owner2, sectionId: secA.id, date: rel(-3), status: "planned" },
+      { ownerId: owner2, sectionId: secA.id, date: rel(-1), status: "done" },
+      { ownerId: owner2, sectionId: secA.id, date: rel(5), status: "planned" },
+    ]);
+    // 분반 B: 과거 planned 2, done 0 → plannedToToday=2, done=0 → 2차시 뒤짐=빨강.
+    await db2.insert(classSessions).values([
+      { ownerId: owner2, sectionId: secB.id, date: rel(-4), status: "planned" },
+      { ownerId: owner2, sectionId: secB.id, date: rel(-2), status: "planned" },
+    ]);
+
+    const stats = await getSectionProgressStats(db2, owner2, Y, 1);
+    const a = stats.find((s) => s.sectionId === secA.id)!;
+    const b = stats.find((s) => s.sectionId === secB.id)!;
+
+    // 시험목표 총 차시 = 범위 내 2개(u3 제외).
+    expect(a.examTargetTotal).toBe(2);
+    expect(b.examTargetTotal).toBe(2);
+
+    // 분반 A: 계획2/실제1 → 1차시 뒤짐 → 초록.
+    expect(a.plannedToToday).toBe(2);
+    expect(a.actualDone).toBe(1);
+    expect(a.actualRate).toBeCloseTo(0.5);
+    expect(a.color).toBe("green");
+
+    // 분반 B: 계획2/실제0 → 2차시 뒤짐 → 빨강(분반별 독립).
+    expect(b.plannedToToday).toBe(2);
+    expect(b.actualDone).toBe(0);
+    expect(b.color).toBe("red");
+  });
+
+  it("시험목표 미설정 시 분반 전체 차시로 폴백", async () => {
+    const [subj] = await db2
+      .insert(subjects)
+      .values({ ownerId: owner2, name: "폴백과목", schoolYear: Y, semester: 2 })
+      .returning({ id: subjects.id });
+    const [sec] = await db2
+      .insert(courseSections)
+      .values({ ownerId: owner2, subjectId: subj.id, label: "C" })
+      .returning({ id: courseSections.id });
+    await db2.insert(classSessions).values([
+      { ownerId: owner2, sectionId: sec.id, date: rel(-2), status: "done" },
+      { ownerId: owner2, sectionId: sec.id, date: rel(3), status: "planned" },
+    ]);
+
+    const stats = await getSectionProgressStats(db2, owner2, Y, 2);
+    const c = stats.find((s) => s.sectionId === sec.id)!;
+    // exam_targets 없음 → 분반 전체 차시(2)로 폴백.
+    expect(c.examTargetTotal).toBe(2);
+    expect(c.actualDone).toBe(1);
   });
 });

@@ -18,7 +18,11 @@ export const dynamic = "force-dynamic";
 export default async function ClassroomObservationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ semester?: string }>;
+  searchParams: Promise<{
+    semester?: string;
+    studentYearId?: string;
+    sectionId?: string;
+  }>;
 }) {
   const ownerId = await getOwnerId();
   const db = getDb();
@@ -27,11 +31,15 @@ export default async function ClassroomObservationsPage({
   const activeSem = activeSemester(now);
   const sp = await searchParams;
   const sem: 1 | 2 = sp.semester === "1" ? 1 : sp.semester === "2" ? 2 : activeSem;
+  // 넛지 사전선택 딥링크(AC-7.3) — 학생·분반을 받으면 폼에 미리 채운다(없으면 무시).
+  const preStudentId = sp.studentYearId ?? "";
+  const preSectionId = sp.sectionId ?? "";
 
   const [students, subjectsWithSections, observations] = await Promise.all([
     listStudents(db, ownerId, year),
     listSubjectsWithSections(db, ownerId, year, sem),
-    listSubjectObservations(db, ownerId, { limit: 30 }),
+    // 페이지네이션(10개씩)으로 전체를 클라이언트에서 분할하므로 상한 없이 로드.
+    listSubjectObservations(db, ownerId),
   ]);
 
   // 활성 학기 분반 옵션(과목명 + 라벨) 평탄화.
@@ -86,6 +94,8 @@ export default async function ClassroomObservationsPage({
           students={studentOptions}
           sections={sectionOptions}
           recent={recent}
+          initialStudentId={preStudentId}
+          initialSectionId={preSectionId}
         />
       )}
     </div>

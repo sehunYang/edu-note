@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
-import { collectNudges, listStudents } from "@/lib/db/queries";
+import { collectNudges } from "@/lib/db/queries";
 import { NudgeBanner } from "./nudge-banner";
 import type { NudgeResult } from "@/lib/domain/nudge";
 
 export const dynamic = "force-dynamic";
 
 const EMPTY_NUDGES: NudgeResult = {
-  unrecordedObservation: null,
+  unrecordedObservations: [],
   behaviorNotes: null,
   pendingReports: null,
   hasAny: false,
@@ -19,19 +19,13 @@ export default async function Home() {
   const user = await getCurrentUser();
 
   // 넛지 수집(데이터 미구성 시에도 홈은 깨지지 않도록 graceful).
+  // 추천 학생명은 넛지 결과(suggestedStudentName)에 포함되어 별도 조회 불필요.
   let nudges: NudgeResult = EMPTY_NUDGES;
-  let suggestedLabel: string | null = null;
   if (user) {
     try {
       const db = getDb();
       const year = new Date().getFullYear();
       nudges = await collectNudges(db, user.id, year);
-      const sid = nudges.unrecordedObservation?.suggestedStudentId;
-      if (sid) {
-        const students = await listStudents(db, user.id, year);
-        const s = students.find((x) => x.id === sid);
-        suggestedLabel = s ? `${s.sid} ${s.name}` : null;
-      }
     } catch {
       nudges = EMPTY_NUDGES;
     }
@@ -57,7 +51,7 @@ export default async function Home() {
         로그인: {user?.email ?? "—"}
       </p>
 
-      <NudgeBanner nudges={nudges} suggestedStudentLabel={suggestedLabel} />
+      <NudgeBanner nudges={nudges} />
 
       <section className="mt-10 grid gap-3">
         <DashCard

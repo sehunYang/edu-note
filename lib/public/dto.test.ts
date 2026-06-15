@@ -153,6 +153,7 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
         "commonNotice",
         "counselSlots",
         "grades",
+        "individualNotices",
         "meals",
         "notices",
         "personalMessage",
@@ -193,15 +194,37 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
         absentPeriod: {},
         absent: { unaccepted: 3 },
       },
+      individualNotices: ["개별공지1", 7, "개별공지2"], // 비문자열 버림
+      meals: [
+        {
+          date: "2026-06-20",
+          menu: "비빔밥",
+          calInfo: "820 Kcal",
+          ntrInfo: "탄수화물(g) : 100.0\n단백질(g) : 30.0",
+          rawScore: 98, // 절대 반영 금지
+        },
+      ],
       counselSlots: [
-        { date: "2026-06-20", remaining: 2, reserved: false, studentYearId: "other-student" },
-        { date: "2026-06-21", remaining: 0, reserved: true },
+        {
+          date: "2026-06-20",
+          remaining: 2,
+          reserved: false,
+          studentYearId: "other-student",
+        },
+        { date: "2026-06-21", remaining: 0, reserved: true, cancelRequested: true },
       ],
     };
     const parsed = parsePublicPagePayload(raw);
     assertNoForbidden(parsed);
     expect(parsed.studentName).toBe("홍길동");
     expect(parsed.notices).toEqual(["한마디1", "한마디2"]);
+    expect(parsed.individualNotices).toEqual(["개별공지1", "개별공지2"]);
+    expect(parsed.meals[0]).toEqual({
+      date: "2026-06-20",
+      menu: "비빔밥",
+      calInfo: "820 Kcal",
+      ntrInfo: "탄수화물(g) : 100.0\n단백질(g) : 30.0",
+    });
     expect(parsed.timetable[0]).toEqual({
       weekday: 1,
       period: 3,
@@ -230,8 +253,8 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
       etc: 0,
     });
     expect(parsed.counselSlots).toEqual([
-      { date: "2026-06-20", remaining: 2, reserved: false },
-      { date: "2026-06-21", remaining: 0, reserved: true },
+      { date: "2026-06-20", remaining: 2, reserved: false, cancelRequested: false },
+      { date: "2026-06-21", remaining: 0, reserved: true, cancelRequested: true },
     ]);
   });
 

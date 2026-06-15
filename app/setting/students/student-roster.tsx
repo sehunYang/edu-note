@@ -1,5 +1,7 @@
 "use client";
 import { useActionState, useMemo, useState } from "react";
+import { Paginator } from "@/lib/ui/paginator";
+import { paginate } from "@/lib/db/pagination";
 import {
   linkStudentsAction,
   resolveInheritanceAction,
@@ -32,6 +34,8 @@ interface StudentRow {
   activeToken: string | null; // 활성(미폐기) 공개 토큰 — 새로고침에도 영속 표시(AC-12.9)
 }
 
+const PAGE_SIZE = 20;
+
 /**
  * QC v2 학생 명단 모체 데이터 UI (AC-C1~C7). 전 속성 표시·인라인 수정(이름/연락처/희망진로)·
  * 하드삭제·공개링크 복사·필터(학년/반/번호+이름). 동명이인 매칭·학급역할 CRUD 는 C4 유지.
@@ -52,6 +56,12 @@ export function StudentRoster({
   const [fClass, setFClass] = useState("");
   const [fNumber, setFNumber] = useState("");
   const [fName, setFName] = useState("");
+  // 필터 변경 시 1페이지로 리셋(현재 페이지가 사라져 빈 화면이 되는 것 방지).
+  const [page, setPage] = useState(1);
+  function setFilter(setter: (v: string) => void, v: string) {
+    setter(v);
+    setPage(1);
+  }
 
   const grades = useMemo(
     () => [...new Set(students.map((s) => s.grade))].sort((a, b) => a - b),
@@ -69,6 +79,13 @@ export function StudentRoster({
     if (fName && !s.name.includes(fName.trim())) return false;
     return true;
   });
+
+  // 필터링된 명단에 페이지네이션(20개씩)을 적용한다.
+  const { pageItems, totalPages, currentPage } = paginate(
+    filtered,
+    page,
+    PAGE_SIZE,
+  );
 
   return (
     <div className="mt-5 space-y-6">
@@ -128,7 +145,7 @@ export function StudentRoster({
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
             <select
               value={fGrade}
-              onChange={(e) => setFGrade(e.target.value)}
+              onChange={(e) => setFilter(setFGrade, e.target.value)}
               className="rounded border border-neutral-300 px-1.5 py-0.5"
             >
               <option value="">학년</option>
@@ -140,7 +157,7 @@ export function StudentRoster({
             </select>
             <select
               value={fClass}
-              onChange={(e) => setFClass(e.target.value)}
+              onChange={(e) => setFilter(setFClass, e.target.value)}
               className="rounded border border-neutral-300 px-1.5 py-0.5"
             >
               <option value="">반</option>
@@ -152,13 +169,13 @@ export function StudentRoster({
             </select>
             <input
               value={fNumber}
-              onChange={(e) => setFNumber(e.target.value)}
+              onChange={(e) => setFilter(setFNumber, e.target.value)}
               placeholder="번호"
               className="w-14 rounded border border-neutral-300 px-1.5 py-0.5"
             />
             <input
               value={fName}
-              onChange={(e) => setFName(e.target.value)}
+              onChange={(e) => setFilter(setFName, e.target.value)}
               placeholder="이름 검색"
               className="w-28 rounded border border-neutral-300 px-1.5 py-0.5"
             />
@@ -170,7 +187,7 @@ export function StudentRoster({
           </p>
         ) : (
           <div className="mt-3 space-y-2">
-            {filtered.map((s) => (
+            {pageItems.map((s) => (
               <StudentCard key={s.id} student={s} />
             ))}
             {filtered.length === 0 && (
@@ -178,6 +195,12 @@ export function StudentRoster({
                 필터에 해당하는 학생이 없습니다.
               </p>
             )}
+            <Paginator
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              className="mt-3"
+            />
           </div>
         )}
       </section>

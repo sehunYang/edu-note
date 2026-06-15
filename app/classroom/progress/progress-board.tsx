@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   generateSessionsAction,
   setProgressStatusAction,
@@ -7,6 +7,21 @@ import {
   loadPlanForSessionAction,
 } from "./actions";
 import type { SessionStatus } from "@/lib/domain/types";
+import { Paginator } from "@/lib/ui/paginator";
+import { paginate } from "@/lib/db/pagination";
+
+/** 분반별 진척도 통계 뷰(서버 getSectionProgressStats 결과 미러). */
+export interface StatView {
+  sectionId: string;
+  label: string;
+  subjectName: string;
+  plannedToToday: number;
+  actualDone: number;
+  examTargetTotal: number;
+  targetRate: number;
+  actualRate: number;
+  color: "green" | "red";
+}
 
 /**
  * 수업 진척도 클라이언트 보드 (교실 2-2 단계3, 전면 신규 — /sessions UI 미재사용).
@@ -51,12 +66,14 @@ export function ProgressBoard({
   semester,
   sections,
   popup,
+  stats,
   statusLabel,
 }: {
   year: number;
   semester: 1 | 2;
   sections: SectionView[];
   popup: PopupView[];
+  stats: StatView[];
   statusLabel: Record<string, string>;
 }) {
   // 완료 폼이 열린 차시 id(인라인 토글).
@@ -64,6 +81,9 @@ export function ProgressBoard({
 
   return (
     <div className="mt-6 space-y-8">
+      {/* 진도율 통계(AC-2.4~2.6) */}
+      <StatsHeader stats={stats} />
+
       {/* 차시 생성 */}
       <section className="rounded-lg border border-neutral-200 p-5">
         <p className="text-xs text-neutral-400">
@@ -155,6 +175,57 @@ export function ProgressBoard({
   );
 }
 
+/** 진도율 통계 헤더(분반별 목표 vs 실제, 초록/빨강). */
+function StatsHeader({ stats }: { stats: StatView[] }) {
+  if (stats.length === 0) return null;
+  const pct = (r: number) => `${Math.round(r * 100)}%`;
+  return (
+    <section className="rounded-lg border border-neutral-200 p-5">
+      <h3 className="font-semibold text-neutral-800">시험까지 진도율(분반별)</h3>
+      <p className="mt-1 text-xs text-neutral-400">
+        목표 = 계획상 오늘까지 차시 ÷ 시험목표 총 차시 / 실제 = 진행 차시 ÷ 시험목표 총
+        차시. 계획보다 2차시 이상 뒤지면 빨강.
+      </p>
+      <ul className="mt-3 space-y-2">
+        {stats.map((st) => (
+          <li
+            key={st.sectionId}
+            className={`flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-sm ${
+              st.color === "red"
+                ? "border-red-200 bg-red-50"
+                : "border-green-200 bg-green-50"
+            }`}
+          >
+            <span className="font-medium">
+              {st.subjectName}{" "}
+              <span className="text-neutral-400">{st.label}</span>
+            </span>
+            <span className="flex items-center gap-3">
+              <span className="text-neutral-600">
+                목표 {pct(st.targetRate)} · 실제{" "}
+                <span
+                  className={
+                    st.color === "red"
+                      ? "font-semibold text-red-600"
+                      : "font-semibold text-green-700"
+                  }
+                >
+                  {pct(st.actualRate)}
+                </span>
+              </span>
+              <span className="text-xs text-neutral-400">
+                ({st.actualDone}/{st.examTargetTotal}차시)
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+const SECTION_PAGE_SIZE = 20;
+
 function SectionBlock({
   section,
   statusLabel,
@@ -166,6 +237,12 @@ function SectionBlock({
   openDone: string | null;
   setOpenDone: (id: string | null) => void;
 }) {
+  const [page, setPage] = useState(1);
+  const { pageItems, totalPages, currentPage } = paginate(
+    section.sessions,
+    page,
+    SECTION_PAGE_SIZE,
+  );
   return (
     <div className="rounded-lg border border-neutral-200 p-4">
       <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
@@ -180,8 +257,9 @@ function SectionBlock({
       {section.sessions.length === 0 ? (
         <p className="mt-2 text-sm text-neutral-400">차시가 없습니다.</p>
       ) : (
+        <>
         <ul className="mt-2 space-y-1 text-sm">
-          {section.sessions.map((s) => (
+          {pageItems.map((s) => (
             <li key={s.id}>
               <div className="flex flex-wrap items-center justify-between gap-2 py-1">
                 <span className="flex items-center gap-3">
@@ -209,6 +287,13 @@ function SectionBlock({
             </li>
           ))}
         </ul>
+        <Paginator
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          className="mt-3"
+        />
+        </>
       )}
     </div>
   );
@@ -306,6 +391,13 @@ function DoneForm({
       setLoading(false);
     }
   }
+
+  // AC-2.2: 기존 기록이 없으면 폼을 펼칠 때 계획 내용을 자동 복사(이후 수정 가능).
+  useEffect(() => {
+    if (!record) void loadPlan();
+    // 마운트 시 1회만. sessionId 고정.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function save() {
     const fd = new FormData();

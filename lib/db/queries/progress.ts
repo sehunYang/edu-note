@@ -7,9 +7,20 @@ import {
   classSessions,
   timetableSlots,
 } from "../schema/classes";
-import { lessonPlans, sessionRecords } from "../schema/records";
+import {
+  lessonPlans,
+  sessionRecords,
+  lessonUnits,
+  examTargets,
+} from "../schema/records";
 import { schoolDayCalendar } from "../schema/misc";
 import { weekdayOf } from "@/lib/domain/lesson-plan";
+import { sixDigitCode } from "@/lib/domain/lesson-unit";
+import {
+  computeProgressRates,
+  progressColor,
+  type ProgressColor,
+} from "@/lib/domain/progress";
 import type { SessionStatus } from "@/lib/domain/types";
 import { setSessionStatus } from "./sessions";
 import { resolveSemesterRange } from "./calendar";
@@ -354,6 +365,174 @@ export interface SemesterSection {
   label: string;
   subjectId: string;
   subjectName: string;
+}
+
+export interface SectionProgressStat {
+  sectionId: string;
+  label: string;
+  subjectId: string;
+  subjectName: string;
+  /** 계획상 오늘까지 진행했어야 할 차시(date<=today). */
+  plannedToToday: number;
+  /** 실제 진행(done) 차시. */
+  actualDone: number;
+  /** 시험목표 총 차시(분모). 시험목표 미설정 시 분반 전체 차시. */
+  examTargetTotal: number;
+  /** 목표 진도율(0..1). */
+  targetRate: number;
+  /** 실제 진도율(0..1). */
+  actualRate: number;
+  /** 초록/빨강(실제가 계획보다 2차시 이상 뒤지면 빨강). */
+  color: ProgressColor;
+}
+
+/**
+ * 분반별 진척도 통계(AC-2.4~2.6). 둘 다 차시 수 기준.
+ *  - 목표 진도율 = 계획상 오늘까지 차시(date<=today) ÷ 시험목표 총 차시.
+ *  - 실제 진도율 = done 차시 ÷ 시험목표 총 차시.
+ *  - 시험목표 총 차시 = 과목의 lesson_plans 중 연결 단원(unit) 6자리코드가 exam_targets
+ *    범위(from~to) 안인 차시 수. 시험목표 미설정/0이면 분반 전체 차시로 폴백.
+ *  - 색상 = progressColor(계획−실제 >= 2 → 빨강).
+ * 분반별 독립 카운트.
+ */
+export async function getSectionProgressStats(
+  db: DB,
+  ownerId: string,
+  year: number,
+  sem: 1 | 2,
+): Promise<SectionProgressStat[]> {
+  const sections = await listSectionsForSemester(db, ownerId, year, sem);
+  if (sections.length === 0) return [];
+
+  const sectionIds = sections.map((s) => s.sectionId);
+  const subjectIds = [...new Set(sections.map((s) => s.subjectId))];
+  const todayStr = today();
+
+  // 분반별 차시(날짜·상태) 일괄 조회.
+  const sessions = await db
+    .select({
+      sectionId: classSessions.sectionId,
+      date: classSessions.date,
+      status: classSessions.status,
+    })
+    .from(classSessions)
+    .where(
+      and(
+        eq(classSessions.ownerId, ownerId),
+        inArray(classSessions.sectionId, sectionIds),
+      ),
+    );
+  const plannedToTodayBySection = new Map<string, number>();
+  const actualDoneBySection = new Map<string, number>();
+  const totalBySection = new Map<string, number>();
+  for (const id of sectionIds) {
+    plannedToTodayBySection.set(id, 0);
+    actualDoneBySection.set(id, 0);
+    totalBySection.set(id, 0);
+  }
+  for (const s of sessions) {
+    totalBySection.set(s.sectionId, (totalBySection.get(s.sectionId) ?? 0) + 1);
+    if (s.date <= todayStr) {
+      plannedToTodayBySection.set(
+        s.sectionId,
+        (plannedToTodayBySection.get(s.sectionId) ?? 0) + 1,
+      );
+    }
+    if (s.status === "done") {
+      actualDoneBySection.set(
+        s.sectionId,
+        (actualDoneBySection.get(s.sectionId) ?? 0) + 1,
+      );
+    }
+  }
+
+  // 과목별 시험목표 총 차시(연결 단원코드 ∈ exam_targets 범위).
+  const examTargetTotalBySubject = new Map<string, number>();
+  for (const subjectId of subjectIds) {
+    const targets = await db
+      .select({
+        from: examTargets.unitFromCode,
+        to: examTargets.unitToCode,
+      })
+      .from(examTargets)
+      .where(
+        and(
+          eq(examTargets.ownerId, ownerId),
+          eq(examTargets.subjectId, subjectId),
+        ),
+      );
+    const ranges = targets
+      .filter((t) => t.from != null && t.to != null)
+      .map((t) => ({ from: t.from as number, to: t.to as number }));
+    if (ranges.length === 0) {
+      examTargetTotalBySubject.set(subjectId, 0); // 폴백은 분반별 total 사용.
+      continue;
+    }
+    const units = await db
+      .select({
+        id: lessonUnits.id,
+        majorNo: lessonUnits.majorNo,
+        midNo: lessonUnits.midNo,
+        minorNo: lessonUnits.minorNo,
+      })
+      .from(lessonUnits)
+      .where(
+        and(
+          eq(lessonUnits.ownerId, ownerId),
+          eq(lessonUnits.subjectId, subjectId),
+        ),
+      );
+    const codeByUnit = new Map<string, number>();
+    for (const u of units) {
+      codeByUnit.set(u.id, sixDigitCode(u));
+    }
+    const plans = await db
+      .select({ unitId: lessonPlans.unitId })
+      .from(lessonPlans)
+      .where(
+        and(
+          eq(lessonPlans.ownerId, ownerId),
+          eq(lessonPlans.subjectId, subjectId),
+        ),
+      );
+    let count = 0;
+    for (const p of plans) {
+      if (!p.unitId) continue;
+      const code = codeByUnit.get(p.unitId);
+      if (code == null) continue;
+      if (ranges.some((r) => code >= r.from && code <= r.to)) count++;
+    }
+    examTargetTotalBySubject.set(subjectId, count);
+  }
+
+  return sections.map((sec) => {
+    const plannedToToday = plannedToTodayBySection.get(sec.sectionId) ?? 0;
+    const actualDone = actualDoneBySection.get(sec.sectionId) ?? 0;
+    const sectionTotal = totalBySection.get(sec.sectionId) ?? 0;
+    const subjectTarget = examTargetTotalBySubject.get(sec.subjectId) ?? 0;
+    // 시험목표 미설정/0이면 분반 전체 차시로 폴백.
+    const examTargetTotal = subjectTarget > 0 ? subjectTarget : sectionTotal;
+    const { targetRate, actualRate } = computeProgressRates({
+      plannedOrdinalsToToday: plannedToToday,
+      actualDoneOrdinals: actualDone,
+      examTargetTotalOrdinals: examTargetTotal,
+    });
+    return {
+      sectionId: sec.sectionId,
+      label: sec.label,
+      subjectId: sec.subjectId,
+      subjectName: sec.subjectName,
+      plannedToToday,
+      actualDone,
+      examTargetTotal,
+      targetRate,
+      actualRate,
+      color: progressColor({
+        plannedOrdinalsToToday: plannedToToday,
+        actualDoneOrdinals: actualDone,
+      }),
+    };
+  });
 }
 
 /** 활성 학기 과목들의 분반 목록(과목명·분반순). 진척도 보드용. */

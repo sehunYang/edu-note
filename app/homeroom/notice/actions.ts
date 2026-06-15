@@ -9,6 +9,7 @@ import {
   createTeacherNote,
   updateTeacherNote,
   deleteTeacherNote,
+  moveTeacherNote,
   addNoticeEvent,
   updateNoticeEvent,
   deleteNoticeEvent,
@@ -16,6 +17,7 @@ import {
   saveFixedClassSetting,
   getTeacherSettings,
   writeAudit,
+  type TeacherNoteScope,
 } from "@/lib/db/queries";
 
 /**
@@ -38,16 +40,43 @@ export async function setNoticeAction(formData: FormData): Promise<void> {
   revalidatePath(PATH);
 }
 
-// ── 다중 교사 한마디 CRUD ──
+// ── 다중 교사 한마디 CRUD (대상 범위 전체/특정학생 포함) ──
+
+/** formData 에서 대상 범위·대상 학생 목록을 파싱. 'individual' + 학생 0명이면 'all' 로 강등. */
+function parseTarget(formData: FormData): {
+  scope: TeacherNoteScope;
+  studentYearIds: string[];
+} {
+  const raw = String(formData.get("targetScope") ?? "all");
+  const ids = formData
+    .getAll("studentYearIds")
+    .map((v) => String(v))
+    .filter(Boolean);
+  const scope: TeacherNoteScope =
+    raw === "individual" && ids.length > 0 ? "individual" : "all";
+  return { scope, studentYearIds: scope === "individual" ? ids : [] };
+}
+
 export async function createTeacherNoteAction(
   formData: FormData,
 ): Promise<void> {
   const ownerId = await getOwnerId();
   const body = String(formData.get("body") ?? "").trim();
   if (!body) return;
+  const { scope, studentYearIds } = parseTarget(formData);
   const db = getDb();
-  const n = await createTeacherNote(db, ownerId, body);
-  await writeAudit(db, ownerId, "teacher_note_create", n.id);
+  const n = await createTeacherNote(
+    db,
+    ownerId,
+    body,
+    undefined,
+    scope,
+    studentYearIds,
+  );
+  await writeAudit(db, ownerId, "teacher_note_create", n.id, {
+    targetScope: scope,
+    targets: studentYearIds.length,
+  });
   revalidatePath(PATH);
 }
 
@@ -58,9 +87,13 @@ export async function updateTeacherNoteAction(
   const id = String(formData.get("id") ?? "").trim();
   const body = String(formData.get("body") ?? "").trim();
   if (!id || !body) return;
+  const { scope, studentYearIds } = parseTarget(formData);
   const db = getDb();
-  await updateTeacherNote(db, ownerId, id, body);
-  await writeAudit(db, ownerId, "teacher_note_update", id);
+  await updateTeacherNote(db, ownerId, id, body, scope, studentYearIds);
+  await writeAudit(db, ownerId, "teacher_note_update", id, {
+    targetScope: scope,
+    targets: studentYearIds.length,
+  });
   revalidatePath(PATH);
 }
 
@@ -73,6 +106,20 @@ export async function deleteTeacherNoteAction(
   const db = getDb();
   await deleteTeacherNote(db, ownerId, id);
   await writeAudit(db, ownerId, "teacher_note_delete", id);
+  revalidatePath(PATH);
+}
+
+/** 교사 한마디 순서 변경(위/아래 한 칸 이동, AC-5.1). */
+export async function reorderTeacherNoteAction(
+  formData: FormData,
+): Promise<void> {
+  const ownerId = await getOwnerId();
+  const id = String(formData.get("id") ?? "").trim();
+  const direction = String(formData.get("direction") ?? "");
+  if (!id || (direction !== "up" && direction !== "down")) return;
+  const db = getDb();
+  await moveTeacherNote(db, ownerId, id, direction);
+  await writeAudit(db, ownerId, "teacher_note_reorder", id, { direction });
   revalidatePath(PATH);
 }
 

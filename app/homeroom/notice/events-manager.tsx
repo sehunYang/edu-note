@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { Paginator } from "@/lib/ui/paginator";
+import { paginate } from "@/lib/db/pagination";
 import {
   addNoticeEventAction,
   updateNoticeEventAction,
@@ -7,9 +9,12 @@ import {
 } from "./actions";
 import type { NoticeEventRow } from "@/lib/db/queries";
 
+const PAGE_SIZE = 10;
+
 /**
- * 할 일 / 공지 관리 (QC v3 Part B AC-10.2). 추가 + 인라인 수정(제목·날짜·내용) + 삭제.
- * 내용(content)은 calendar_events.content 본문이며 공개 페이지에 함께 노출된다.
+ * 할 일 / 공지 관리 (QC v3 Part B AC-10.2 + QC v4 US-5 AC-5.5). 추가 + 인라인 수정
+ * (제목·날짜·내용) + 삭제 + 10개씩 페이지네이션. 내용(content)은 calendar_events.content
+ * 본문이며 공개 페이지에 함께 노출된다.
  */
 export function EventsManager({
   events,
@@ -19,6 +24,12 @@ export function EventsManager({
   today: string;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const { pageItems, totalPages, currentPage } = paginate(
+    events,
+    page,
+    PAGE_SIZE,
+  );
 
   return (
     <section className="mt-8">
@@ -56,8 +67,9 @@ export function EventsManager({
       {events.length === 0 ? (
         <p className="mt-3 text-sm text-neutral-400">등록된 공지가 없습니다.</p>
       ) : (
+        <>
         <ul className="mt-3 space-y-2">
-          {events.map((e) => {
+          {pageItems.map((e) => {
             const upcoming = e.date >= today;
             if (editing === e.id) {
               return (
@@ -152,6 +164,13 @@ export function EventsManager({
             );
           })}
         </ul>
+        <Paginator
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          className="mt-3"
+        />
+        </>
       )}
     </section>
   );

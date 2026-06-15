@@ -69,28 +69,75 @@ describe("weightedPickLeastRecorded", () => {
 
 describe("assembleNudges", () => {
   const base: NudgeInput = {
-    observationCounts: students,
+    sectionObservations: [
+      {
+        sectionKey: "sec1",
+        sectionLabel: "수학 3-1",
+        studentCounts: students,
+        studentNames: { a: "10101 김가", b: "10102 이나", c: "10103 박다" },
+      },
+      {
+        sectionKey: "sec2",
+        sectionLabel: "수학 3-2",
+        studentCounts: [
+          { id: "d", recordCount: 1 },
+          { id: "e", recordCount: 4 },
+        ],
+      },
+    ],
     behaviorPendingStudentIds: ["x", "y"],
     pendingReportTiers: ["normal", "warning", "critical", "critical"],
   };
   const at = (hour: number) => new Date(2026, 5, 8, hour, 0, 0);
 
-  it("미기록 수업 추천 1명(가중랜덤) + 후보 수", () => {
+  it("오늘 분반 수업당 1개씩 추천(가중랜덤 1명 확정 + 후보 수)", () => {
     const r = assembleNudges(base, { now: at(10), rng: () => 0 });
-    expect(r.unrecordedObservation).toEqual({
-      suggestedStudentId: "a",
-      candidateCount: 3,
-    });
+    expect(r.unrecordedObservations).toEqual([
+      {
+        sectionKey: "sec1",
+        sectionLabel: "수학 3-1",
+        suggestedStudentId: "a",
+        suggestedStudentName: "10101 김가",
+        candidateCount: 3,
+      },
+      {
+        sectionKey: "sec2",
+        sectionLabel: "수학 3-2",
+        suggestedStudentId: "d",
+        suggestedStudentName: undefined,
+        candidateCount: 2,
+      },
+    ]);
   });
 
-  it("행특 넛지는 16시 전엔 없음", () => {
-    const r = assembleNudges(base, { now: at(15), rng: () => 0 });
-    expect(r.behaviorNotes).toBeNull();
+  it("관찰 기록된 분반은 상위에서 제외되어 넛지 미생성(resolved-on-record)", () => {
+    // sec1 만 전달 = sec2 는 오늘 이미 기록되어 제외된 상태를 모사.
+    const r = assembleNudges(
+      { ...base, sectionObservations: [base.sectionObservations[0]] },
+      { now: at(10), rng: () => 0 },
+    );
+    expect(r.unrecordedObservations).toHaveLength(1);
+    expect(r.unrecordedObservations[0].sectionKey).toBe("sec1");
   });
 
-  it("행특 넛지는 16시 후 미작성 수만큼", () => {
-    const r = assembleNudges(base, { now: at(16), rng: () => 0 });
-    expect(r.behaviorNotes).toEqual({ pendingCount: 2 });
+  it("수강생 없는 분반은 추천 미생성", () => {
+    const r = assembleNudges(
+      {
+        ...base,
+        sectionObservations: [
+          { sectionKey: "empty", sectionLabel: "빈반", studentCounts: [] },
+        ],
+      },
+      { now: at(10), rng: () => 0 },
+    );
+    expect(r.unrecordedObservations).toHaveLength(0);
+  });
+
+  it("행특 넛지는 종일 표시(16시 게이트 제거)", () => {
+    const before = assembleNudges(base, { now: at(9), rng: () => 0 });
+    const after = assembleNudges(base, { now: at(16), rng: () => 0 });
+    expect(before.behaviorNotes).toEqual({ pendingCount: 2 });
+    expect(after.behaviorNotes).toEqual({ pendingCount: 2 });
   });
 
   it("미제출 신고서 티어별 집계", () => {
@@ -101,13 +148,13 @@ describe("assembleNudges", () => {
   it("아무 넛지도 없으면 hasAny=false", () => {
     const r = assembleNudges(
       {
-        observationCounts: [],
+        sectionObservations: [],
         behaviorPendingStudentIds: [],
         pendingReportTiers: [],
       },
       { now: at(17) },
     );
     expect(r.hasAny).toBe(false);
-    expect(r.unrecordedObservation).toBeNull();
+    expect(r.unrecordedObservations).toHaveLength(0);
   });
 });

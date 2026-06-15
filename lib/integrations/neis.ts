@@ -30,6 +30,8 @@ export interface NeisMealEntry {
   /** <br/> 정규화만 한 원본 메뉴(코드 포함). */
   rawMenu: string;
   calInfo: string | null; // 칼로리(CAL_INFO)
+  /** 영양정보(NTR_INFO) — "탄수화물(g) : 100.0\n단백질(g) : 30.0..." 형태. <br/>→줄바꿈 정규화. */
+  ntrInfo: string | null;
 }
 
 /** 학교 검색 결과 → NEIS 코드(학사일정·급식 조회 키). */
@@ -122,12 +124,15 @@ export function parseMealService(json: unknown): NeisMealEntry[] {
   return rows.map((r) => {
     const rawMenu = str(r.DDISH_NM).replace(/<br\s*\/?>/gi, "\n").trim();
     const calInfo = str(r.CAL_INFO).trim();
+    // NTR_INFO 는 <br/> 구분 영양항목 목록 — 줄바꿈으로 정규화(코드/괄호는 보존).
+    const ntrInfo = str(r.NTR_INFO).replace(/<br\s*\/?>/gi, "\n").trim();
     return {
       date: neisDate(str(r.MLSV_YMD)),
       mealType: str(r.MMEAL_SC_NM).trim(),
       menu: cleanMealMenu(str(r.DDISH_NM)),
       rawMenu,
       calInfo: calInfo.length > 0 ? calInfo : null,
+      ntrInfo: ntrInfo.length > 0 ? ntrInfo : null,
     };
   });
 }

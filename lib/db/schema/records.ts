@@ -143,7 +143,54 @@ export const studentExtraNotes = pgTable("student_extra_notes", {
   ...timestamps(),
 });
 
+// 학기계획 세부단원 (QC v4 US-2). 과목단위 대/중/소단원. 6자리코드=major*10000+mid*100+minor.
+export const lessonUnits = pgTable(
+  "lesson_units",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    majorNo: integer("major_no").notNull(),
+    midNo: integer("mid_no").notNull(),
+    minorNo: integer("minor_no").notNull(),
+    majorName: text("major_name").notNull(),
+    midName: text("mid_name").notNull(),
+    minorName: text("minor_name").notNull(),
+    keywords: text("keywords").array(),
+    minOrdinals: integer("min_ordinals").notNull().default(1),
+    ...timestamps(),
+  },
+  (t) => [
+    unique("uq_lesson_units").on(
+      t.subjectId,
+      t.majorNo,
+      t.midNo,
+      t.minorNo,
+    ),
+  ],
+);
+
+// 시험별 목표진도 (QC v4 US-2). 소단원 6자리코드 범위(from~to). examOrdinal 1/2.
+export const examTargets = pgTable(
+  "exam_targets",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    examOrdinal: integer("exam_ordinal").notNull(),
+    unitFromCode: integer("unit_from_code"),
+    unitToCode: integer("unit_to_code"),
+    ...timestamps(),
+  },
+  (t) => [unique("uq_exam_targets").on(t.subjectId, t.examOrdinal)],
+);
+
 // 수업 계획 (교실 2-2 수업계획실). 과목단위 차시 1..N. 핵심개념=keywords 해시태그.
+// QC v4: unitId 로 차시→소단원 연결(nullable, 점진).
 export const lessonPlans = pgTable(
   "lesson_plans",
   {
@@ -155,6 +202,9 @@ export const lessonPlans = pgTable(
     ordinal: integer("ordinal").notNull(),
     content: text("content"),
     keywords: text("keywords").array(),
+    unitId: uuid("unit_id").references(() => lessonUnits.id, {
+      onDelete: "set null",
+    }),
     ...timestamps(),
   },
   (t) => [unique("uq_lesson_plans").on(t.subjectId, t.ordinal)],

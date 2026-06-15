@@ -85,6 +85,8 @@ export type AuditEvent =
   | "counsel_slot_close"
   | "counsel_reserve"
   | "counsel_cancel"
+  | "counsel_cancel_request"
+  | "counsel_cancel_approve"
   | "counsel_record_update"
   | "teacher_note_create"
   | "teacher_note_update"
@@ -92,7 +94,16 @@ export type AuditEvent =
   | "fixed_class_save"
   | "elective_map_save"
   | "homeroom_record_save"
-  | "homeroom_backfill";
+  | "homeroom_backfill"
+  // QC v4 수업계획 학기계획 단계 (US-2)
+  | "lesson_unit_save"
+  | "lesson_unit_delete"
+  | "exam_target_save"
+  // QC v4 출결 (US-4)
+  | "field_trip_add"
+  | "attendance_update"
+  // QC v4 공지실 (US-5)
+  | "teacher_note_reorder";
 
 export async function writeAudit(
   db: DB,

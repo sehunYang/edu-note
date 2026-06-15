@@ -1,7 +1,9 @@
-import { and, count, desc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import { counselingLogs, counselSlots, counselReservations } from "../schema/misc";
+import { homeroomClasses, homeroomMembers } from "../schema/classes";
+import { studentYears } from "../schema/identity";
 import { writeAudit } from "./audit";
 
 /**
@@ -135,6 +137,7 @@ export interface CounselReservationRow {
   slotId: string;
   studentYearId: string;
   date: string;
+  cancelRequested: boolean;
   createdAt: Date;
 }
 
@@ -235,6 +238,7 @@ export async function listCounselReservations(
       slotId: counselReservations.slotId,
       studentYearId: counselReservations.studentYearId,
       date: counselSlots.date,
+      cancelRequested: counselReservations.cancelRequested,
       createdAt: counselReservations.createdAt,
     })
     .from(counselReservations)
@@ -325,4 +329,105 @@ export async function cancelReservation(
       ),
     );
   await writeAudit(db, ownerId, "counsel_cancel", reservationId);
+}
+
+// ── AC-6.7: 학생 취소요청 → 교사 승인 ──────────────────────────────────────
+
+/**
+ * 학생 본인 예약의 취소요청 플래그 설정(토큰 스코프에서 호출). (slotId, studentYearId)
+ * 본인 행만. 교사가 별도로 승인(approve)해야 실제 삭제(정원 환원)된다.
+ */
+export async function requestCancelReservation(
+  db: DB,
+  ownerId: string,
+  slotId: string,
+  studentYearId: string,
+): Promise<void> {
+  await db
+    .update(counselReservations)
+    .set({ cancelRequested: true, updatedAt: new Date() })
+    .where(
+      and(
+        eq(counselReservations.ownerId, ownerId),
+        eq(counselReservations.slotId, slotId),
+        eq(counselReservations.studentYearId, studentYearId),
+      ),
+    );
+  await writeAudit(db, ownerId, "counsel_cancel_request", slotId, {
+    studentYearId,
+  });
+}
+
+/**
+ * 교사 취소요청 승인 — 예약 행 삭제(정원 환원) + 캘린더 자동 반영(get_public_page 가
+ * 예약을 weekTodos 에 합류시키므로, 삭제만으로 캘린더에서도 제거된다). 본인 소유만.
+ * audit counsel_cancel_approve.
+ */
+export async function approveCancelReservation(
+  db: DB,
+  ownerId: string,
+  reservationId: string,
+): Promise<void> {
+  await db
+    .delete(counselReservations)
+    .where(
+      and(
+        eq(counselReservations.id, reservationId),
+        eq(counselReservations.ownerId, ownerId),
+        eq(counselReservations.cancelRequested, true),
+      ),
+    );
+  await writeAudit(db, ownerId, "counsel_cancel_approve", reservationId);
+}
+
+// ── QC v4 AC-7.9: 담임 로스터 전체의 다가오는 상담 예약 집계(오늘의 학교 캘린더) ──
+
+export interface HomeroomCounselReservation {
+  date: string; // YYYY-MM-DD (슬롯 날짜)
+  studentYearId: string;
+  studentLabel: string; // 학번 이름
+}
+
+/**
+ * 담임반 학생 전체의 다가오는(fromDate≤) 예약 상담을 날짜순으로 집계한다(AC-7.9).
+ * 기존 per-student/per-slot 쿼리에 없는 신규 집계 — 오늘의 학교 학사일정 캘린더에
+ * 병합 표시한다. 담임반 학생으로 한정(homeroom_members), ownerId 가드. 날짜·학번순.
+ */
+export async function listHomeroomUpcomingReservations(
+  db: DB,
+  ownerId: string,
+  year: number,
+  fromDate: string,
+): Promise<HomeroomCounselReservation[]> {
+  return db
+    .select({
+      date: counselSlots.date,
+      studentYearId: counselReservations.studentYearId,
+      sid: studentYears.sid,
+      name: studentYears.name,
+    })
+    .from(counselReservations)
+    .innerJoin(counselSlots, eq(counselSlots.id, counselReservations.slotId))
+    .innerJoin(
+      homeroomMembers,
+      eq(homeroomMembers.studentYearId, counselReservations.studentYearId),
+    )
+    .innerJoin(homeroomClasses, eq(homeroomClasses.id, homeroomMembers.homeroomId))
+    .innerJoin(studentYears, eq(studentYears.id, counselReservations.studentYearId))
+    .where(
+      and(
+        eq(counselReservations.ownerId, ownerId),
+        eq(homeroomMembers.ownerId, ownerId),
+        eq(homeroomClasses.schoolYear, year),
+        gte(counselSlots.date, fromDate),
+      ),
+    )
+    .orderBy(asc(counselSlots.date), asc(studentYears.sid))
+    .then((rows) =>
+      rows.map((r) => ({
+        date: r.date,
+        studentYearId: r.studentYearId,
+        studentLabel: `${r.sid} ${r.name}`,
+      })),
+    );
 }

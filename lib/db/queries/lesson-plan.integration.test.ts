@@ -5,7 +5,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { eq } from "drizzle-orm";
 import * as schema from "../schema";
 import { subjects, courseSections, timetableSlots } from "../schema/classes";
-import { lessonPlans } from "../schema/records";
+import { lessonPlans, lessonUnits, examTargets } from "../schema/records";
 import { schoolDayCalendar } from "../schema/misc";
 import {
   getPlanLength,
@@ -13,7 +13,16 @@ import {
   listLessonPlan,
   upsertLessonPlanEntry,
   deleteLessonPlanEntry,
+  listLessonUnits,
+  upsertLessonUnit,
+  deleteLessonUnit,
+  lookupUnitByCode,
+  listExamTargets,
+  upsertExamTarget,
+  countOrdinalsPerUnit,
+  isSemesterPlanComplete,
 } from "./lesson-plan";
+import { sixDigitCode, validateMinOrdinals } from "@/lib/domain/lesson-unit";
 
 /**
  * 수업 계획실 실DB 통합 테스트 (교실 2-2 단계2).
@@ -97,6 +106,8 @@ describe.skipIf(!RUN)("수업 계획실 쿼리", () => {
 
   afterAll(async () => {
     await db.delete(lessonPlans).where(eq(lessonPlans.ownerId, owner));
+    await db.delete(examTargets).where(eq(examTargets.ownerId, owner));
+    await db.delete(lessonUnits).where(eq(lessonUnits.ownerId, owner));
     await db.delete(timetableSlots).where(eq(timetableSlots.ownerId, owner));
     await db.delete(schoolDayCalendar).where(eq(schoolDayCalendar.ownerId, owner));
     await db.delete(courseSections).where(eq(courseSections.ownerId, owner));
@@ -169,5 +180,143 @@ describe.skipIf(!RUN)("수업 계획실 쿼리", () => {
     expect(p2).toHaveLength(1);
     expect(p1[0].content).toBe("1차시 수정본");
     expect(p2[0].content).toBe("2학기 1차시");
+  });
+});
+
+describe.skipIf(!RUN)("학기계획 세부단원·시험목표 (QC v4 US-2)", () => {
+  const owner2 = randomUUID();
+  let sql2: ReturnType<typeof postgres>;
+  let db2: PostgresJsDatabase<typeof schema>;
+  let sub: string;
+
+  beforeAll(async () => {
+    sql2 = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    db2 = drizzle(sql2, { schema, casing: "snake_case" });
+    const [s] = await db2
+      .insert(subjects)
+      .values({ ownerId: owner2, name: "지구과학", schoolYear: 2099, semester: 1 })
+      .returning({ id: subjects.id });
+    sub = s.id;
+  });
+
+  afterAll(async () => {
+    await db2.delete(lessonPlans).where(eq(lessonPlans.ownerId, owner2));
+    await db2.delete(examTargets).where(eq(examTargets.ownerId, owner2));
+    await db2.delete(lessonUnits).where(eq(lessonUnits.ownerId, owner2));
+    await db2.delete(subjects).where(eq(subjects.ownerId, owner2));
+    await sql2.end();
+  });
+
+  it("isSemesterPlanComplete — 단원 없으면 false", async () => {
+    expect(await isSemesterPlanComplete(db2, owner2, sub)).toBe(false);
+  });
+
+  it("upsertLessonUnit + list — 6자리 코드 오름차순", async () => {
+    await upsertLessonUnit(db2, owner2, sub, {
+      majorNo: 2,
+      midNo: 1,
+      minorNo: 1,
+      majorName: "대기",
+      midName: "기단",
+      minorName: "전선",
+      keywords: ["한랭전선"],
+      minOrdinals: 2,
+    });
+    await upsertLessonUnit(db2, owner2, sub, {
+      majorNo: 1,
+      midNo: 1,
+      minorNo: 1,
+      majorName: "지권",
+      midName: "암석",
+      minorName: "화성암",
+      keywords: ["마그마"],
+      minOrdinals: 1,
+    });
+    const units = await listLessonUnits(db2, owner2, sub);
+    expect(units).toHaveLength(2);
+    expect(sixDigitCode(units[0])).toBe(10101); // 1·1·1 먼저
+    expect(sixDigitCode(units[1])).toBe(20101);
+    expect(units[0].keywords).toEqual(["마그마"]);
+  });
+
+  it("isSemesterPlanComplete — 단원 있으면 true(게이트 통과)", async () => {
+    expect(await isSemesterPlanComplete(db2, owner2, sub)).toBe(true);
+  });
+
+  it("upsertLessonUnit 충돌 — 동일 코드 갱신(중복 아님)", async () => {
+    await upsertLessonUnit(db2, owner2, sub, {
+      majorNo: 1,
+      midNo: 1,
+      minorNo: 1,
+      majorName: "지권",
+      midName: "암석",
+      minorName: "화성암(수정)",
+      keywords: ["현무암"],
+      minOrdinals: 3,
+    });
+    const units = await listLessonUnits(db2, owner2, sub);
+    expect(units).toHaveLength(2); // 여전히 2
+    const u = units.find((x) => sixDigitCode(x) === 10101)!;
+    expect(u.minorName).toBe("화성암(수정)");
+    expect(u.minOrdinals).toBe(3);
+  });
+
+  it("lookupUnitByCode — 유효 코드 조회, 미존재 코드 null(AC-1.6)", async () => {
+    const found = await lookupUnitByCode(db2, owner2, sub, 20101);
+    expect(found?.minorName).toBe("전선");
+    const missing = await lookupUnitByCode(db2, owner2, sub, 990101);
+    expect(missing).toBeNull();
+  });
+
+  it("upsertExamTarget + list — 범위(from~to) 저장·갱신", async () => {
+    await upsertExamTarget(db2, owner2, sub, 1, 10101, 20101);
+    await upsertExamTarget(db2, owner2, sub, 2, 20101, null);
+    let targets = await listExamTargets(db2, owner2, sub);
+    expect(targets).toHaveLength(2);
+    expect(targets[0]).toMatchObject({
+      examOrdinal: 1,
+      unitFromCode: 10101,
+      unitToCode: 20101,
+    });
+    // 동일 차수 재저장 → 갱신(중복 아님)
+    await upsertExamTarget(db2, owner2, sub, 1, 10101, 10101);
+    targets = await listExamTargets(db2, owner2, sub);
+    expect(targets).toHaveLength(2);
+    expect(targets[0].unitToCode).toBe(10101);
+  });
+
+  it("countOrdinalsPerUnit + 최소차시 초과 검증(AC-1.8)", async () => {
+    const units = await listLessonUnits(db2, owner2, sub);
+    const u1 = units.find((x) => sixDigitCode(x) === 10101)!; // minOrdinals=3
+    const u2 = units.find((x) => sixDigitCode(x) === 20101)!; // minOrdinals=2
+
+    // u2 에 3개 차시 연결(최소 2 초과), u1 에 1개(최소 3 미만).
+    await upsertLessonPlanEntry(db2, owner2, sub, 1, { content: "c1", unitId: u1.id });
+    await upsertLessonPlanEntry(db2, owner2, sub, 2, { content: "c2", unitId: u2.id });
+    await upsertLessonPlanEntry(db2, owner2, sub, 3, { content: "c3", unitId: u2.id });
+    await upsertLessonPlanEntry(db2, owner2, sub, 4, { content: "c4", unitId: u2.id });
+
+    const counts = await countOrdinalsPerUnit(db2, owner2, sub);
+    expect(counts.get(u1.id)).toBe(1);
+    expect(counts.get(u2.id)).toBe(3);
+
+    expect(validateMinOrdinals(u1.minOrdinals, counts.get(u1.id) ?? 0).exceeded).toBe(
+      false,
+    );
+    expect(validateMinOrdinals(u2.minOrdinals, counts.get(u2.id) ?? 0).exceeded).toBe(
+      true,
+    );
+  });
+
+  it("deleteLessonUnit — 차시 연결은 set null 로 보존", async () => {
+    const units = await listLessonUnits(db2, owner2, sub);
+    const u2 = units.find((x) => sixDigitCode(x) === 20101)!;
+    await deleteLessonUnit(db2, owner2, u2.id);
+    const after = await listLessonUnits(db2, owner2, sub);
+    expect(after.find((x) => x.id === u2.id)).toBeUndefined();
+    // 차시는 보존(unitId 만 null)
+    const plans = await listLessonPlan(db2, owner2, sub);
+    expect(plans.length).toBeGreaterThanOrEqual(4);
+    expect(plans.find((p) => p.ordinal === 2)?.unitId).toBeNull();
   });
 });

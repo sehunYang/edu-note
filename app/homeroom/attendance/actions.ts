@@ -6,7 +6,9 @@ import {
   upsertAttendance,
   setReportSubmitted,
   deleteAttendance,
-  addFieldTripReport,
+  updateAttendanceRecord,
+  addFieldTrip,
+  addAbsenceRange,
   setFieldTripSubmitted,
   recomputeEscalation,
   writeAudit,
@@ -89,18 +91,53 @@ export async function deleteAttendanceAction(formData: FormData): Promise<void> 
   revalidatePath("/homeroom/attendance");
 }
 
-/** 교외체험 사후보고서 추적 시작. */
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** 출결 기록 수정(AC-4.5). 사유/성격/비고/교시 갱신 + reportRequired 재파생. */
+export async function updateAttendanceAction(formData: FormData): Promise<void> {
+  const ownerId = await getOwnerId();
+  const id = String(formData.get("id") ?? "").trim();
+  const reason = String(formData.get("reason") ?? "") as AttendanceReason;
+  const kind = String(formData.get("kind") ?? "") as AttendanceKind;
+  const noteField = String(formData.get("noteField") ?? "").trim() || null;
+  if (!id || !REASONS.includes(reason) || !KINDS.includes(kind)) return;
+  const db = getDb();
+  await updateAttendanceRecord(db, ownerId, id, { reason, kind, noteField });
+  revalidatePath("/homeroom/attendance");
+}
+
+/** 결석 기간 입력(AC-4.4). 범위 내 수업일마다 결석 자동 생성. */
+export async function addAbsenceRangeAction(formData: FormData): Promise<void> {
+  const ownerId = await getOwnerId();
+  const studentYearId = String(formData.get("studentYearId") ?? "").trim();
+  const startDate = String(formData.get("startDate") ?? "").trim();
+  const endDate = String(formData.get("endDate") ?? "").trim() || startDate;
+  const reason = String(formData.get("reason") ?? "") as AttendanceReason;
+  const noteField = String(formData.get("noteField") ?? "").trim() || null;
+  if (
+    !studentYearId ||
+    !DATE_RE.test(startDate) ||
+    !DATE_RE.test(endDate) ||
+    !REASONS.includes(reason)
+  ) {
+    return;
+  }
+  const db = getDb();
+  await addAbsenceRange(db, ownerId, studentYearId, startDate, endDate, reason, noteField);
+  revalidatePath("/homeroom/attendance");
+}
+
+/** 교외체험학습 추가(AC-4.2). 기간 내 수업일마다 인정결석 자동 생성 + 사후보고서 추적. */
 export async function addFieldTripAction(formData: FormData): Promise<void> {
   const ownerId = await getOwnerId();
   const studentYearId = String(formData.get("studentYearId") ?? "").trim();
-  const tripDate = String(formData.get("tripDate") ?? "").trim();
-  if (!studentYearId || !tripDate) return;
+  const startDate = String(formData.get("startDate") ?? "").trim();
+  const endRaw = String(formData.get("endDate") ?? "").trim();
+  const endDate = endRaw || null;
+  if (!studentYearId || !DATE_RE.test(startDate)) return;
+  if (endDate && !DATE_RE.test(endDate)) return;
   const db = getDb();
-  const trip = await addFieldTripReport(db, ownerId, { studentYearId, tripDate });
-  await writeAudit(db, ownerId, "field_trip_record", trip.id, {
-    studentYearId,
-    tripDate,
-  });
+  await addFieldTrip(db, ownerId, studentYearId, startDate, endDate);
   revalidatePath("/homeroom/attendance");
 }
 

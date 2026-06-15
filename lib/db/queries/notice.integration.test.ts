@@ -10,6 +10,7 @@ import {
   calendarEvents,
   publicPages,
   teacherNotes,
+  teacherNoteTargets,
   fixedClassSettings,
 } from "../schema/misc";
 import {
@@ -23,6 +24,7 @@ import {
   updateTeacherNote,
   deleteTeacherNote,
   updateNoticeEvent,
+  moveTeacherNote,
 } from "./notice";
 import { saveFixedClassSetting, listFixedClassSettings } from "./fixed-class";
 import { issuePublicPage } from "./public-page";
@@ -212,5 +214,143 @@ describe.skipIf(!RUN)("공지실 — 다중 한마디 / 할일 content / 고정�
     const grade3 = await listFixedClassSettings(db2, owner2, 3);
     expect(grade3).toHaveLength(1);
     expect(grade3[0].subjectName).toBe("확률과통계");
+  });
+});
+
+/**
+ * QC v4 US-5 (공지실). (a) target_scope='individual' + teacher_note_targets 다중 학생
+ * round-trip, (b) moveTeacherNote 위/아래 순서변경, (c) all↔individual 전환 시 대상 매핑 정리.
+ * 자체 owner/cleanup(teacher_note_targets 포함).
+ */
+describe.skipIf(!RUN)("공지실 — 개별 공지 대상 / 순서변경(US-5)", () => {
+  let sql3: ReturnType<typeof postgres>;
+  let db3: PostgresJsDatabase<typeof schema>;
+  const owner3 = randomUUID();
+  const YEAR3 = 2098;
+  let sy1: string;
+  let sy2: string;
+
+  beforeAll(async () => {
+    sql3 = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    db3 = drizzle(sql3, { schema, casing: "snake_case" });
+    const [p1] = await db3
+      .insert(persons)
+      .values({ ownerId: owner3, displayName: "학생A" })
+      .returning({ id: persons.id });
+    const [p2] = await db3
+      .insert(persons)
+      .values({ ownerId: owner3, displayName: "학생B" })
+      .returning({ id: persons.id });
+    [{ id: sy1 }] = await db3
+      .insert(studentYears)
+      .values({
+        ownerId: owner3,
+        personId: p1.id,
+        schoolYear: YEAR3,
+        sid: "10101",
+        grade: 1,
+        classNo: 1,
+        number: 1,
+        name: "학생A",
+      })
+      .returning({ id: studentYears.id });
+    [{ id: sy2 }] = await db3
+      .insert(studentYears)
+      .values({
+        ownerId: owner3,
+        personId: p2.id,
+        schoolYear: YEAR3,
+        sid: "10102",
+        grade: 1,
+        classNo: 1,
+        number: 2,
+        name: "학생B",
+      })
+      .returning({ id: studentYears.id });
+  });
+
+  afterAll(async () => {
+    await db3
+      .delete(teacherNoteTargets)
+      .where(eq(teacherNoteTargets.ownerId, owner3));
+    await db3.delete(teacherNotes).where(eq(teacherNotes.ownerId, owner3));
+    await db3.delete(studentYears).where(eq(studentYears.ownerId, owner3));
+    await db3.delete(persons).where(eq(persons.ownerId, owner3));
+    await sql3.end();
+  });
+
+  it("(a) 개별 공지 — target_scope='individual' + 다중 대상 매핑 round-trip", async () => {
+    const n = await createTeacherNote(
+      db3,
+      owner3,
+      "특정 학생 공지",
+      1,
+      "individual",
+      [sy1, sy2],
+    );
+    const notes = await listTeacherNotes(db3, owner3);
+    const row = notes.find((x) => x.id === n.id);
+    expect(row?.targetScope).toBe("individual");
+    expect(row?.targetStudentYearIds.sort()).toEqual([sy1, sy2].sort());
+
+    // 대상 변경(한 명만 유지) → 매핑 교체.
+    await updateTeacherNote(db3, owner3, n.id, "특정 학생 공지", "individual", [
+      sy2,
+    ]);
+    const after = (await listTeacherNotes(db3, owner3)).find(
+      (x) => x.id === n.id,
+    );
+    expect(after?.targetStudentYearIds).toEqual([sy2]);
+
+    // 'all' 로 전환 → 대상 매핑 비움.
+    await updateTeacherNote(db3, owner3, n.id, "전체 공지", "all", []);
+    const allRow = (await listTeacherNotes(db3, owner3)).find(
+      (x) => x.id === n.id,
+    );
+    expect(allRow?.targetScope).toBe("all");
+    expect(allRow?.targetStudentYearIds).toEqual([]);
+  });
+
+  it("(b) moveTeacherNote 위/아래 순서변경", async () => {
+    // 깨끗한 상태에서 3개 생성(앞 테스트 잔여 제거).
+    await db3
+      .delete(teacherNoteTargets)
+      .where(eq(teacherNoteTargets.ownerId, owner3));
+    await db3.delete(teacherNotes).where(eq(teacherNotes.ownerId, owner3));
+    await createTeacherNote(db3, owner3, "A", 1);
+    await createTeacherNote(db3, owner3, "B", 2);
+    await createTeacherNote(db3, owner3, "C", 3);
+    let notes = await listTeacherNotes(db3, owner3);
+    expect(notes.map((n) => n.body)).toEqual(["A", "B", "C"]);
+
+    // B 를 위로 → [B, A, C]
+    const bId = notes.find((n) => n.body === "B")!.id;
+    await moveTeacherNote(db3, owner3, bId, "up");
+    notes = await listTeacherNotes(db3, owner3);
+    expect(notes.map((n) => n.body)).toEqual(["B", "A", "C"]);
+
+    // C 를 위로 → [B, C, A]
+    const cId = notes.find((n) => n.body === "C")!.id;
+    await moveTeacherNote(db3, owner3, cId, "up");
+    notes = await listTeacherNotes(db3, owner3);
+    expect(notes.map((n) => n.body)).toEqual(["B", "C", "A"]);
+
+    // 맨 위 항목 up = 무변화(경계).
+    const firstId = notes[0].id;
+    await moveTeacherNote(db3, owner3, firstId, "up");
+    notes = await listTeacherNotes(db3, owner3);
+    expect(notes.map((n) => n.body)).toEqual(["B", "C", "A"]);
+  });
+
+  it("(c) 개별 공지 삭제 시 teacher_note_targets cascade 정리", async () => {
+    const n = await createTeacherNote(db3, owner3, "삭제대상", 99, "individual", [
+      sy1,
+    ]);
+    await deleteTeacherNote(db3, owner3, n.id);
+    const remaining = await db3
+      .select({ id: teacherNoteTargets.id })
+      .from(teacherNoteTargets)
+      .where(eq(teacherNoteTargets.noteId, n.id));
+    expect(remaining).toHaveLength(0);
   });
 });

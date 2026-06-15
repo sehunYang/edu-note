@@ -60,9 +60,10 @@ describe.skipIf(!RUN)("에스컬레이션 — 교외체험 사후보고서 티�
       })
       .returning({ id: studentYears.id });
 
-    // 최근 40일 수업일 캘린더(평일=수업일).
+    // 최근 40일 + 향후 30일 수업일 캘린더(평일=수업일).
+    // 향후 분까지 필요한 이유: 교외체험 마감=종료일 이후 10번째 수업일(미래일 수 있음).
     const cal: { ownerId: string; date: string; isSchoolDay: boolean }[] = [];
-    for (let i = -40; i <= 0; i++) {
+    for (let i = -40; i <= 30; i++) {
       const date = addDays(i);
       const wd = new Date(date + "T00:00:00Z").getUTCDay();
       cal.push({ ownerId: owner, date, isSchoolDay: wd >= 1 && wd <= 5 });
@@ -114,5 +115,23 @@ describe.skipIf(!RUN)("에스컬레이션 — 교외체험 사후보고서 티�
     await recomputeEscalation(db, owner);
     const trips = await listFieldTrips(db, owner);
     expect(trips[0].tier).toBe("normal");
+  });
+
+  it("기간 체험 마감은 종료일(end_date) 기준으로 계산 (AC-4.2)", async () => {
+    // 시작 -10일 ~ 종료 -8일(기간). 마감 = 종료일 이후 5번째 수업일.
+    const { id } = await addFieldTripReport(db, owner, {
+      studentYearId: s1,
+      tripDate: addDays(-10),
+      endDate: addDays(-8),
+    });
+    await recomputeEscalation(db, owner);
+
+    const trips = await listFieldTrips(db, owner);
+    const t = trips.find((x) => x.id === id);
+    expect(t).toBeDefined();
+    expect(t!.endDate).toBe(addDays(-8));
+    // 마감은 종료일(-8) 이후의 날짜여야 한다(시작일 -10 기준이 아님).
+    expect(t!.deadlineDate).not.toBeNull();
+    expect(t!.deadlineDate! > addDays(-8)).toBe(true);
   });
 });

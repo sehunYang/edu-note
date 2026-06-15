@@ -23,6 +23,8 @@ export interface PublicTimetableSlot {
 export interface PublicMeal {
   date: string; // YYYY-MM-DD
   menu: string;
+  calInfo: string | null; // 칼로리(CAL_INFO) — 표로 분리 표시. v4.
+  ntrInfo: string | null; // 영양정보(NTR_INFO) — 표로 분리 표시. v4.
 }
 
 // ── 개별칸 ──
@@ -68,6 +70,7 @@ export interface PublicCounselSlot {
   date: string; // YYYY-MM-DD
   remaining: number; // 잔여 정원
   reserved: boolean; // 이 학생 본인의 예약 여부
+  cancelRequested: boolean; // 본인 예약의 취소 요청 상태(교사 승인 대기). v4.
 }
 
 export interface PublicPagePayload {
@@ -76,7 +79,8 @@ export interface PublicPagePayload {
   // 공통칸
   weekTodos: PublicWeekTodo[];
   commonNotice: string | null; // 교사 한마디(단일, 하위호환)
-  notices: string[]; // 다중 교사 한마디(스와이프)
+  notices: string[]; // 다중 교사 한마디(전체 공개 — 스와이프)
+  individualNotices: string[]; // 이 학생 대상 개별 공지(전체 공지와 병렬 표시). v4 AC-5.3.
   timetable: PublicTimetableSlot[];
   meals: PublicMeal[];
   // 개별칸
@@ -153,6 +157,7 @@ export interface RawPublicPageInput {
   weekTodos: { title: string; at: string }[];
   commonNotice: string | null;
   notices?: string[];
+  individualNotices?: string[];
   timetable: {
     weekday: number;
     period: number;
@@ -160,11 +165,16 @@ export interface RawPublicPageInput {
     isFixed?: boolean;
     electiveMapped?: string | null;
   }[];
-  meals: { date: string; menu: string }[];
+  meals: { date: string; menu: string; calInfo?: string | null; ntrInfo?: string | null }[];
   // 출결 원자료 (집계 전용)
   attendance: AttendanceRowForSummary[];
   attendance2D?: PublicAttendance2D;
-  counselSlots?: { date: string; remaining: number; reserved: boolean }[];
+  counselSlots?: {
+    date: string;
+    remaining: number;
+    reserved: boolean;
+    cancelRequested?: boolean;
+  }[];
   // 성적
   gradesMock: boolean;
   grades: { subjectName: string; rank: number | null; grade5: number | null; achievement: string | null }[];
@@ -191,6 +201,9 @@ export function buildPublicPagePayload(
     weekTodos: input.weekTodos.map((t) => ({ title: t.title, at: t.at })),
     commonNotice: input.commonNotice,
     notices: (input.notices ?? []).filter((n): n is string => typeof n === "string"),
+    individualNotices: (input.individualNotices ?? []).filter(
+      (n): n is string => typeof n === "string",
+    ),
     timetable: input.timetable.map((s) => ({
       weekday: s.weekday,
       period: s.period,
@@ -198,13 +211,19 @@ export function buildPublicPagePayload(
       isFixed: s.isFixed ?? false,
       electiveMapped: s.electiveMapped ?? null,
     })),
-    meals: input.meals.map((m) => ({ date: m.date, menu: m.menu })),
+    meals: input.meals.map((m) => ({
+      date: m.date,
+      menu: m.menu,
+      calInfo: m.calInfo ?? null,
+      ntrInfo: m.ntrInfo ?? null,
+    })),
     attendanceSummary: summarizeAttendance(input.attendance),
     attendance2D: input.attendance2D ?? emptyAttendance2D(),
     counselSlots: (input.counselSlots ?? []).map((c) => ({
       date: c.date,
       remaining: c.remaining,
       reserved: c.reserved,
+      cancelRequested: c.cancelRequested ?? false,
     })),
     grades: input.gradesMock
       ? { status: "preparing" }
@@ -267,7 +286,12 @@ function parseMeal(v: unknown): PublicMeal | null {
   const date = asString(o.date);
   const menu = asString(o.menu);
   if (date === null || menu === null) return null;
-  return { date, menu };
+  return {
+    date,
+    menu,
+    calInfo: asString(o.calInfo),
+    ntrInfo: asString(o.ntrInfo),
+  };
 }
 function parseGradeItem(v: unknown): PublicGradeItem | null {
   const o = rec(v);
@@ -324,6 +348,7 @@ function parseCounselSlot(v: unknown): PublicCounselSlot | null {
     date,
     remaining: asNumber(o.remaining) ?? 0,
     reserved: o.reserved === true,
+    cancelRequested: o.cancelRequested === true,
   };
 }
 
@@ -338,6 +363,7 @@ export function parsePublicPagePayload(raw: unknown): PublicPagePayload {
     weekTodos: asArray(o.weekTodos).map(parseTodo).filter((x): x is PublicWeekTodo => x !== null),
     commonNotice: asString(o.commonNotice),
     notices: parseStringArray(o.notices),
+    individualNotices: parseStringArray(o.individualNotices),
     timetable: asArray(o.timetable).map(parseSlot).filter((x): x is PublicTimetableSlot => x !== null),
     meals: asArray(o.meals).map(parseMeal).filter((x): x is PublicMeal => x !== null),
     attendanceSummary: parseAttendance(o.attendanceSummary),

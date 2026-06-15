@@ -1,134 +1,121 @@
 {
-  "task": "QC v3 Part B — 담임 교실 허브(/homeroom) 신설 + 출결/상담/공지/행특 이전·확장 + 자율진로·생기부 신규 + 학생 안내 페이지 전면개편. 마이그 0020~0027(additive, 공유 prod). 브랜치 feat/qc-v3-part-b.",
-  "plan": ".omc/plans/qc-v3-classroom-homeroom-plan.md",
-  "spec": ".omc/specs/deep-interview-qc-v3.md",
-  "decisions": "사용자 승인: 학생 공개페이지 출결 2D표는 성격×사유(reason) 전체 노출(get_public_page에 reason 차원 추가).",
+  "task": "QC v4 — qc-v4-plan.md 순서대로 9개 컴포넌트 구현 → 통합테스트 green → 배포. 브랜치 feat/qc-v4.",
+  "plan": ".omc/plans/qc-v4-plan.md",
+  "spec": ".omc/specs/deep-interview-qc-v4.md",
+  "decisions": "임계 5% deep-interview 통과. Architect SOUND-WITH-CHANGES + Critic APPROVED-WITH-NITS 반영. 마이그 번호=머지시점 순번(현재 최신 0029→0030+), get_public_page_v4 최후. prod 마이그/배포 사용자 승인됨(배포까지 요청).",
   "stories": [
     {
-      "id": "US-B0",
-      "title": "마이그레이션 0020~0027 + 스키마 additive + audit 전체",
+      "id": "US-1",
+      "title": "Phase 0 — 공유 기반: 페이지네이션 유틸 + 디바이스 라우팅",
       "priority": 0,
       "passes": true,
       "acceptanceCriteria": [
-        "0020: attendance_records.periods int[] 컬럼 add (nullable, idempotent)",
-        "0021: counsel_slots(owner,date,capacity unique(owner,date)) + counsel_reservations(owner,slot_id FK,student_year_id, unique(slot_id,student_year_id)) RLS owner_rw",
-        "0022: teacher_notes(owner,body,sort_order,timestamps) 테이블 + 기존 teacher_profile.public_notice 값을 첫 행(sort_order=0)으로 이행 + todos에 content text 컬럼 add",
-        "0023: fixed_class_settings(owner,grade,class_no,subject_name,is_fixed, unique(owner,grade,class_no,subject_name)) RLS owner_rw",
-        "0024: student_elective_mappings(owner,student_year_id,weekday,period,mapped_subject, unique(student_year_id,weekday,period)) RLS owner_rw",
-        "0025: 생기부 초안 = 기존 special_note_drafts 재사용 결정 확정(specialNoteType에 autonomy/career 존재, 행발=behavior 신규 enum값 필요시 ADD VALUE 단독파일) — 재사용 가능하면 신규테이블 미생성, 불가하면 homeroom_records(area text+CHECK) 생성",
-        "0026: reportTracking.lastTier 모델 = normal/warning/critical enum값 유지하되 의미 재정의(잔여수업일 기반), 마이그 불필요시 0026 생략 명시",
-        "0027: homeroom_classes/homeroom_members 백필 — teacher_profile.is_homeroom AND studentYears.grade/classNo==homeroomGrade/homeroomClassNo 인 학생을 idempotent insert",
-        "schema/{attendance,misc,classes,records}.ts additive 동기화 + audit.ts에 신규 이벤트(attendance_period_record, counsel_slot_open/reserve/cancel, counsel_record_update, teacher_note_create/update/delete, fixed_class_save, elective_map_save, homeroom_record_save, homeroom_backfill) 추가",
-        "apply-sql.mjs로 전 마이그 적용 후 relrowsecurity=true(신규 RLS 테이블) + teacher_notes 행 이행 확인 + npm run typecheck 0"
-      ]
-    },
-    {
-      "id": "US-B6",
-      "title": "담임 허브 셸 + 라우트 이전/리다이렉트 (AC-5.x)",
-      "priority": 1,
-      "passes": true,
-      "acceptanceCriteria": [
-        "app/homeroom/layout.tsx + page.tsx: 6개 하위 카드(자율진로/출결/행특/상담/공지/생기부), 담임 미설정시 게이팅 안내(getTeacherSettings.isHomeroom)",
-        "기존 app/{attendance,counsel,notice} → /homeroom/* 로 redirect(또는 제거 후 신규 위치)",
-        "app/page.tsx 홈 허브 카드에 담임 교실 진입점 갱신",
-        "담임반 학생 = listHomeroomStudents(FD1) 단일출처, 학기 토글 없음",
+        "components/paginator.tsx 공용 번호식(1 2 3 …) 페이지네이션 컴포넌트 + 쿼리 limit/offset 헬퍼",
+        "middleware.ts 편집(생성 아님): 서버 User-Agent로 모바일 판별 → 루트(/) 진입만 /today 리다이렉트, 기존 updateSession/auth 매처 보존(AC-9.1~9.3)",
+        "UA 모바일/데스크톱 분기 단위 테스트 green",
         "npm run typecheck 0 + npm run build exit0"
       ]
     },
     {
-      "id": "US-B8",
-      "title": "행특 담임반 판별 수정 (AC-8.x, FD1 백필 검증)",
+      "id": "US-2",
+      "title": "Phase 1 — 수업 계획실 2단계 (학기계획+차시계획)",
+      "priority": 1,
+      "passes": true,
+      "acceptanceCriteria": [
+        "마이그 lesson_units(과목별, 대/중/소단원명, 6자리코드, 핵심개념 text[], min_ordinals int) + exam_targets(examOrdinal 1/2, unitRangeFrom, unitRangeTo) + schema 동기화",
+        "lib/db/queries/lesson-plan.ts: 단원 CRUD, 시험별 목표진도 CRUD, 6자리코드 lookup(미존재시 오류·저장차단 AC-1.6), 차시 자동카운트+최소차시 초과검증",
+        "app/classroom/plan 2단계 라우트 분리(학기계획/차시계획), 학기계획 미완 시 차시계획 진입차단(AC-1.1)",
+        "UI: 학기계획 에디터(단원트리+핵심개념 해시태그+최소차시 수정/삭제), 시험별 목표진도 범위토글, 차시계획(6자리/토글 자동채움), 상단 일괄저장",
+        "최소차시 초과 저장 시 '학기 계획을 변경하시겠습니까?' 모달(네=갱신/취소=중단)(AC-1.8), 차시리스트 10개 페이지네이션",
+        "lesson-plan.integration.test.ts 확장 green + typecheck 0 + build exit0"
+      ]
+    },
+    {
+      "id": "US-3",
+      "title": "Phase 2 — 진척도 (계획 vs 실제, 진도율 통계)",
       "priority": 2,
       "passes": true,
       "acceptanceCriteria": [
-        "0027 백필 후 listHomeroomStudents가 담임반 학생을 반환(behavior 페이지 동작)",
-        "observations.integration.test.ts: 백필 후 listHomeroomStudents 집합 == profile 술어(grade/classNo) 집합 단언",
-        "app/homeroom/behavior 렌더 회귀(typecheck/build)"
+        "lib/domain/progress.ts 순수함수: 목표진도율=계획상 오늘까지차시÷시험목표총차시, 실제=실제진행÷총차시(둘다 차시기준), 빨강=계획대비 2차시 이상 뒤짐(AC-2.4/2.5) + 단위테스트",
+        "progress-board UI: 좌계획/우실제(복사+수정), 저장 후 통계 활성화, 분반별 통계, 초록/빨강",
+        "차시리스트 20개 페이지네이션(AC-2.7)",
+        "progress.integration.test.ts 확장 green + typecheck 0 + build exit0"
       ]
     },
     {
-      "id": "US-B7",
-      "title": "출결 확장 — 교시·결석범위·3단계 마감·뷰 (AC-7.x)",
+      "id": "US-4",
+      "title": "Phase 3 — 출결 (판정반전+백필+기간자동생성+수정)",
       "priority": 3,
       "passes": true,
       "acceptanceCriteria": [
-        "lib/domain/attendance.ts: absentPeriods(kind,pivot,periods) — 지각=조회~pivot 포함, 조퇴=pivot~끝, 결과=선택그대로, 결석=전체. submissionTier(remainingSchoolDays)→1/2/3(≥3/<3≥0/<0). 단위테스트 green",
-        "체험 사후보고서 마감 = 수업일 10일(기존 5→10, escalation.ts fifthSchoolDayAfter 시그니처/상수 수정)",
-        "출결 쿼리/액션: periods 저장(attendance_period_record audit), 지각/조퇴 기점 1개, 결과 다중, 담임반=listHomeroomStudents",
-        "app/homeroom/attendance: 교시 체크 UI(조회+1..N) + 월별/학생별검색/미제출 뷰 3종",
-        "attendance.integration.test.ts: periods 저장 + tier 분류 단언. npm run typecheck 0 + build exit0"
+        "attendance-rules.ts: isReportRequired=(reason==='illness'&&kind==='absent')||note.includes('생리통'). 기존 단위테스트 새규칙으로 재작성(absent+etc/unaccepted, accepted late/early → false)(AC-4.1)",
+        "백필 마이그(승인게이트): 전 report_required AC-4.1로 재계산 + 고아 report_tracking 정리 + deadline_date 재계산 + pre/post 스냅샷 회귀테스트",
+        "마이그 attendance ranges: 교외체험학습 start/end(tripDate→start_date 미러 NOT NULL 유지) + 결석 기간입력. schoolDayCalendar 조인 수업일만 자동 인정결석/결석 생성(AC-4.2~4.4)",
+        "trip_date 의존성 갱신(같은 PR): 0005 pg_cron(start/end 재정의, 마감=end_date), escalation.ts 전체 라인(46/60/121/134/180/197/206/212), escalation itest",
+        "출결 기록 수정 액션 추가(AC-4.5), 사후보고서 신고서 묶기+4탭 하단중복 제거(AC-4.6), 월별/학생별/미제출/체험학습 10개 페이지네이션(AC-4.7)",
+        "attendance.integration.test.ts + escalation.integration.test.ts green + typecheck 0 + build exit0"
       ]
     },
     {
-      "id": "US-B9",
-      "title": "상담실 — rename·수정·슬롯예약·코워크CSV (AC-9.x)",
+      "id": "US-5",
+      "title": "Phase 4 — 공지실 (개별공지·순서·시간표동기화통합)",
       "priority": 4,
       "passes": true,
       "acceptanceCriteria": [
-        "app/homeroom/counsel(rename) + 상담기록 수정 액션(counsel_record_update audit)",
-        "counsel_slots/reservations 쿼리+액션: 교사 슬롯 오픈(capacity), 선착순 예약, 정원초과/중복예약 거부",
-        "AI분석→코워크 CSV 패턴(원천 내보내기→결과 업로드=행발 원천자료), 담임반 필터",
-        "counsel.integration.test.ts: 슬롯 정원·선착순·중복예약 거부 단언. typecheck 0 + build exit0"
+        "마이그 teacher_note_target: teacher_notes에 target_scope(전체/개별) + 대상학생 매핑(다수) + notice_events.content 컬럼 add",
+        "교사 한마디 순서변경 UI(updateTeacherNoteOrder 연결)(AC-5.1), 대상 필드 전체/특정학생다수 CRUD(AC-5.2)",
+        "HomeroomTimetableSync를 app/setting/courses/timetable-sync 하위로 이동/병합(AC-5.4)",
+        "할일·공지 수정 가능화 + content 필드, 한마디/할일·공지 10개 페이지네이션(AC-5.5)",
+        "notice.integration.test.ts green + typecheck 0 + build exit0"
       ]
     },
     {
-      "id": "US-B10",
-      "title": "공지실 — 다중 한마디·할일 수정/내용·고정반 설정 (AC-10.x)",
+      "id": "US-6",
+      "title": "Phase 5 — 학생 안내 페이지 + get_public_page v4 + 급식영양",
       "priority": 5,
       "passes": true,
       "acceptanceCriteria": [
-        "teacher_notes 다중 CRUD+순서(teacher_note_create/update/delete audit), 공개 스와이프용 배열 반환",
-        "할일(todos) 수정 + content 필드 추가 표시/저장",
-        "고정반 설정 패널: 컴시간으로 담임 학년 전체 수업 파싱→교사 체크 저장(fixed_class_settings, fixed_class_save audit), 미체크=선택과목",
-        "notice.integration.test.ts: 다중노트 순서 + 고정반 저장 단언. typecheck 0 + build exit0"
+        "마이그 meal_nutrition(meal_cache.ntr_info) + NEIS parseMealService NTR_INFO 파싱 + calendar.ts upsert 확장",
+        "get_public_page_v4(마이그 레인 최후): 상담예약 캘린더 반영(AC-6.1), 급식 menu/calInfo/ntrInfo 분리노출(AC-6.6), 개별공지 전체+대상학생 병렬(AC-5.3). NULL-safe",
+        "DTO parser triple lockstep: PublicMeal calInfo/ntrInfo + parseMeal/buildPublicPagePayload/parsePublicPagePayload + dto.test.ts allowlist 갱신",
+        "public-page-view: 오늘=KST날짜경계(AC-6.2), 시간표 오늘강조+선택과목 상시수정(AC-6.3/6.4), 급식 표(AC-6.6)",
+        "상담 취소요청 액션 + 교사 승인(정원복구+캘린더제거)(AC-6.7)",
+        "public-page/counsel integration test green + typecheck 0 + build exit0"
       ]
     },
     {
-      "id": "US-B11",
-      "title": "자율·진로활동 관리 (신규, AC-6.x)",
+      "id": "US-7",
+      "title": "Phase 6 — 오늘의 학교 (넛지 모달·사전선택·위젯)",
       "priority": 6,
       "passes": true,
       "acceptanceCriteria": [
-        "app/homeroom/activities(신규): 학사일정 self_activity 목록 로드 + 활동별 특기 입력",
-        "학생 복수체크 일괄저장(학생별 행, studentActivityEntries 재사용), 자유탐구 공통/개별 + 자율/진로 토글(activityTag/placement)",
-        "저장 내역 수정/삭제, 담임반 학생만(listHomeroomStudents)",
-        "activities.integration.test.ts: 일괄저장(복수학생) + 자율/진로 분류 + 수정삭제 단언. typecheck 0 + build exit0"
+        "nudge.ts: 교과관찰 unrecordedObservations 리스트({sectionKey,suggestedStudentId,candidateCount}[]) 분반당1+기록시해결(AC-7.2/7.4), 행동특성 종일(16시게이트 제거)(AC-7.5). 소비자 app/page.tsx + app/today/page.tsx + EMPTY_NUDGES 갱신 + 단위테스트",
+        "넛지 모달: /today 진입마다, 닫으면 세션동안 미표시(sessionStorage)(AC-7.1). 데스크톱 / 는 기존 배너 유지(AC-7.1 범위)",
+        "사전선택 딥링크: 교과관찰/행동특성 기록→대상화면 학생·분반 사전선택, 미제출→출결 미제출탭 리다이렉트(AC-7.3/7.5/7.6)",
+        "위젯: 시간표 색상+시간(AC-7.7), 급식 표(AC-7.8), 학사일정 캘린더+전체상담(counsel.ts 담임전체 집계쿼리 신규)(AC-7.9), 공지위젯 한마디 스와이프+할일·공지 수정/내용(AC-7.10)",
+        "nudge 단위테스트 green + typecheck 0 + build exit0"
       ]
     },
     {
-      "id": "US-B12",
-      "title": "생기부 작성 (신규, AC-11.x)",
+      "id": "US-8",
+      "title": "Phase 7 — 담임교실 허브화 + 페이지네이션 잔여 8개",
       "priority": 7,
       "passes": true,
       "acceptanceCriteria": [
-        "app/homeroom/record(신규): 세특 동일 틀, 3영역(자율/진로/행발) 원천 CSV 내보내기→코워크→결과 CSV 업로드(초안 저장)",
-        "원천 매핑: 자율←activities자율, 진로←activities진로, 행발←behavior+상담CSV+class_roles",
-        "학기 구분 없음(연말 1회), 세특 독립. special_note_drafts 또는 homeroom_records 저장(US-B0 결정)",
-        "homeroom-record.integration.test.ts: 3영역 원천 집계 + 초안 저장 단언. typecheck 0 + build exit0"
+        "app/homeroom/layout.tsx 신규(탭바, classroom layout 패턴), page.tsx 묶음만, 하위 ← 홈 제거(AC-3.1/3.2)",
+        "페이지네이션 잔여 적용(AC-8.2/8.3 16개 전수): 교과관찰/세특·학생추가/자율진로/상담기록/행동특성/상담슬롯 10개, 학사일정/학생명단 20개",
+        "typecheck 0 + build exit0"
       ]
     },
     {
-      "id": "US-B13",
-      "title": "학생 안내 페이지 + get_public_page 재정의 (AC-12.x)",
-      "priority": 8,
-      "passes": true,
-      "acceptanceCriteria": [
-        "get_public_page create or replace: (a)출결 성격×사유 2D집계(reason 노출=승인됨), (b)상담슬롯 잔여, (c)다중 teacher_notes 배열, (d)컴시간 담임반 시간표(enrollments→파싱본 교체). NULL-safe graceful(throw 시 학생페이지 500 방지)",
-        "app/p/[token]: 이름 헤더, 일정 캘린더(학사+할일, 오늘강조, 월이동), 시간표(월~금×1~7, 고정반 과목명/선택과목 자가매핑 토글), 급식 당일, 출결 2D표, 성적 제거, 상담신청 캘린더(슬롯 잔여)",
-        "student_elective_mappings 학생 자가매핑 저장/조회(elective_map_save), electiveCandidates 도메인 후보필터",
-        "컴시간 학생 시간표 매일 동기화(교사 동기화 cron/route 패턴), 공개링크 발급 토큰 재조회 상시표시(app/setting/students UI)",
-        "public-page.integration.test.ts: get_public_page 재정의 계약(2D출결·상담슬롯·다중노트) 단언. typecheck 0 + build exit0"
-      ]
-    },
-    {
-      "id": "US-B14",
+      "id": "US-9",
       "title": "회귀 + architect 검증 + 배포",
-      "priority": 9,
-      "passes": true,
+      "priority": 8,
+      "passes": false,
       "acceptanceCriteria": [
-        "전체 npm run typecheck 0 + npm run build exit0 + 전체 단위테스트 green + Part B itest green",
+        "전체 npm run typecheck 0 + npm run build exit0 + 단위테스트 green + RUN_DB_ITEST=1 통합테스트 green",
         "architect(THOROUGH/Opus) APPROVED + deslop(ai-slop-cleaner) 후 재회귀 green",
-        "git push(feat/qc-v3-part-b) → main 머지 → Vercel 배포. 보고서 갱신"
+        "git push(feat/qc-v4) → main 머지 → Vercel 배포 확인. 메모리/보고서 갱신"
       ]
     }
   ]

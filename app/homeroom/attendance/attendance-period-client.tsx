@@ -1,6 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
-import { recordAttendanceAction } from "./actions";
+import { recordAttendanceAction, addAbsenceRangeAction } from "./actions";
 
 /**
  * 출결 입력 클라이언트 (QC v3 Part B, AC-7.x). 교시 체크 UI.
@@ -38,6 +38,8 @@ export function AttendancePeriodClient({
   const [noteField, setNoteField] = useState("");
   const [pivotPeriod, setPivotPeriod] = useState(0);
   const [selected, setSelected] = useState<number[]>([]);
+  // 결석 기간 종료일(선택). 비어 있으면 단일 날짜(date)만 기록.
+  const [rangeEnd, setRangeEnd] = useState("");
   const [pending, startTransition] = useTransition();
 
   function toggle(p: number) {
@@ -49,6 +51,23 @@ export function AttendancePeriodClient({
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!studentId) return;
+
+    // 결석 + 종료일 지정 = 기간 입력(수업일마다 자동 생성).
+    if (kind === "absent" && rangeEnd && rangeEnd > date) {
+      const fd = new FormData();
+      fd.set("studentYearId", studentId);
+      fd.set("startDate", date);
+      fd.set("endDate", rangeEnd);
+      fd.set("reason", reason);
+      fd.set("noteField", noteField);
+      startTransition(async () => {
+        await addAbsenceRangeAction(fd);
+        setNoteField("");
+        setRangeEnd("");
+      });
+      return;
+    }
+
     const fd = new FormData();
     fd.set("studentYearId", studentId);
     fd.set("date", date);
@@ -158,7 +177,22 @@ export function AttendancePeriodClient({
       )}
 
       {kind === "absent" && (
-        <p className="text-xs text-neutral-400">결석은 하루 전체 교시로 기록됩니다.</p>
+        <fieldset className="flex flex-wrap items-center gap-2 text-sm">
+          <legend className="mr-2 text-xs text-neutral-500">
+            결석 기간(종료일 비우면 당일만)
+          </legend>
+          <span className="text-xs text-neutral-500">{date} ~</span>
+          <input
+            type="date"
+            value={rangeEnd}
+            min={date}
+            onChange={(e) => setRangeEnd(e.target.value)}
+            className="rounded border border-neutral-300 px-2 py-1 text-sm"
+          />
+          <span className="text-xs text-neutral-400">
+            기간 지정 시 수업일마다 결석이 자동 생성됩니다.
+          </span>
+        </fieldset>
       )}
     </form>
   );
