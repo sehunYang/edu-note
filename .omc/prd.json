@@ -87,7 +87,7 @@
       "id": "US-7",
       "title": "Phase 6 — 오늘의 학교 (넛지 모달·사전선택·위젯)",
       "priority": 6,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "nudge.ts: 교과관찰 unrecordedObservations 리스트({sectionKey,suggestedStudentId,candidateCount}[]) 분반당1+기록시해결(AC-7.2/7.4), 행동특성 종일(16시게이트 제거)(AC-7.5). 소비자 app/page.tsx + app/today/page.tsx + EMPTY_NUDGES 갱신 + 단위테스트",
         "넛지 모달: /today 진입마다, 닫으면 세션동안 미표시(sessionStorage)(AC-7.1). 데스크톱 / 는 기존 배너 유지(AC-7.1 범위)",

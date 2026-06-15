@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import {
   addObservationAction,
   updateObservationAction,
@@ -45,14 +45,18 @@ export function ObservationsClient({
   students,
   sections,
   recent,
+  initialStudentId = "",
+  initialSectionId = "",
 }: {
   semester: 1 | 2;
   students: StudentOption[];
   sections: SectionOption[];
   recent: RecentObservation[];
+  initialStudentId?: string;
+  initialSectionId?: string;
 }) {
-  const [studentId, setStudentId] = useState("");
-  const [sectionId, setSectionId] = useState("");
+  const [studentId, setStudentId] = useState(initialStudentId);
+  const [sectionId, setSectionId] = useState(initialSectionId);
   // 분반→학생 필터 결과(빈 배열=전체 표시). 학생→수강분반 자동매칭 후보.
   const [filteredStudents, setFilteredStudents] = useState<StudentOption[] | null>(
     null,
@@ -64,6 +68,16 @@ export function ObservationsClient({
   const [body, setBody] = useState("");
   const [keywords, setKeywords] = useState("");
   const [pending, startTransition] = useTransition();
+
+  // 넛지 사전선택 딥링크(AC-7.3): 분반이 미리 지정되면 그 분반 학생으로 명단을 좁힌다.
+  // 진입 시 1회만(빈 의존성) — 이후 사용자 조작은 onPickSection 가 담당.
+  useEffect(() => {
+    if (!initialSectionId) return;
+    loadSectionStudentsAction(initialSectionId).then((rows) =>
+      setFilteredStudents(rows.map((r) => ({ id: r.id, sid: r.sid, name: r.name }))),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const studentList = filteredStudents ?? students;
 

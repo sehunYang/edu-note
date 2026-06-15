@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===DTO/NEIS===\" && node ./node_modules/vitest/vitest.mjs run lib/public/dto.test.ts lib/integrations/neis.test.ts 2>&1 | tail -6 && echo \"===BUILD===\" && npm run build 2>&1 | tail -5 && echo BUILD_DONE",
-    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===DTO/NEIS===\" && node ./node_modules/vitest/vitest.mjs run lib/public/dto.test.ts lib/integrations/neis.test.ts 2>&1 | tail -6 && echo \"===BUILD===\" && npm run build 2>&1 | tail -5 && echo BUILD_DONE",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===NUDGE===\" && node ./node_modules/vitest/vitest.mjs run lib/domain/nudge.test.ts 2>&1 | tail -5 && echo \"===BUILD===\" && npm run build 2>&1 | tail -5 && echo BUILD_DONE",
+    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===NUDGE===\" && node ./node_modules/vitest/vitest.mjs run lib/domain/nudge.test.ts 2>&1 | tail -5 && echo \"===BUILD===\" && npm run build 2>&1 | tail -5 && echo BUILD_DONE",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -165,14 +165,14 @@
   "hotPaths": [
     {
       "path": "lib\\db\\queries\\index.ts",
-      "accessCount": 66,
-      "lastAccessed": 1781510488296,
+      "accessCount": 67,
+      "lastAccessed": 1781511197995,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\misc.ts",
-      "accessCount": 53,
-      "lastAccessed": 1781510655965,
+      "accessCount": 54,
+      "lastAccessed": 1781511229488,
       "type": "file"
     },
     {
@@ -183,20 +183,20 @@
     },
     {
       "path": "app\\page.tsx",
-      "accessCount": 37,
-      "lastAccessed": 1781498848325,
+      "accessCount": 40,
+      "lastAccessed": 1781511411752,
+      "type": "file"
+    },
+    {
+      "path": "lib\\public\\dto.ts",
+      "accessCount": 32,
+      "lastAccessed": 1781511190060,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\classes.ts",
       "accessCount": 31,
       "lastAccessed": 1781441240400,
-      "type": "file"
-    },
-    {
-      "path": "lib\\public\\dto.ts",
-      "accessCount": 31,
-      "lastAccessed": 1781510616740,
       "type": "file"
     },
     {

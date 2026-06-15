@@ -47,33 +47,52 @@ export function weightedPickLeastRecorded(
 }
 
 /**
- * 강제 팝업 넛지 조립 (계획 §3.4 nudgeEngine, AC-C).
+ * 강제 팝업 넛지 조립 (계획 §3.4 nudgeEngine, AC-C / QC v4 AC-7.2~7.5).
  *
  * 4종 넛지를 결정론적으로 조립한다(clock·rng 주입). DB 조회는 상위(queries)에서
  * 하고, 이 함수는 순수 규칙만 적용한다.
- * ① 미기록 수업: 기록 최소 우선 가중랜덤 1명 추천(+ 직접 선택용 후보 수).
- * ② 16시 후 행특: 오늘 행특 미작성 학생이 있으면.
+ * ① 미기록 수업: **오늘 진행하는 분반 수업당 1개**. 각 분반에서 관찰 부족 학생 우선
+ *    가중랜덤으로 1명 확정. 이미 오늘 관찰이 기록된 분반은 상위에서 제외하여 전달한다
+ *    (resolved-on-record). (AC-7.2/7.4)
+ * ② 행특: 오늘 행특 미작성 학생이 있으면 **종일**(16시 게이트 제거, AC-7.5).
  * ④ 미제출 신고서: 티어별 집계.
  * (③ 동아리 활동일 −7d 넛지는 동아리 데이터 도입 후 — 입력 없으면 미노출.)
  */
 import type { ReportTier } from "./types";
 
+/** 오늘 진행하는 한 분반 수업 + 그 분반 수강생의 관찰 기록수(가중랜덤 입력). */
+export interface SectionObservationInput {
+  /** 분반 식별 키(sectionId). 넛지 해결·딥링크용. */
+  sectionKey: string;
+  /** 화면 표시용 라벨(예: "수학 3-1"). */
+  sectionLabel: string;
+  /** 이 분반 수강생들의 관찰 기록수(0건 포함). 비면 추천 후보 없음. */
+  studentCounts: RecordCountItem[];
+  /** id→표시명(학번 이름) 매핑(선택). 추천 학생명 표기에 사용. */
+  studentNames?: Record<string, string>;
+}
+
 export interface NudgeInput {
-  /** 관찰 기록수(넛지 가중랜덤 입력). 해당 연도 학생 전체(0건 포함). */
-  observationCounts: RecordCountItem[];
-  /** 이미 충분히 기록됐거나 직접 선택된 제외 대상. */
-  excludeStudentIds?: readonly string[];
+  /** 오늘 진행하는 분반 수업 목록(이미 관찰된 분반은 상위에서 제외). */
+  sectionObservations: SectionObservationInput[];
   /** 오늘 행특 미작성 학생 id. */
   behaviorPendingStudentIds: readonly string[];
   /** 미제출 신고서 각각의 현재 티어. */
   pendingReportTiers: readonly ReportTier[];
 }
 
+/** 분반 수업당 1개의 교과 관찰 넛지(추천 1명 확정). */
+export interface UnrecordedObservationNudge {
+  sectionKey: string;
+  sectionLabel: string;
+  suggestedStudentId: string;
+  suggestedStudentName?: string;
+  candidateCount: number;
+}
+
 export interface NudgeResult {
-  unrecordedObservation: {
-    suggestedStudentId: string | null;
-    candidateCount: number;
-  } | null;
+  /** 오늘 분반 수업당 1개의 교과 관찰 넛지(AC-7.2). 빈 배열이면 없음. */
+  unrecordedObservations: UnrecordedObservationNudge[];
   behaviorNotes: { pendingCount: number } | null;
   pendingReports: {
     total: number;
@@ -87,33 +106,32 @@ export interface NudgeResult {
 export interface NudgeOptions {
   now?: Date;
   rng?: () => number;
-  /** 행특 넛지가 켜지는 시각(기본 16시). */
-  behaviorHour?: number;
-  /** 현재 '시'를 명시(서버 UTC→KST 변환 등). 주면 now.getHours() 대신 사용. */
-  currentHour?: number;
 }
 
 export function assembleNudges(
   input: NudgeInput,
   options: NudgeOptions = {},
 ): NudgeResult {
-  const now = options.now ?? new Date();
   const rng = options.rng ?? Math.random;
-  const behaviorHour = options.behaviorHour ?? 16;
-  const hour = options.currentHour ?? now.getHours();
 
-  // ① 미기록 수업 추천 1명(가중랜덤) + 직접 선택용 후보 수
-  const exclude = input.excludeStudentIds ?? [];
-  const pool = input.observationCounts.filter((s) => !exclude.includes(s.id));
-  const suggested = weightedPickLeastRecorded(input.observationCounts, rng, exclude);
-  const unrecordedObservation =
-    pool.length > 0
-      ? { suggestedStudentId: suggested, candidateCount: pool.length }
-      : null;
+  // ① 오늘 분반 수업당 1개 — 관찰 부족 학생 우선 가중랜덤 1명 확정(AC-7.2).
+  const unrecordedObservations: UnrecordedObservationNudge[] = [];
+  for (const sec of input.sectionObservations) {
+    if (sec.studentCounts.length === 0) continue;
+    const suggested = weightedPickLeastRecorded(sec.studentCounts, rng);
+    if (suggested === null) continue;
+    unrecordedObservations.push({
+      sectionKey: sec.sectionKey,
+      sectionLabel: sec.sectionLabel,
+      suggestedStudentId: suggested,
+      suggestedStudentName: sec.studentNames?.[suggested],
+      candidateCount: sec.studentCounts.length,
+    });
+  }
 
-  // ② 16시 후 행특 미작성
+  // ② 행특 미작성 — 종일 표시(16시 게이트 제거, AC-7.5).
   const behaviorNotes =
-    hour >= behaviorHour && input.behaviorPendingStudentIds.length > 0
+    input.behaviorPendingStudentIds.length > 0
       ? { pendingCount: input.behaviorPendingStudentIds.length }
       : null;
 
@@ -129,9 +147,11 @@ export function assembleNudges(
       : null;
 
   return {
-    unrecordedObservation,
+    unrecordedObservations,
     behaviorNotes,
     pendingReports,
-    hasAny: Boolean(unrecordedObservation || behaviorNotes || pendingReports),
+    hasAny: Boolean(
+      unrecordedObservations.length > 0 || behaviorNotes || pendingReports,
+    ),
   };
 }

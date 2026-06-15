@@ -1,7 +1,9 @@
-import { and, count, desc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import { counselingLogs, counselSlots, counselReservations } from "../schema/misc";
+import { homeroomClasses, homeroomMembers } from "../schema/classes";
+import { studentYears } from "../schema/identity";
 import { writeAudit } from "./audit";
 
 /**
@@ -376,4 +378,56 @@ export async function approveCancelReservation(
       ),
     );
   await writeAudit(db, ownerId, "counsel_cancel_approve", reservationId);
+}
+
+// ── QC v4 AC-7.9: 담임 로스터 전체의 다가오는 상담 예약 집계(오늘의 학교 캘린더) ──
+
+export interface HomeroomCounselReservation {
+  date: string; // YYYY-MM-DD (슬롯 날짜)
+  studentYearId: string;
+  studentLabel: string; // 학번 이름
+}
+
+/**
+ * 담임반 학생 전체의 다가오는(fromDate≤) 예약 상담을 날짜순으로 집계한다(AC-7.9).
+ * 기존 per-student/per-slot 쿼리에 없는 신규 집계 — 오늘의 학교 학사일정 캘린더에
+ * 병합 표시한다. 담임반 학생으로 한정(homeroom_members), ownerId 가드. 날짜·학번순.
+ */
+export async function listHomeroomUpcomingReservations(
+  db: DB,
+  ownerId: string,
+  year: number,
+  fromDate: string,
+): Promise<HomeroomCounselReservation[]> {
+  return db
+    .select({
+      date: counselSlots.date,
+      studentYearId: counselReservations.studentYearId,
+      sid: studentYears.sid,
+      name: studentYears.name,
+    })
+    .from(counselReservations)
+    .innerJoin(counselSlots, eq(counselSlots.id, counselReservations.slotId))
+    .innerJoin(
+      homeroomMembers,
+      eq(homeroomMembers.studentYearId, counselReservations.studentYearId),
+    )
+    .innerJoin(homeroomClasses, eq(homeroomClasses.id, homeroomMembers.homeroomId))
+    .innerJoin(studentYears, eq(studentYears.id, counselReservations.studentYearId))
+    .where(
+      and(
+        eq(counselReservations.ownerId, ownerId),
+        eq(homeroomMembers.ownerId, ownerId),
+        eq(homeroomClasses.schoolYear, year),
+        gte(counselSlots.date, fromDate),
+      ),
+    )
+    .orderBy(asc(counselSlots.date), asc(studentYears.sid))
+    .then((rows) =>
+      rows.map((r) => ({
+        date: r.date,
+        studentYearId: r.studentYearId,
+        studentLabel: `${r.sid} ${r.name}`,
+      })),
+    );
 }

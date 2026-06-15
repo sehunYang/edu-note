@@ -12,10 +12,17 @@ export const dynamic = "force-dynamic";
  * 스트림을 분리·이전한 비-redirect 홈. 학생 선택은 **담임반 학생만** 제한
  * (listHomeroomStudents). 담임반 미지정이면 안내. 날짜입력·추가·수정·삭제.
  */
-export default async function HomeroomBehaviorPage() {
+export default async function HomeroomBehaviorPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ studentYearId?: string }>;
+}) {
   const ownerId = await getOwnerId();
   const db = getDb();
   const year = activeSchoolYear(new Date());
+  const sp = await searchParams;
+  // 넛지 사전선택 딥링크(AC-7.5) — 학생을 받으면 폼에 미리 채운다(없으면 무시).
+  const preStudentId = sp.studentYearId ?? "";
 
   const [homeroomStudents, behaviorNotes] = await Promise.all([
     listHomeroomStudents(db, ownerId, year),
@@ -56,7 +63,11 @@ export default async function HomeroomBehaviorPage() {
           등록하면 행동특성을 기록할 수 있습니다.
         </p>
       ) : (
-        <BehaviorClient students={students} recent={recent} />
+        <BehaviorClient
+          students={students}
+          recent={recent}
+          initialStudentId={preStudentId}
+        />
       )}
     </main>
   );

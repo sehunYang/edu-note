@@ -32,11 +32,13 @@ function todayStr(): string {
 export function BehaviorClient({
   students,
   recent,
+  initialStudentId = "",
 }: {
   students: HomeroomStudent[];
   recent: RecentBehaviorNote[];
+  initialStudentId?: string;
 }) {
-  const [studentId, setStudentId] = useState("");
+  const [studentId, setStudentId] = useState(initialStudentId);
   const [notedOn, setNotedOn] = useState(todayStr());
   const [body, setBody] = useState("");
   const [keywords, setKeywords] = useState("");
