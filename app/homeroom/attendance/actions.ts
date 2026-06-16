@@ -10,7 +10,6 @@ import {
   addFieldTrip,
   addAbsenceRange,
   setFieldTripSubmitted,
-  recomputeEscalation,
   writeAudit,
 } from "@/lib/db/queries";
 import type { AttendanceReason, AttendanceKind } from "@/lib/domain/types";
@@ -141,6 +140,28 @@ export async function addFieldTripAction(formData: FormData): Promise<void> {
   revalidatePath("/homeroom/attendance");
 }
 
+/**
+ * 미제출 탭 "제출 처리" — 출처(attendance/fieldTrip)에 따라 올바른 테이블에 마킹.
+ * 미제출 목록은 출결 신고서·교외체험 사후보고서 두 소스를 머지하므로 id 가 가리키는
+ * 테이블이 다르다(attendance_records vs field_trip_reports).
+ */
+export async function markUnsubmittedSubmittedAction(
+  formData: FormData,
+): Promise<void> {
+  const ownerId = await getOwnerId();
+  const id = String(formData.get("id") ?? "").trim();
+  const source = String(formData.get("source") ?? "").trim();
+  if (!id) return;
+  const db = getDb();
+  if (source === "fieldTrip") {
+    await setFieldTripSubmitted(db, ownerId, id, true);
+  } else {
+    await setReportSubmitted(db, ownerId, id, true);
+  }
+  await writeAudit(db, ownerId, "report_submit", id, { submitted: true, source });
+  revalidatePath("/homeroom/attendance");
+}
+
 /** 교외체험 사후보고서 제출 여부 마킹. */
 export async function toggleFieldTripAction(formData: FormData): Promise<void> {
   const ownerId = await getOwnerId();
@@ -149,13 +170,5 @@ export async function toggleFieldTripAction(formData: FormData): Promise<void> {
   if (!id) return;
   const db = getDb();
   await setFieldTripSubmitted(db, ownerId, id, submitted);
-  revalidatePath("/homeroom/attendance");
-}
-
-/** 신고서 에스컬레이션 즉시 재계산(수업일 기준 티어 갱신 + 전이 감사). */
-export async function recomputeEscalationAction(): Promise<void> {
-  const ownerId = await getOwnerId();
-  const db = getDb();
-  await recomputeEscalation(db, ownerId);
   revalidatePath("/homeroom/attendance");
 }

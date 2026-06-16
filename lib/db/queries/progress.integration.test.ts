@@ -395,6 +395,11 @@ describe.skipIf(!RUN)("getSectionProgressStats (QC v4 US-3)", () => {
       .insert(courseSections)
       .values({ ownerId: owner2, subjectId: subj.id, label: "C" })
       .returning({ id: courseSections.id });
+    // QC v5 AC-2.1 활성 조건: lesson_plans 존재 필요(없으면 진척도 비활성).
+    await db2.insert(lessonPlans).values([
+      { ownerId: owner2, subjectId: subj.id, ordinal: 1, content: "p1" },
+      { ownerId: owner2, subjectId: subj.id, ordinal: 2, content: "p2" },
+    ]);
     await db2.insert(classSessions).values([
       { ownerId: owner2, sectionId: sec.id, date: rel(-2), status: "done" },
       { ownerId: owner2, sectionId: sec.id, date: rel(3), status: "planned" },
@@ -405,5 +410,91 @@ describe.skipIf(!RUN)("getSectionProgressStats (QC v4 US-3)", () => {
     // exam_targets 없음 → 분반 전체 차시(2)로 폴백.
     expect(c.examTargetTotal).toBe(2);
     expect(c.actualDone).toBe(1);
+  });
+
+  it("AC-2.1 활성 조건 — lesson_plans 없으면 진척도 비활성(분반 제외)", async () => {
+    const [subj] = await db2
+      .insert(subjects)
+      .values({ ownerId: owner2, name: "비활성과목", schoolYear: Y, semester: 1 })
+      .returning({ id: subjects.id });
+    const [sec] = await db2
+      .insert(courseSections)
+      .values({ ownerId: owner2, subjectId: subj.id, label: "Z" })
+      .returning({ id: courseSections.id });
+    // class_sessions 는 있으나 lesson_plans 없음 → 활성 아님.
+    await db2.insert(classSessions).values([
+      { ownerId: owner2, sectionId: sec.id, date: rel(-1), status: "done" },
+    ]);
+    const stats = await getSectionProgressStats(db2, owner2, Y, 1);
+    expect(stats.find((s) => s.sectionId === sec.id)).toBeUndefined();
+  });
+
+  it("AC-2.2/M2 — done 차시 마지막 단원코드 도출, 여유차시(빈셀)는 제외", async () => {
+    const [subj] = await db2
+      .insert(subjects)
+      .values({ ownerId: owner2, name: "단원진도과목", schoolYear: Y, semester: 1 })
+      .returning({ id: subjects.id });
+    const [sec] = await db2
+      .insert(courseSections)
+      .values({ ownerId: owner2, subjectId: subj.id, label: "D" })
+      .returning({ id: courseSections.id });
+    const units = await db2
+      .insert(lessonUnits)
+      .values([
+        { ownerId: owner2, subjectId: subj.id, majorNo: 1, midNo: 1, minorNo: 1, majorName: "대1", midName: "중1", minorName: "소1", minOrdinals: 1 },
+        { ownerId: owner2, subjectId: subj.id, majorNo: 1, midNo: 1, minorNo: 2, majorName: "대1", midName: "중1", minorName: "소2", minOrdinals: 1 },
+      ])
+      .returning({ id: lessonUnits.id, majorNo: lessonUnits.majorNo, midNo: lessonUnits.midNo, minorNo: lessonUnits.minorNo });
+    const codeOf = (u: { majorNo: number; midNo: number; minorNo: number }) =>
+      u.majorNo * 10000 + u.midNo * 100 + u.minorNo;
+    const u1 = units.find((u) => codeOf(u) === 10101)!;
+    const u2 = units.find((u) => codeOf(u) === 10102)!;
+
+    // 계획: ordinal 1=u1(10101), 2=빈 여유차시(slack), 3=u2(10102).
+    await db2.insert(lessonPlans).values([
+      { ownerId: owner2, subjectId: subj.id, ordinal: 1, content: "c1", unitId: u1.id },
+      { ownerId: owner2, subjectId: subj.id, ordinal: 2, content: null, unitId: null }, // slack
+      { ownerId: owner2, subjectId: subj.id, ordinal: 3, content: "c3", unitId: u2.id },
+    ]);
+    // 차시(날짜순위 k=1,2,3 매핑). 1·2 done, 3 planned.
+    // 날짜순위 2 = 여유차시(빈셀) → 마지막 done 단원은 빈셀을 건너뛰고 k=1 의 u1(10101).
+    await db2.insert(classSessions).values([
+      { ownerId: owner2, sectionId: sec.id, date: rel(-3), status: "done" }, // k=1 → u1
+      { ownerId: owner2, sectionId: sec.id, date: rel(-2), status: "done" }, // k=2 → slack(제외)
+      { ownerId: owner2, sectionId: sec.id, date: rel(-1), status: "planned" }, // k=3 → u2(미완료)
+    ]);
+
+    const stats = await getSectionProgressStats(db2, owner2, Y, 1);
+    const d = stats.find((s) => s.sectionId === sec.id)!;
+    // 마지막 done 단원 = 10101(u1). 여유차시(k=2)는 도출에서 제외.
+    expect(d.lastDoneUnitCode).toBe(10101);
+    expect(d.lastDoneUnitLabel).toContain("소1");
+  });
+
+  it("AC-2.4 — 지필 둘 다 미시행이면 시험진도율 생략(showExamProgress=false)", async () => {
+    const [subj] = await db2
+      .insert(subjects)
+      .values({
+        ownerId: owner2,
+        name: "비지필과목",
+        schoolYear: Y,
+        semester: 1,
+        jipilMidEnabled: false,
+        jipilFinalEnabled: false,
+      })
+      .returning({ id: subjects.id });
+    const [sec] = await db2
+      .insert(courseSections)
+      .values({ ownerId: owner2, subjectId: subj.id, label: "E" })
+      .returning({ id: courseSections.id });
+    await db2.insert(lessonPlans).values([
+      { ownerId: owner2, subjectId: subj.id, ordinal: 1, content: "p1" },
+    ]);
+    await db2.insert(classSessions).values([
+      { ownerId: owner2, sectionId: sec.id, date: rel(-1), status: "done" },
+    ]);
+    const stats = await getSectionProgressStats(db2, owner2, Y, 1);
+    const e = stats.find((s) => s.sectionId === sec.id)!;
+    expect(e.showExamProgress).toBe(false);
   });
 });

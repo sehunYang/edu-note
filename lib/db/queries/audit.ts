@@ -103,7 +103,19 @@ export type AuditEvent =
   | "field_trip_add"
   | "attendance_update"
   // QC v4 공지실 (US-5)
-  | "teacher_note_reorder";
+  | "teacher_note_reorder"
+  // QC v5 오늘의학교 캘린더 메모 (c7)
+  | "today_memo_create"
+  | "today_memo_update"
+  | "today_memo_delete"
+  // QC v5 수업계획실 여유차시 토글 (c1)
+  | "lesson_plan_slack_toggle"
+  // QC v5 동아리실 (c9)
+  | "club_plan_reconcile"
+  | "club_plan_update"
+  | "club_entry_common_save"
+  | "club_entry_override_save"
+  | "club_record_save";
 
 export async function writeAudit(
   db: DB,

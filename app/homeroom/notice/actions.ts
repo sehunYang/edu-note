@@ -7,6 +7,7 @@ import {
   setPublicNotice,
   listTeacherNotes,
   createTeacherNote,
+  bulkCreateIndividualTeacherNotes,
   updateTeacherNote,
   deleteTeacherNote,
   moveTeacherNote,
@@ -40,7 +41,7 @@ export async function setNoticeAction(formData: FormData): Promise<void> {
   revalidatePath(PATH);
 }
 
-// ── 다중 교사 한마디 CRUD (대상 범위 전체/특정학생 포함) ──
+// ── 다중 교사 한마디 CRUD (전체/개별 입력칸 분리, QC v5 c5) ──
 
 /** formData 에서 대상 범위·대상 학생 목록을 파싱. 'individual' + 학생 0명이면 'all' 로 강등. */
 function parseTarget(formData: FormData): {
@@ -57,6 +58,56 @@ function parseTarget(formData: FormData): {
   return { scope, studentYearIds: scope === "individual" ? ids : [] };
 }
 
+/**
+ * 전체 공지란 — target_scope='all' 1건 생성(AC-5.2). 기존 단일 생성 패턴.
+ */
+export async function createAllTeacherNoteAction(
+  formData: FormData,
+): Promise<void> {
+  const ownerId = await getOwnerId();
+  const body = String(formData.get("body") ?? "").trim();
+  if (!body) return;
+  const db = getDb();
+  const n = await createTeacherNote(db, ownerId, body, undefined, "all", []);
+  await writeAudit(db, ownerId, "teacher_note_create", n.id, {
+    targetScope: "all",
+    targets: 0,
+  });
+  revalidatePath(PATH);
+}
+
+/**
+ * 개별 공지란 — 선택 학생 N명 각자에게 별도 개별공지 N개 생성(AC-5.3).
+ * activities bulkSave 패턴 차용. 학생 미선택 또는 body 빈값이면 no-op.
+ */
+export async function bulkCreateIndividualNotesAction(
+  formData: FormData,
+): Promise<void> {
+  const ownerId = await getOwnerId();
+  const body = String(formData.get("body") ?? "").trim();
+  const studentYearIds = formData
+    .getAll("studentYearIds")
+    .map((v) => String(v))
+    .filter(Boolean);
+  if (!body || studentYearIds.length === 0) return;
+  const db = getDb();
+  const ids = await bulkCreateIndividualTeacherNotes(
+    db,
+    ownerId,
+    body,
+    studentYearIds,
+  );
+  await writeAudit(db, ownerId, "teacher_note_create", null, {
+    targetScope: "individual",
+    batch: ids.length,
+    ids,
+  });
+  revalidatePath(PATH);
+}
+
+/**
+ * (호환) 통합 생성 — 대상 범위 파싱 후 1건 생성. 수정 폼 등 기존 호출부 호환용.
+ */
 export async function createTeacherNoteAction(
   formData: FormData,
 ): Promise<void> {

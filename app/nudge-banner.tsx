@@ -41,6 +41,23 @@ export function NudgeBanner({ nudges }: { nudges: NudgeResult }) {
             </Link>
           </li>
         )}
+        {nudges.pendingCounselLogs.map((c) => (
+          <li
+            key={c.reservationId}
+            className="flex items-center justify-between gap-2"
+          >
+            <span>
+              상담일지 미작성 <strong>{c.studentLabel}</strong>
+              <span className="ml-1 text-xs">({c.date})</span>
+            </span>
+            <Link
+              href={`/homeroom/counsel?studentYearId=${c.studentYearId}`}
+              className="shrink-0 underline"
+            >
+              상담일지 쓰기 →
+            </Link>
+          </li>
+        ))}
         {nudges.pendingReports && (
           <li className="flex items-center justify-between gap-2">
             <span>

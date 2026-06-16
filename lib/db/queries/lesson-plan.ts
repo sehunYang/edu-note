@@ -10,7 +10,11 @@ import {
   pickRepresentativeSection,
   representativeDates,
   monthWeekLabel,
+  isSlackCell,
+  shiftSlackCell,
+  unshiftSlackCell,
   type SectionSlots,
+  type PlanSlot,
 } from "@/lib/domain/lesson-plan";
 import { resolveSemesterRange } from "./calendar";
 
@@ -531,6 +535,146 @@ export async function isSemesterPlanComplete(
       and(eq(lessonUnits.ownerId, ownerId), eq(lessonUnits.subjectId, subjectId)),
     );
   return Number(row?.count ?? 0) > 0;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * QC v5 c1 — 여유차시(slack) 토글/해제 (AC-1.5).
+ *
+ * 순수 시프트(domain shiftSlackCell/unshiftSlackCell)로 목표 상태를 계산하고, DB 에는
+ * **ordinal 을 바꾸지 않고 각 ordinal 행의 내용 필드(unitId/content/keywords)만
+ * 재배치**한다. ordinal 컬럼을 변경하지 않으므로 `uq_lesson_plans(subject_id, ordinal)`
+ * (0017:12 plain unique = 비-deferrable)을 statement 단위로도 절대 위반하지 않는다
+ * (이관은 내용 이동일 뿐 키 이동이 아님 — RALPLAN-DR (b) 비-deferrable 회피 채택).
+ *
+ * 시프트로 인해 마지막 칸 밖으로 밀려나는 내용이 있으면(= 빈 여유차시 슬랙이 없으면)
+ * 데이터 손실이 되므로, 호출 측이 슬랙 한도 안에서만 토글하도록 사전 검증한다.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** 과목 차시를 ordinal 1..N 연속 슬롯으로 조회(빈 ordinal 은 빈 셀로 채움). */
+async function listPlanSlots(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+): Promise<{ slots: PlanSlot[]; length: number }> {
+  const rows = await listLessonPlan(db, ownerId, subjectId);
+  const maxOrdinal = rows.reduce((m, r) => Math.max(m, r.ordinal), 0);
+  const byOrdinal = new Map<number, LessonPlanRow>();
+  for (const r of rows) byOrdinal.set(r.ordinal, r);
+  const slots: PlanSlot[] = [];
+  for (let ordinal = 1; ordinal <= maxOrdinal; ordinal++) {
+    const r = byOrdinal.get(ordinal);
+    slots.push({
+      ordinal,
+      unitId: r?.unitId ?? null,
+      content: r?.content ?? null,
+      keywords: r?.keywords ?? null,
+    });
+  }
+  return { slots, length: maxOrdinal };
+}
+
+/** 차시 1행의 내용 필드만 갱신(ordinal 불변). 행이 없으면 삽입한다. */
+async function setPlanCell(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  slot: PlanSlot,
+): Promise<void> {
+  await db
+    .insert(lessonPlans)
+    .values({
+      ownerId,
+      subjectId,
+      ordinal: slot.ordinal,
+      content: slot.content,
+      keywords: slot.keywords,
+      unitId: slot.unitId,
+    })
+    .onConflictDoUpdate({
+      target: [lessonPlans.subjectId, lessonPlans.ordinal],
+      set: {
+        content: slot.content,
+        keywords: slot.keywords,
+        unitId: slot.unitId,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+export interface SlackToggleResult {
+  ok: boolean;
+  /** 거부 사유(슬랙 한도 초과 등). ok=true 면 undefined. */
+  error?: string;
+}
+
+/**
+ * ordinal `k` 를 여유차시로 등록(시프트). k..N 내용을 한 칸 뒤로 이관하고 k 를 빈
+ * 차시로 만든다. 마지막 칸에 내용이 있으면(= 밀어낼 빈 슬랙 없음) 데이터 손실이므로
+ * 거부한다(슬랙 한도 초과). 차이가 있는 행만 내용 재배치(ordinal 불변).
+ */
+export async function toggleSlackCell(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  k: number,
+): Promise<SlackToggleResult> {
+  const { slots } = await listPlanSlots(db, ownerId, subjectId);
+  if (slots.length === 0) return { ok: false, error: "차시가 없습니다." };
+  const last = slots[slots.length - 1];
+  // 마지막 칸에 내용이 있으면 시프트 시 탈락 → 손실. 슬랙(빈 차시) 한도 초과.
+  if (k <= last.ordinal && !isSlackCell(last)) {
+    return {
+      ok: false,
+      error: "마지막 차시에 내용이 있어 여유차시로 밀어낼 공간이 없습니다. 차시를 추가하세요.",
+    };
+  }
+  const next = shiftSlackCell(slots, k);
+  await applySlotDiff(db, ownerId, subjectId, slots, next);
+  return { ok: true };
+}
+
+/**
+ * ordinal `k` 여유차시 해제(역연산). k+1..N 내용을 한 칸 앞으로 당겨 원위치 복원하고
+ * 마지막 칸을 빈 차시로 만든다. 차이가 있는 행만 내용 재배치(ordinal 불변).
+ */
+export async function untoggleSlackCell(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  k: number,
+): Promise<SlackToggleResult> {
+  const { slots } = await listPlanSlots(db, ownerId, subjectId);
+  if (slots.length === 0) return { ok: false, error: "차시가 없습니다." };
+  const next = unshiftSlackCell(slots, k);
+  await applySlotDiff(db, ownerId, subjectId, slots, next);
+  return { ok: true };
+}
+
+/**
+ * before→after 슬롯 내용 차이만 DB 에 반영(ordinal 불변). ordinal 키를 바꾸지 않으므로
+ * 비-deferrable unique 위반이 구조적으로 불가능하다. 순서 무관(키 충돌 없음).
+ */
+async function applySlotDiff(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  before: PlanSlot[],
+  after: PlanSlot[],
+): Promise<void> {
+  const beforeByOrdinal = new Map<number, PlanSlot>();
+  for (const s of before) beforeByOrdinal.set(s.ordinal, s);
+  for (const s of after) {
+    const b = beforeByOrdinal.get(s.ordinal);
+    if (
+      b &&
+      b.unitId === s.unitId &&
+      b.content === s.content &&
+      JSON.stringify(b.keywords) === JSON.stringify(s.keywords)
+    ) {
+      continue; // 변화 없음 → skip.
+    }
+    await setPlanCell(db, ownerId, subjectId, s);
+  }
 }
 
 /** 6자리 코드 헬퍼 재노출(쿼리/액션 계층 편의). */

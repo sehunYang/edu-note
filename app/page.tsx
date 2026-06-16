@@ -11,6 +11,7 @@ const EMPTY_NUDGES: NudgeResult = {
   unrecordedObservations: [],
   behaviorNotes: null,
   pendingReports: null,
+  pendingCounselLogs: [],
   hasAny: false,
 };
 
@@ -105,9 +106,9 @@ export default async function Home() {
           desc="담임반 학생의 자율·진로활동·출결·행특·상담·공지·생기부를 한곳에서 관리합니다."
         />
         <DashCard
-          href="/club"
-          title="동아리"
-          desc="동아리를 만들고 부원과 희망진로를 관리합니다."
+          href="/clubroom"
+          title="🎬 동아리실"
+          desc="동아리 개설·부원 배정·활동 계획·활동 입력·생기부 작성을 한곳에서 관리합니다."
         />
         <DashCard
           href="/staffroom"

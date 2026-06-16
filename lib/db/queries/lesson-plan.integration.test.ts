@@ -21,8 +21,11 @@ import {
   upsertExamTarget,
   countOrdinalsPerUnit,
   isSemesterPlanComplete,
+  toggleSlackCell,
+  untoggleSlackCell,
 } from "./lesson-plan";
 import { sixDigitCode, validateMinOrdinals } from "@/lib/domain/lesson-unit";
+import { isSlackCell } from "@/lib/domain/lesson-plan";
 
 /**
  * 수업 계획실 실DB 통합 테스트 (교실 2-2 단계2).
@@ -318,5 +321,73 @@ describe.skipIf(!RUN)("학기계획 세부단원·시험목표 (QC v4 US-2)", ()
     const plans = await listLessonPlan(db2, owner2, sub);
     expect(plans.length).toBeGreaterThanOrEqual(4);
     expect(plans.find((p) => p.ordinal === 2)?.unitId).toBeNull();
+  });
+});
+
+describe.skipIf(!RUN)("QC v5 c1 여유차시 토글 — 비-deferrable unique 무위반", () => {
+  const owner3 = randomUUID();
+  let sql3: ReturnType<typeof postgres>;
+  let db3: PostgresJsDatabase<typeof schema>;
+  let sub: string;
+
+  beforeAll(async () => {
+    sql3 = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    db3 = drizzle(sql3, { schema, casing: "snake_case" });
+    const [s] = await db3
+      .insert(subjects)
+      .values({ ownerId: owner3, name: "화학", schoolYear: 2099, semester: 1 })
+      .returning({ id: subjects.id });
+    sub = s.id;
+    // 5차시: 1..4 내용, 5 는 빈 여유차시(끝 슬랙) — 시프트 시 손실 없이 밀어낼 공간.
+    await upsertLessonPlanEntry(db3, owner3, sub, 1, { content: "a", keywords: ["ka"] });
+    await upsertLessonPlanEntry(db3, owner3, sub, 2, { content: "b" });
+    await upsertLessonPlanEntry(db3, owner3, sub, 3, { content: "c" });
+    await upsertLessonPlanEntry(db3, owner3, sub, 4, { content: "d" });
+    await upsertLessonPlanEntry(db3, owner3, sub, 5, {}); // 빈 여유차시(slack)
+  });
+
+  afterAll(async () => {
+    await db3.delete(lessonPlans).where(eq(lessonPlans.ownerId, owner3));
+    await db3.delete(subjects).where(eq(subjects.ownerId, owner3));
+    await sql3.end();
+  });
+
+  it("중간 차시 여유차시 토글 — unique violation 없이 한 칸 뒤로 시프트", async () => {
+    // ordinal 2 를 여유차시로 등록 → 2 빈셀, 2→3, 3→4, 4→5(끝 슬랙 흡수).
+    const res = await toggleSlackCell(db3, owner3, sub, 2);
+    expect(res.ok).toBe(true);
+    const after = await listLessonPlan(db3, owner3, sub);
+    // ordinal 은 그대로 1..5(키 충돌·중복 없음).
+    expect(after.map((p) => p.ordinal)).toEqual([1, 2, 3, 4, 5]);
+    expect(after.find((p) => p.ordinal === 1)?.content).toBe("a");
+    const o2 = after.find((p) => p.ordinal === 2)!;
+    expect(isSlackCell(o2)).toBe(true); // 빈 여유차시
+    expect(after.find((p) => p.ordinal === 3)?.content).toBe("b");
+    expect(after.find((p) => p.ordinal === 4)?.content).toBe("c");
+    expect(after.find((p) => p.ordinal === 5)?.content).toBe("d");
+  });
+
+  it("토글 해제 — 역연산으로 원위치 복원(byte-identical 핵심필드)", async () => {
+    // 위 테스트가 ordinal 2 를 slack 으로 만들었으므로 해제하면 원본 배치로 복원.
+    const res = await untoggleSlackCell(db3, owner3, sub, 2);
+    expect(res.ok).toBe(true);
+    const after = await listLessonPlan(db3, owner3, sub);
+    expect(after.map((p) => p.ordinal)).toEqual([1, 2, 3, 4, 5]);
+    expect(after.find((p) => p.ordinal === 1)?.content).toBe("a");
+    expect(after.find((p) => p.ordinal === 2)?.content).toBe("b");
+    expect(after.find((p) => p.ordinal === 3)?.content).toBe("c");
+    expect(after.find((p) => p.ordinal === 4)?.content).toBe("d");
+    expect(isSlackCell(after.find((p) => p.ordinal === 5)!)).toBe(true);
+  });
+
+  it("슬랙 한도 초과 — 마지막 칸에 내용 있으면 토글 거부(손실 방지)", async () => {
+    // 5 차시를 내용으로 채워 끝 슬랙 제거 → 토글 거부되어야 함.
+    await upsertLessonPlanEntry(db3, owner3, sub, 5, { content: "e" });
+    const res = await toggleSlackCell(db3, owner3, sub, 2);
+    expect(res.ok).toBe(false);
+    // 데이터 불변(거부되어 시프트 미반영).
+    const after = await listLessonPlan(db3, owner3, sub);
+    expect(after.find((p) => p.ordinal === 5)?.content).toBe("e");
+    expect(after.find((p) => p.ordinal === 2)?.content).toBe("b");
   });
 });

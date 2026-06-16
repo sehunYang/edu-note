@@ -2,6 +2,8 @@
 import { useMemo, useState, useTransition } from "react";
 import {
   saveSessionPlanBulkAction,
+  toggleSlackCellAction,
+  untoggleSlackCellAction,
   type SessionSaveState,
 } from "../actions";
 import { sixDigitCode, parseSixDigit } from "@/lib/domain/lesson-unit";
@@ -60,6 +62,15 @@ function code6(u: { majorNo: number; midNo: number; minorNo: number }): string {
   return String(sixDigitCode(u)).padStart(6, "0");
 }
 
+/** entries 배치 시그니처(ordinal→unitId|content). 여유차시 시프트 후 remount 키. */
+function entriesSig(s: SubjectSessionView): string {
+  return s.entries
+    .slice()
+    .sort((a, b) => a.ordinal - b.ordinal)
+    .map((e) => `${e.ordinal}:${e.unitId ?? ""}:${e.content}`)
+    .join("|");
+}
+
 export function SessionEditor({ subjects }: { subjects: SubjectSessionView[] }) {
   const firstComplete =
     subjects.find((s) => s.semesterComplete) ?? subjects[0];
@@ -92,7 +103,12 @@ export function SessionEditor({ subjects }: { subjects: SubjectSessionView[] }) 
           이 과목은 학기 계획(세부 단원)이 비어 있어 차시 계획을 작성할 수 없습니다.
         </p>
       ) : (
-        <SubjectSessionEditor key={selected.subjectId} subject={selected} />
+        // key 에 entries 시그니처를 포함해, 여유차시 토글(서버 시프트+revalidate) 후
+        // 새 서버 상태로 에디터가 remount 되어 로컬 rows 가 최신 배치를 반영하게 한다.
+        <SubjectSessionEditor
+          key={`${selected.subjectId}:${entriesSig(selected)}`}
+          subject={selected}
+        />
       )}
     </div>
   );
@@ -138,6 +154,17 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
   const [exceeded, setExceeded] = useState<
     NonNullable<SessionSaveState["exceededUnits"]>
   >([]);
+  // AC-1.3 맨 위 '여유 차시' 입력(예약 의도). (세부단원 차시합 + 여유차시) == 대표분반
+  // 차시이면 안내가 사라진다.
+  const [slackInput, setSlackInput] = useState("0");
+  const [slackPending, startSlack] = useTransition();
+  const [slackError, setSlackError] = useState<string | null>(null);
+
+  // 세부단원 차시합 = 단원코드가 채워진(내용 있는) 행 수. 빈 행은 여유차시 후보.
+  const contentRows = useMemo(
+    () => rows.filter((r) => r.code.trim() !== "" || r.content.trim() !== "").length,
+    [rows],
+  );
 
   const metaByOrdinal = useMemo(() => {
     const map = new Map<number, SubjectSessionView["ordinals"][number]>();
@@ -189,6 +216,17 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
     });
   }
 
+  // AC-1.5 여유차시로 등록(토글)/해제. 서버 시프트 후 revalidate 로 새 상태 반영.
+  function toggleSlack(ordinal: number, on: boolean) {
+    setSlackError(null);
+    startSlack(async () => {
+      const res = on
+        ? await toggleSlackCellAction({ subjectId: subject.subjectId, ordinal })
+        : await untoggleSlackCellAction({ subjectId: subject.subjectId, ordinal });
+      if (!res.ok) setSlackError(res.error ?? "여유차시 처리에 실패했습니다.");
+    });
+  }
+
   if (rowCount === 0) {
     return (
       <p className="text-sm text-neutral-400">
@@ -198,8 +236,44 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
     );
   }
 
+  const slackNum = Number(slackInput) || 0;
+  // AC-1.2/1.3: (세부단원 차시합 + 여유차시) == 대표분반 차시이면 안내 사라짐.
+  const repLength = subject.planLength;
+  const matchesRep = repLength > 0 && contentRows + slackNum === repLength;
+
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border border-neutral-200 p-4">
+        <div className="flex flex-wrap items-center gap-4 text-sm">
+          <span className="text-neutral-600">
+            저장된 총 차시 <span className="font-semibold">{rowCount}</span>개
+          </span>
+          <span className="text-neutral-600">
+            대표분반 차시{" "}
+            <span className="font-semibold">{repLength}</span>개
+          </span>
+          <label className="flex items-center gap-1 text-neutral-600">
+            여유 차시
+            <input
+              type="number"
+              min={0}
+              value={slackInput}
+              onChange={(e) =>
+                setSlackInput(e.target.value.replace(/[^0-9]/g, ""))
+              }
+              className="w-16 rounded border border-neutral-300 px-2 py-1 text-sm"
+            />
+          </label>
+        </div>
+        {repLength > 0 && !matchesRep && (
+          <p className="mt-2 text-xs text-amber-700">
+            세부단원 차시합({contentRows}) + 여유차시({slackNum}) ={" "}
+            {contentRows + slackNum} 이(가) 대표분반 차시({repLength})와 다릅니다.
+            차이를 확인하세요(강제는 아닙니다).
+          </p>
+        )}
+      </div>
+
       <div className="flex items-center justify-between">
         <span className="text-xs text-neutral-400">차시 {rowCount}개</span>
         <button
@@ -213,6 +287,7 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
       </div>
 
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+      {slackError && <p className="text-sm text-red-600">{slackError}</p>}
 
       <ul className="space-y-3">
         {pageItems.map((r) => (
@@ -222,6 +297,8 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
             meta={metaByOrdinal.get(r.ordinal)}
             unitByCode={unitByCode}
             onChange={(patch) => updateRow(r.ordinal, patch)}
+            onToggleSlack={(on) => toggleSlack(r.ordinal, on)}
+            slackPending={slackPending}
           />
         ))}
       </ul>
@@ -249,11 +326,15 @@ function SessionRow({
   meta,
   unitByCode,
   onChange,
+  onToggleSlack,
+  slackPending,
 }: {
   row: RowState;
   meta?: SubjectSessionView["ordinals"][number];
   unitByCode: Map<number, SessionUnit>;
   onChange: (patch: Partial<RowState>) => void;
+  onToggleSlack: (on: boolean) => void;
+  slackPending: boolean;
 }) {
   const trimmed = row.code.trim();
   const codeNum = trimmed ? Number(trimmed) : null;
@@ -266,10 +347,16 @@ function SessionRow({
         ? "6자리 숫자(대2+중2+소2)로 입력하세요."
         : "존재하지 않는 단원 코드입니다."
       : null;
+  // 여유차시(빈셀) = 단원코드·내용 둘 다 비어 있음. isSlackCell(domain) 동치.
+  const isSlack = row.code.trim() === "" && row.content.trim() === "";
 
   return (
-    <li className="rounded-lg border border-neutral-200 p-4">
-      <div className="flex items-center gap-2">
+    <li
+      className={`rounded-lg border p-4 ${
+        isSlack ? "border-dashed border-amber-300 bg-amber-50/40" : "border-neutral-200"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm font-semibold text-neutral-700">
           {row.ordinal}차시
         </span>
@@ -283,6 +370,24 @@ function SessionRow({
             {meta.examLabel} 시험
           </span>
         )}
+        {isSlack && (
+          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+            여유차시
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => onToggleSlack(!isSlack)}
+          disabled={slackPending}
+          className="ml-auto rounded border border-neutral-300 px-2 py-0.5 text-xs hover:bg-neutral-50 disabled:opacity-50"
+          title={
+            isSlack
+              ? "여유차시를 해제하고 이후 내용을 앞으로 당깁니다."
+              : "이 차시부터 끝까지 내용을 한 칸 뒤로 밀고 빈 여유차시로 만듭니다."
+          }
+        >
+          {isSlack ? "여유차시 해제" : "여유차시로 등록"}
+        </button>
       </div>
 
       <div className="mt-2 flex items-center gap-2">

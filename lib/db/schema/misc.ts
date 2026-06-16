@@ -46,6 +46,35 @@ export const clubMembers = pgTable(
   (t) => [unique("uq_club_members").on(t.clubId, t.studentYearId)],
 );
 
+// 동아리 예정활동(차시). QC v5 c9 (0038). calendarEvents.eventKind='club' 날짜 시퀀스 →
+// ordinal(날짜순 파생) + 차시별 예정활동. 재생성 reconcile 키 = (clubId, date)로 사용자
+// 입력 plannedActivity 를 보존(ordinal 은 비-unique 파생 컬럼). uq_* 이름·컬럼은 0038 SQL 과 1:1.
+export const clubActivitySessions = pgTable(
+  "club_activity_sessions",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    clubId: uuid("club_id")
+      .notNull()
+      .references(() => clubs.id, { onDelete: "cascade" }),
+    ordinal: integer("ordinal").notNull(),
+    date: date("date").notNull(),
+    plannedActivity: text("planned_activity"),
+    ...timestamps(),
+  },
+  (t) => [unique("uq_club_activity_sessions").on(t.clubId, t.date)],
+);
+
+// 오늘의학교 전용 일자별 메모. QC v5 c7 (0039). 일자별 다건 허용(unique 없음).
+// 오직 오늘의학교 캘린더에서만 노출(공개 페이지/타 캘린더 비노출).
+export const todayCalendarMemos = pgTable("today_calendar_memos", {
+  id: pk(),
+  ownerId: ownerId(),
+  date: date("date").notNull(),
+  content: text("content").notNull(),
+  ...timestamps(),
+});
+
 // 상담일지 (AI분석 컬럼은 추후 — 목업 UI)
 export const counselingLogs = pgTable("counseling_logs", {
   id: pk(),

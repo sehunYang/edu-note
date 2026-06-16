@@ -46,7 +46,11 @@ const YEAR = 2097;
 let syTarget: string; // 개별 공지 대상 학생
 let syOther: string; // 비대상 학생
 
-const today = () => new Date().toISOString().slice(0, 10);
+// 급식 날짜경계는 get_public_page v5(0040)에서 KST((now() AT TIME ZONE 'Asia/Seoul')::date)
+// 기준이다. 삽입일·기대일을 모두 KST 당일로 맞춰 시계의존(UTC 15:00~24:00 = KST 익일
+// 00:00~09:00 구간 적색)을 제거한다. UTC+9 오프셋을 더한 뒤 날짜만 추출.
+const today = () =>
+  new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 async function callPage(token: string) {
   const rows = await sql<{ get_public_page: { state: string; payload?: unknown } }[]>`

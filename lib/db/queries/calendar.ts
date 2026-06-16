@@ -173,6 +173,29 @@ export async function getUpcomingEvents(
     .limit(limit);
 }
 
+/**
+ * 특정 기간([fromDate, toDate])의 학사일정 전체(제목만). 오늘의 학교 캘린더 월
+ * 네비게이션 재조회용(QC v5 c7 B.3) — today+30 고정 대신 조회 중인 월 범위.
+ */
+export async function getEventsInRange(
+  db: DB,
+  ownerId: string,
+  fromDate: string,
+  toDate: string,
+): Promise<CalendarEventView[]> {
+  return db
+    .select({ date: calendarEvents.date, title: calendarEvents.title })
+    .from(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.ownerId, ownerId),
+        gte(calendarEvents.date, fromDate),
+        lte(calendarEvents.date, toDate),
+      ),
+    )
+    .orderBy(asc(calendarEvents.date));
+}
+
 // ── 학사일정 속성(키워드 분류) 조회·보정 (QC v1 C3) ──
 
 export interface CalendarEventAttrView {

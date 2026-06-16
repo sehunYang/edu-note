@@ -21,6 +21,7 @@ import {
   deleteNoticeEvent,
   listTeacherNotes,
   createTeacherNote,
+  bulkCreateIndividualTeacherNotes,
   updateTeacherNote,
   deleteTeacherNote,
   updateNoticeEvent,
@@ -340,6 +341,41 @@ describe.skipIf(!RUN)("공지실 — 개별 공지 대상 / 순서변경(US-5)",
     await moveTeacherNote(db3, owner3, firstId, "up");
     notes = await listTeacherNotes(db3, owner3);
     expect(notes.map((n) => n.body)).toEqual(["B", "C", "A"]);
+  });
+
+  it("(d) 일괄 개별공지 — 선택 학생 N명 각자에게 별도 N개 생성(각 독립 id·단일 대상)", async () => {
+    // 깨끗한 상태에서 일괄 생성(앞 테스트 잔여 제거).
+    await db3
+      .delete(teacherNoteTargets)
+      .where(eq(teacherNoteTargets.ownerId, owner3));
+    await db3.delete(teacherNotes).where(eq(teacherNotes.ownerId, owner3));
+
+    const ids = await bulkCreateIndividualTeacherNotes(
+      db3,
+      owner3,
+      "공통 개별공지",
+      [sy1, sy2],
+    );
+    // 2명 선택 → 2 row, 각 독립 id.
+    expect(ids).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+
+    const notes = await listTeacherNotes(db3, owner3);
+    expect(notes).toHaveLength(2);
+    // 각 row 는 individual + 단일 대상 1학생, 공통 body.
+    for (const n of notes) {
+      expect(n.targetScope).toBe("individual");
+      expect(n.body).toBe("공통 개별공지");
+      expect(n.targetStudentYearIds).toHaveLength(1);
+    }
+    // 두 row 의 대상은 선택 학생 집합과 정확히 일치(중복·누락 없음).
+    const targets = notes.flatMap((n) => n.targetStudentYearIds).sort();
+    expect(targets).toEqual([sy1, sy2].sort());
+
+    // 각 row 독립 수정/삭제 가능 — 한 건 삭제 시 다른 건 보존.
+    await deleteTeacherNote(db3, owner3, ids[0]);
+    const after = await listTeacherNotes(db3, owner3);
+    expect(after.map((n) => n.id)).toEqual([ids[1]]);
   });
 
   it("(c) 개별 공지 삭제 시 teacher_note_targets cascade 정리", async () => {

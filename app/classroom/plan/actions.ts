@@ -10,6 +10,8 @@ import {
   lookupUnitByCode,
   countOrdinalsPerUnit,
   listLessonUnits,
+  toggleSlackCell,
+  untoggleSlackCell,
   writeAudit,
 } from "@/lib/db/queries";
 import { parseSixDigit, validateMinOrdinals } from "@/lib/domain/lesson-unit";
@@ -252,4 +254,62 @@ export async function saveSessionPlanBulkAction(payload: {
   });
   revalidatePath("/classroom/plan/session");
   return OK as SessionSaveState;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * 여유차시(slack) 토글/해제 (QC v5 c1, AC-1.5)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export interface SlackActionState {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * ordinal k 차시를 여유차시로 등록(시프트). k..끝 내용을 한 칸 뒤로 이관하고 k 를
+ * 빈 차시로 만든다. ordinal 은 불변(비-deferrable unique 위반 없음). 슬랙(빈 차시) 한도
+ * 초과(마지막 칸에 내용 존재) 시 거부한다.
+ */
+export async function toggleSlackCellAction(payload: {
+  subjectId: string;
+  ordinal: number;
+}): Promise<SlackActionState> {
+  const ownerId = await getOwnerId();
+  const { subjectId, ordinal } = payload;
+  if (!subjectId || !Number.isInteger(ordinal) || ordinal < 1) {
+    return { ok: false, error: "잘못된 요청입니다." };
+  }
+  const db = getDb();
+  const res = await toggleSlackCell(db, ownerId, subjectId, ordinal);
+  if (!res.ok) return { ok: false, error: res.error };
+  await writeAudit(db, ownerId, "lesson_plan_slack_toggle", subjectId, {
+    ordinal,
+    on: true,
+  });
+  revalidatePath("/classroom/plan/session");
+  return { ok: true };
+}
+
+/**
+ * ordinal k 여유차시 해제(역연산). k+1..끝 내용을 한 칸 앞으로 당겨 복원하고 마지막
+ * 칸을 빈 차시로 만든다. ordinal 불변.
+ */
+export async function untoggleSlackCellAction(payload: {
+  subjectId: string;
+  ordinal: number;
+}): Promise<SlackActionState> {
+  const ownerId = await getOwnerId();
+  const { subjectId, ordinal } = payload;
+  if (!subjectId || !Number.isInteger(ordinal) || ordinal < 1) {
+    return { ok: false, error: "잘못된 요청입니다." };
+  }
+  const db = getDb();
+  const res = await untoggleSlackCell(db, ownerId, subjectId, ordinal);
+  if (!res.ok) return { ok: false, error: res.error };
+  await writeAudit(db, ownerId, "lesson_plan_slack_toggle", subjectId, {
+    ordinal,
+    on: false,
+  });
+  revalidatePath("/classroom/plan/session");
+  return { ok: true };
 }
