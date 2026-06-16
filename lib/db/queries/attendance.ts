@@ -571,11 +571,24 @@ export type UnsubmittedAttendanceRow = AttendanceStudentRow & {
   deadlineDate: string | null;
   remainingSchoolDays: number | null;
   tier: ReportTier;
+  /** dedupe·UI 구분용 사건 출처. attendance=출결 신고서, fieldTrip=교외체험 사후보고서. */
+  source: "attendance" | "fieldTrip";
 };
 
 /**
- * (c) 미제출만 — 신고서 필요·미제출 담임 학생 기록.
- * 남은 수업일(오늘 다음 날부터 마감일까지, 마감 포함)을 세어 submissionTier 로 분류.
+ * (c) 미제출만 — 신고서 필요·미제출 담임 학생 기록 + 교외체험 사후보고서 미제출.
+ *
+ * 두 소스(출결 신고서·교외체험 사후보고서)를 **각각 별도 fetch** 한 뒤 JS 에서
+ * 머지한다(SQL UNION 미사용 — 담임 필터·slicePage 단계를 우회하지 않기 위함). 절차:
+ *   1) attendance 소스 fetch(attendanceRecords ⋈ reportTracking(attendanceRecordId),
+ *      reportRequired=true & reportSubmitted=false). 페이징 전 raw.
+ *   2) fieldTrip 소스 fetch(fieldTripReports ⋈ reportTracking(fieldTripId),
+ *      postReportSubmitted=false). 다일 체험은 1행으로 유지.
+ *   3) 양쪽 각각 remainingSchoolDays + submissionTier 로 tier 계산(sortedSchoolDays 공유).
+ *   4) 양쪽에 담임 학생 필터 적용.
+ *   5) reportTrackingId 키로 dedupe(다일 체험이 (studentYearId,date) 로 collapse 되지
+ *      않도록 단순 date 키 금지). null 이면 (studentYearId, source, 사건 id) 폴백.
+ *   6) (date, sid) 정렬 후 **마지막에 slicePage 1회**(소스별 slicePage 금지).
  */
 export async function listUnsubmittedAttendance(
   db: DB,
@@ -585,9 +598,12 @@ export async function listUnsubmittedAttendance(
   opts?: PageOpts,
 ): Promise<UnsubmittedAttendanceRow[]> {
   const ids = await homeroomStudentIds(db, ownerId, year);
-  const rows = await db
+
+  // (1) attendance 소스 — 신고서 필요·미제출 출결 + 추적행(마감/추적 id).
+  const attRows = await db
     .select({
       ...STUDENT_ROW_COLUMNS,
+      reportTrackingId: reportTracking.id,
       deadlineDate: reportTracking.deadlineDate,
     })
     .from(attendanceRecords)
@@ -602,10 +618,31 @@ export async function listUnsubmittedAttendance(
         eq(attendanceRecords.reportRequired, true),
         eq(attendanceRecords.reportSubmitted, false),
       ),
-    )
-    .orderBy(asc(attendanceRecords.date), asc(studentYears.sid));
+    );
 
-  // 남은 수업일 계산용 수업일 집합.
+  // (2) fieldTrip 소스 — 사후보고서 미제출 교외체험 + 추적행. 다일 체험은 1행(시작일 대표).
+  const tripRows = await db
+    .select({
+      id: fieldTripReports.id,
+      studentYearId: fieldTripReports.studentYearId,
+      tripDate: fieldTripReports.tripDate,
+      startDate: fieldTripReports.startDate,
+      sid: studentYears.sid,
+      name: studentYears.name,
+      reportTrackingId: reportTracking.id,
+      deadlineDate: reportTracking.deadlineDate,
+    })
+    .from(fieldTripReports)
+    .innerJoin(studentYears, eq(fieldTripReports.studentYearId, studentYears.id))
+    .leftJoin(reportTracking, eq(reportTracking.fieldTripId, fieldTripReports.id))
+    .where(
+      and(
+        eq(fieldTripReports.ownerId, ownerId),
+        eq(fieldTripReports.postReportSubmitted, false),
+      ),
+    );
+
+  // (3) 남은 수업일 계산용 수업일 집합(양쪽 소스 공유, 1회 조회).
   const cal = await db
     .select({ date: schoolDayCalendar.date })
     .from(schoolDayCalendar)
@@ -618,21 +655,70 @@ export async function listUnsubmittedAttendance(
   const sortedSchoolDays = cal.map((c) => c.date).sort();
   const today = asOf.toISOString().slice(0, 10);
 
-  const mapped = rows
+  const tierFor = (deadline: string | null) => {
+    const remaining =
+      deadline == null ? null : remainingSchoolDays(sortedSchoolDays, today, deadline);
+    return { remaining, tier: submissionTier(remaining ?? 0) };
+  };
+
+  // (4) 양쪽 homeroom 필터 + tier 계산 → UnsubmittedAttendanceRow + dedupe 키.
+  type Merged = UnsubmittedAttendanceRow & { _dedupeKey: string };
+
+  const attMapped: Merged[] = attRows
     .filter((r) => ids.has(r.studentYearId))
     .map((r) => {
-      const remaining =
-        r.deadlineDate == null
-          ? null
-          : remainingSchoolDays(sortedSchoolDays, today, r.deadlineDate);
+      const { remaining, tier } = tierFor(r.deadlineDate);
       return {
         ...toStudentRow(r),
         deadlineDate: r.deadlineDate,
         remainingSchoolDays: remaining,
-        tier: submissionTier(remaining ?? 0),
+        tier,
+        source: "attendance" as const,
+        _dedupeKey:
+          r.reportTrackingId ?? `${r.studentYearId}|attendance|${r.id}`,
       };
     });
-  return slicePage(mapped, opts);
+
+  const tripMapped: Merged[] = tripRows
+    .filter((r) => ids.has(r.studentYearId))
+    .map((r) => {
+      const { remaining, tier } = tierFor(r.deadlineDate);
+      const date = r.startDate ?? r.tripDate;
+      return {
+        id: r.id,
+        studentYearId: r.studentYearId,
+        date,
+        reason: "accepted" as AttendanceReason,
+        kind: "absent" as AttendanceKind,
+        reportRequired: true,
+        reportSubmitted: false,
+        noteField: null,
+        periods: null,
+        sid: r.sid,
+        name: r.name,
+        deadlineDate: r.deadlineDate,
+        remainingSchoolDays: remaining,
+        tier,
+        source: "fieldTrip" as const,
+        _dedupeKey: r.reportTrackingId ?? `${r.studentYearId}|fieldTrip|${r.id}`,
+      };
+    });
+
+  // (5) reportTrackingId 키 dedupe(같은 사건이 양쪽 소스에 등장해도 1행).
+  const byKey = new Map<string, Merged>();
+  for (const row of [...attMapped, ...tripMapped]) {
+    if (!byKey.has(row._dedupeKey)) byKey.set(row._dedupeKey, row);
+  }
+
+  // (6) (date, sid) 정렬 후 마지막에 slicePage 1회.
+  const merged = [...byKey.values()]
+    .sort((a, b) => a.date.localeCompare(b.date) || a.sid.localeCompare(b.sid))
+    .map((row): UnsubmittedAttendanceRow => {
+      const { _dedupeKey: _unused, ...rest } = row;
+      void _unused;
+      return rest;
+    });
+  return slicePage(merged, opts);
 }
 
 /** today(제외) 다음 날부터 deadline(포함)까지 남은 수업일. deadline 지났으면 음수. */

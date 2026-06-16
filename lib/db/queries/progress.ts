@@ -14,7 +14,7 @@ import {
   examTargets,
 } from "../schema/records";
 import { schoolDayCalendar } from "../schema/misc";
-import { weekdayOf } from "@/lib/domain/lesson-plan";
+import { weekdayOf, isSlackCell } from "@/lib/domain/lesson-plan";
 import { sixDigitCode } from "@/lib/domain/lesson-unit";
 import {
   computeProgressRates,
@@ -384,6 +384,18 @@ export interface SectionProgressStat {
   actualRate: number;
   /** 초록/빨강(실제가 계획보다 2차시 이상 뒤지면 빨강). */
   color: ProgressColor;
+  /**
+   * QC v5 c2(AC-2.2) — done 차시 중 마지막(날짜·날짜순위)으로 도달한 단원 6자리코드.
+   * isSlackCell(여유 빈셀)은 제외. 도달 단원 없으면 null.
+   */
+  lastDoneUnitCode: number | null;
+  /** 마지막 도달 단원 라벨(대>중>소). 없으면 null. */
+  lastDoneUnitLabel: string | null;
+  /**
+   * QC v5 c2(AC-2.4) — 지필(중간/기말) 둘 다 미시행이면 false → 시험진도율 블록 생략,
+   * 단원진도(lastDoneUnit)만 표시. 하나라도 시행이면 true.
+   */
+  showExamProgress: boolean;
 }
 
 /**
@@ -401,49 +413,149 @@ export async function getSectionProgressStats(
   year: number,
   sem: 1 | 2,
 ): Promise<SectionProgressStat[]> {
-  const sections = await listSectionsForSemester(db, ownerId, year, sem);
-  if (sections.length === 0) return [];
+  const allSections = await listSectionsForSemester(db, ownerId, year, sem);
+  if (allSections.length === 0) return [];
 
-  const sectionIds = sections.map((s) => s.sectionId);
-  const subjectIds = [...new Set(sections.map((s) => s.subjectId))];
-  const todayStr = today();
+  const subjectIds = [...new Set(allSections.map((s) => s.subjectId))];
 
-  // 분반별 차시(날짜·상태) 일괄 조회.
+  // 과목별 지필 시행 플래그(AC-2.4). 둘 다 false면 시험진도율 생략.
+  const subjectFlags = await db
+    .select({
+      id: subjects.id,
+      jipilMid: subjects.jipilMidEnabled,
+      jipilFinal: subjects.jipilFinalEnabled,
+    })
+    .from(subjects)
+    .where(
+      and(eq(subjects.ownerId, ownerId), inArray(subjects.id, subjectIds)),
+    );
+  const showExamBySubject = new Map<string, boolean>();
+  for (const f of subjectFlags) {
+    showExamBySubject.set(f.id, f.jipilMid || f.jipilFinal);
+  }
+
+  // 과목별 lesson_plans 존재 여부(AC-2.1 활성 조건).
+  const subjectsWithPlans = new Set<string>();
+  // 과목별 ordinal → {unitId, content}(빈셀 판정·단원코드 도출용).
+  const planCellsBySubject = new Map<
+    string,
+    Map<number, { unitId: string | null; content: string | null }>
+  >();
+  for (const subjectId of subjectIds) {
+    const plans = await db
+      .select({
+        ordinal: lessonPlans.ordinal,
+        unitId: lessonPlans.unitId,
+        content: lessonPlans.content,
+      })
+      .from(lessonPlans)
+      .where(
+        and(
+          eq(lessonPlans.ownerId, ownerId),
+          eq(lessonPlans.subjectId, subjectId),
+        ),
+      );
+    if (plans.length > 0) subjectsWithPlans.add(subjectId);
+    const m = new Map<
+      number,
+      { unitId: string | null; content: string | null }
+    >();
+    for (const p of plans) m.set(p.ordinal, { unitId: p.unitId, content: p.content });
+    planCellsBySubject.set(subjectId, m);
+  }
+
+  // 분반별 차시(날짜·상태) 일괄 조회. (활성=class_sessions 존재 + lesson_plans 존재)
   const sessions = await db
     .select({
       sectionId: classSessions.sectionId,
       date: classSessions.date,
       status: classSessions.status,
+      id: classSessions.id,
     })
     .from(classSessions)
     .where(
       and(
         eq(classSessions.ownerId, ownerId),
-        inArray(classSessions.sectionId, sectionIds),
+        inArray(
+          classSessions.sectionId,
+          allSections.map((s) => s.sectionId),
+        ),
       ),
     );
+  const sessionsBySection = new Map<string, typeof sessions>();
+  for (const s of sessions) {
+    const arr = sessionsBySection.get(s.sectionId) ?? [];
+    arr.push(s);
+    sessionsBySection.set(s.sectionId, arr);
+  }
+
+  // AC-2.1 활성 조건: lesson_plans 존재 + class_sessions 존재 과목/분반만.
+  const sections = allSections.filter(
+    (s) =>
+      subjectsWithPlans.has(s.subjectId) &&
+      (sessionsBySection.get(s.sectionId)?.length ?? 0) > 0,
+  );
+  if (sections.length === 0) return [];
+
+  const todayStr = today();
   const plannedToTodayBySection = new Map<string, number>();
   const actualDoneBySection = new Map<string, number>();
   const totalBySection = new Map<string, number>();
-  for (const id of sectionIds) {
-    plannedToTodayBySection.set(id, 0);
-    actualDoneBySection.set(id, 0);
-    totalBySection.set(id, 0);
+  for (const sec of sections) {
+    plannedToTodayBySection.set(sec.sectionId, 0);
+    actualDoneBySection.set(sec.sectionId, 0);
+    totalBySection.set(sec.sectionId, 0);
   }
-  for (const s of sessions) {
-    totalBySection.set(s.sectionId, (totalBySection.get(s.sectionId) ?? 0) + 1);
-    if (s.date <= todayStr) {
-      plannedToTodayBySection.set(
-        s.sectionId,
-        (plannedToTodayBySection.get(s.sectionId) ?? 0) + 1,
-      );
+  for (const sec of sections) {
+    const list = sessionsBySection.get(sec.sectionId) ?? [];
+    for (const s of list) {
+      totalBySection.set(sec.sectionId, (totalBySection.get(sec.sectionId) ?? 0) + 1);
+      if (s.date <= todayStr) {
+        plannedToTodayBySection.set(
+          sec.sectionId,
+          (plannedToTodayBySection.get(sec.sectionId) ?? 0) + 1,
+        );
+      }
+      if (s.status === "done") {
+        actualDoneBySection.set(
+          sec.sectionId,
+          (actualDoneBySection.get(sec.sectionId) ?? 0) + 1,
+        );
+      }
     }
-    if (s.status === "done") {
-      actualDoneBySection.set(
-        s.sectionId,
-        (actualDoneBySection.get(s.sectionId) ?? 0) + 1,
+  }
+
+  // 과목별 단원 코드/라벨 맵(마지막 도달 단원·시험목표 범위 공용).
+  const unitMetaBySubject = new Map<
+    string,
+    Map<string, { code: number; label: string }>
+  >();
+  for (const subjectId of subjectIds) {
+    const units = await db
+      .select({
+        id: lessonUnits.id,
+        majorNo: lessonUnits.majorNo,
+        midNo: lessonUnits.midNo,
+        minorNo: lessonUnits.minorNo,
+        majorName: lessonUnits.majorName,
+        midName: lessonUnits.midName,
+        minorName: lessonUnits.minorName,
+      })
+      .from(lessonUnits)
+      .where(
+        and(
+          eq(lessonUnits.ownerId, ownerId),
+          eq(lessonUnits.subjectId, subjectId),
+        ),
       );
+    const m = new Map<string, { code: number; label: string }>();
+    for (const u of units) {
+      m.set(u.id, {
+        code: sixDigitCode(u),
+        label: `${u.majorName} > ${u.midName} > ${u.minorName}`,
+      });
     }
+    unitMetaBySubject.set(subjectId, m);
   }
 
   // 과목별 시험목표 총 차시(연결 단원코드 ∈ exam_targets 범위).
@@ -468,37 +580,12 @@ export async function getSectionProgressStats(
       examTargetTotalBySubject.set(subjectId, 0); // 폴백은 분반별 total 사용.
       continue;
     }
-    const units = await db
-      .select({
-        id: lessonUnits.id,
-        majorNo: lessonUnits.majorNo,
-        midNo: lessonUnits.midNo,
-        minorNo: lessonUnits.minorNo,
-      })
-      .from(lessonUnits)
-      .where(
-        and(
-          eq(lessonUnits.ownerId, ownerId),
-          eq(lessonUnits.subjectId, subjectId),
-        ),
-      );
-    const codeByUnit = new Map<string, number>();
-    for (const u of units) {
-      codeByUnit.set(u.id, sixDigitCode(u));
-    }
-    const plans = await db
-      .select({ unitId: lessonPlans.unitId })
-      .from(lessonPlans)
-      .where(
-        and(
-          eq(lessonPlans.ownerId, ownerId),
-          eq(lessonPlans.subjectId, subjectId),
-        ),
-      );
+    const unitMeta = unitMetaBySubject.get(subjectId);
+    const planCells = planCellsBySubject.get(subjectId);
     let count = 0;
-    for (const p of plans) {
-      if (!p.unitId) continue;
-      const code = codeByUnit.get(p.unitId);
+    for (const cell of planCells?.values() ?? []) {
+      if (!cell.unitId) continue;
+      const code = unitMeta?.get(cell.unitId)?.code;
       if (code == null) continue;
       if (ranges.some((r) => code >= r.from && code <= r.to)) count++;
     }
@@ -517,6 +604,16 @@ export async function getSectionProgressStats(
       actualDoneOrdinals: actualDone,
       examTargetTotalOrdinals: examTargetTotal,
     });
+
+    // AC-2.2: done 차시 중 마지막(날짜·날짜순위) 단원코드 도출. 빈셀(isSlackCell) 제외.
+    const planCells = planCellsBySubject.get(sec.subjectId);
+    const unitMeta = unitMetaBySubject.get(sec.subjectId);
+    const { lastDoneUnitCode, lastDoneUnitLabel } = deriveLastDoneUnit(
+      sessionsBySection.get(sec.sectionId) ?? [],
+      planCells,
+      unitMeta,
+    );
+
     return {
       sectionId: sec.sectionId,
       label: sec.label,
@@ -531,8 +628,51 @@ export async function getSectionProgressStats(
         plannedOrdinalsToToday: plannedToToday,
         actualDoneOrdinals: actualDone,
       }),
+      lastDoneUnitCode,
+      lastDoneUnitLabel,
+      showExamProgress: showExamBySubject.get(sec.subjectId) ?? true,
     };
   });
+}
+
+/**
+ * AC-2.2 — 분반 done 차시 중 마지막으로 도달한 단원코드 도출. 차시의 분반 내 날짜순위
+ * k(date asc, id asc)로 lesson_plans ordinal k 셀을 찾고, **isSlackCell(빈 여유차시)은
+ * 건너뛴다**(여유차시가 실제 진도로 오인되지 않도록, M2). 가장 뒤(날짜·순위) done 차시의
+ * 비-빈셀 단원이 마지막 도달 단원. done/연결단원 없으면 null.
+ */
+function deriveLastDoneUnit(
+  sessions: { date: string; status: SessionStatus; id: string }[],
+  planCells:
+    | Map<number, { unitId: string | null; content: string | null }>
+    | undefined,
+  unitMeta: Map<string, { code: number; label: string }> | undefined,
+): { lastDoneUnitCode: number | null; lastDoneUnitLabel: string | null } {
+  if (!planCells || !unitMeta) {
+    return { lastDoneUnitCode: null, lastDoneUnitLabel: null };
+  }
+  // 분반 차시를 날짜·id 오름차순으로 정렬 → 1-based 날짜순위 k.
+  const ordered = [...sessions].sort((a, b) =>
+    a.date === b.date ? a.id.localeCompare(b.id) : a.date.localeCompare(b.date),
+  );
+  let resultCode: number | null = null;
+  let resultLabel: string | null = null;
+  ordered.forEach((s, i) => {
+    if (s.status !== "done") return;
+    const k = i + 1;
+    const cell = planCells.get(k);
+    if (!cell) return;
+    if (isSlackCell({ unitId: cell.unitId, content: cell.content, keywords: null })) {
+      return; // 여유차시(빈셀)는 실제 진도로 카운트하지 않음.
+    }
+    if (!cell.unitId) return;
+    const meta = unitMeta.get(cell.unitId);
+    if (!meta) return;
+    // 더 뒤(날짜순위 큰) done 차시일수록 덮어써 마지막을 남김.
+    resultCode = meta.code;
+    resultLabel = meta.label;
+  });
+  return { lastDoneUnitCode: resultCode, lastDoneUnitLabel: resultLabel };
 }
 
 /** 활성 학기 과목들의 분반 목록(과목명·분반순). 진척도 보드용. */

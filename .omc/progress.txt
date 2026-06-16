@@ -1,3 +1,21 @@
+# QC v5 Ralph 실행 (plan: .omc/plans/qc-v5-consensus-plan.md)
+[전략] 마이그 DB 적용 + RUN_DB_ITEST 429 전수는 US-V 회귀 게이트에서 일괄. 코드 스토리는 npm run build로 per-story 확인. prod 마이그/배포=사용자 승인 게이트(PRD 밖).
+itest 명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>
+
+[US-0] Phase 0 — DONE (iter1): 마이그 0038 club_activity_sessions(uq(club_id,date), ordinal 비-unique, RLS), 0039 today_calendar_memos(unique없음/다건, idx(owner_id,date), RLS), 0040 get_public_page_v5(급식 서브쿼리만 KST (now() AT TIME ZONE 'Asia/Seoul')::date + 메뉴 string_agg E'\n', 타 current_date 불변). Drizzle misc.ts clubActivitySessions+todayCalendarMemos, unique SQL 1:1 검증. 테스트 get-public-page-v4.integration today()=KST 결정론화. build exit0. DB적용 US-V 이연.
+[학습] 최신 0037→0038부터. get_public_page CREATE OR REPLACE라 호출부 불변. 영양 stale=calendar.ts meal sync 재동기화(US-6). 허브=homeroom/layout.tsx, classroom/page.tsx redirect. CRUD=homeroom/activities/actions.ts. 생기부=homeroom-record.ts.
+
+[US-3,4,5,6] Phase A — DONE: c3 homeroom/page redirect, c4 출결(별도탭+버튼제거+미제출 JS merge-then-slice reportTrackingId dedupe+source-aware 제출액션), c5 공지실(개별/전체 분리+bulkCreateIndividualTeacherNotes N개), c6 학생안내(선택과목 색분기, 메뉴/영양은 기존코드+0040로 동작). build exit0.
+[US-1,2] Phase C — DONE: lib/domain/lesson-plan.ts isSlackCell 1곳 정의+순수 shift/unshift. c1 여유차시 토글=**ordinal 불변+content(unitId/content/keywords) 재배치**(비-deferrable uq_lesson_plans 구조적 회피, plan 원안보다 안전). c2 progress.ts deriveLastDoneUnit(슬랙셀 isSlackCell 제외)+showExamProgress(jipil 둘다 false면 생략)+활성조건. 단위테스트 추가.
+[US-7,8] Phase B — DONE: c7 nudge-modal sessionStorage 제거(진입마다)+배너 분리, 급식표 max-w-0 break-words, events-calendar 월범위 재조회(getEventsInRange/listHomeroomReservationsInRange/listTodayMemosInRange)+DayDetailModal 메모 CRUD(today-memo.ts, today-only). c8 listPendingCounselLogReservations(경과+NOT EXISTS log)+nudge pendingCounselLogs 타입.
+[US-9] Phase D — DONE: app/clubroom 허브(layout 5탭 게이팅, page redirect)+5하위(create/assign/plan/entry/record)+club-activity.ts(reconcile (club_id,date) onConflict planned_activity 보존, collectClubRecordSources, saveClubRecordDraft 3000). 기존 app/club→/clubroom redirect, 홈네비 갱신.
+[US-V] 자율 부분 DONE: architect THOROUGH APPROVED(9 스토리 AC 충족, 6 차단 메커니즘 정확, 차단결함 0). deslop(code-simplifier) 후 재회귀 green(build exit0+tsc exit0+단위 264 passed).
+[US-V 완료] 사용자 승인 후 0038/0039/0040 서울 Supabase 적용(scripts/apply-sql.mjs, 멱등 NOTICE만). RUN_DB_ITEST 전수 = 54 파일 447 tests passed exit0(이전 429→신규케이스 포함 447, 회귀 0). 전 게이트 green: build+tsc+단위264+통합447 + architect THOROUGH APPROVED + deslop 재회귀 green.
+[배포 = 별도 사용자 결정] feat/qc-v4 브랜치 변경 미커밋 상태. git 커밋/푸시/main 머지/Vercel 배포는 사용자 요청 시에만(CLAUDE.md). PRD 범위 밖.
+[QC v5 RALPH 완료] 11개 스토리 전부 passes:true.
+
+====================================================================
+
 # QC v1 세팅실 — Ralph 진행 로그
 
 ## 검증 게이트 (확정)
@@ -205,7 +223,14 @@
   ⚠ get_public_page는 create or replace(재적용 안전). 마이그 배치 끝=0036(0034·0035 이후).
 - [x] US-7 오늘의학교 넛지(코드완료, opus executor): nudge.ts shape 변경(unrecordedObservation 단일→unrecordedObservations 리스트 {sectionKey,sectionLabel,suggestedStudentId,suggestedStudentName,candidateCount}[], 분반 수업당 1개+기록시 해결, 16시 게이트 제거=종일)+test13. nudge.ts collectTodaySectionObservations(오늘 KST 요일 분반, 관찰완료 제외). 소비자 둘다 갱신: app/page.tsx(EMPTY_NUDGES 신shape+listStudents 제거)+app/today/page.tsx(리스트 순회). nudge-banner 리스트화+딥링크. counseling.ts listHomeroomUpcomingReservations(담임전체 예약 집계 신규 AC-7.9). 모달 app/today/nudge-modal.tsx(sessionStorage dismiss). events-calendar.tsx(학사+전체상담 오버레이). notice-widget.tsx(한마디 캐러셀+할일·공지). 사전선택 딥링크: observations/behavior page+client(studentYearId/sectionId 파라미터 옵셔널), 미제출→/homeroom/attendance?view=unsubmitted. 오늘시간표 색상+시간, 급식표. typecheck0+build0+nudge13 green. 마이그 없음.
 - [x] US-8 담임허브+페이지네이션 잔여(코드완료, opus executor): app/homeroom/layout.tsx 신규(classroom 패턴 탭바 6탭+담임 게이트 layout으로 이동), page.tsx 묶음만, 하위 6페이지 ←홈 제거. 페이지네이션 8개: 교과관찰(observations-client)·세특 초안+추가입력(setech-bulk-client)·자율진로(activities-client)·상담기록+상담슬롯(counsel-lists-client 신규)·행동특성(behavior-client) 각 10, 학사일정(calendar-attrs)·학생명단(student-roster) 각 20. ⚠ observations/behavior 서버 limit:30 캡 제거(전체 페이지네이션 위해). typecheck0+build0. 마이그 없음.
-- [ ] US-9 회귀+배포: ★남음★ = 마이그 prod 일괄적용(0030→0031→0033→0032→0034→0035→0036)·RUN_DB_ITEST 통합테스트 green·architect THOROUGH·deslop·git push→main→Vercel. **사용자 승인 게이트(prod 마이그+배포). 다음 세션.**
+- [x] US-9 회귀+배포 완료(2026-06-15): 마이그 0030→0031→0033→0032→0034→0035→0036 prod 일괄적용(apply-sql.mjs, NOTICE=멱등가드 정상). 통합테스트 1차 9 fail(3파일)→근본수정:
+    - **0037_fix_lesson_unit_unique.sql(교정 마이그, prod 적용)**: 0030 이 lesson_units/exam_targets unique 키에 owner_id 포함 생성 → 스키마(records.ts uq_lesson_units 4컬럼/uq_exam_targets 2컬럼)+onConflict 코드와 불일치("no unique constraint matching"). subject_id 가 owner 종속이라 owner_id 제거 키로 동치·정정(빈 신규 테이블, drop if exists→add 멱등). ⚠ DB리셋 시 0030 직후 0037 적용 필요(런북).
+    - escalation itest: 캘린더 시드 -40..0 → -40..+30(체험 마감=end_date 이후 10번째 수업일=미래일 수 있음). 테스트 픽스처 수정(제품 정상).
+    - get_public_page v4 itest: 급식=학교(owner)단위 → 무데이터 학생도 owner 당일급식 노출. meals=[] 단언 → Array.isArray 정정(제품 정상).
+  - 재검증: typecheck0/build0/단위258/RUN_DB_ITEST 통합 **429 green(54파일)**. architect THOROUGH **APPROVED**(0037 owner-scoping 동치 증명·테스트수정 정당성·0036 NULL-safe 확인, 블로커0, nit2=0037런북·CI스키마드리프트가드). deslop 0편집(변경 3파일 클린). 7.6 회귀=deslop무편집→green유지.
+  - 배포: feat/qc-v4 push → main merge --no-ff(1780658) → push origin main(9373757..1780658) → Vercel Hobby 자동배포. prod root HTTP 200(icn1). 마이그 0030~0037 prod 적용완료.
+  - 커밋: 1ed6cb2(US-9 회귀수정) + 머지 1780658.
+  - ⚠ v4 학습: 손작성 마이그 unique 키는 Drizzle 스키마 unique 정의(컬럼 집합·이름)와 정확히 일치시킬 것. onConflict 추론은 DB 제약과 컬럼 집합이 정확히 같아야 매칭(owner_id 1컬럼 차이도 실패). build/typecheck은 미포착, itest만 포착.
 
 ## 📍 QC v4 현재 상태 (2026-06-15 세션 종료 시점)
 - 코드 8/9 스토리 완료·커밋(feat/qc-v4): US-1~US-8. 전부 typecheck0/build0/단위테스트 green.

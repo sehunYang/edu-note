@@ -9,7 +9,6 @@ import {
   listUnsubmittedAttendance,
   listFieldTrips,
 } from "@/lib/db/queries";
-import { recomputeEscalationAction } from "./actions";
 import { AttendancePeriodClient } from "./attendance-period-client";
 import {
   EditableAttendanceTable,
@@ -27,9 +26,10 @@ function thisMonthStr(): string {
   return todayStr().slice(0, 7);
 }
 
-type View = "today" | "month" | "student" | "unsubmitted";
+type View = "today" | "fieldtrip" | "month" | "student" | "unsubmitted";
 const VIEWS: { key: View; label: string }[] = [
   { key: "today", label: "오늘 입력" },
+  { key: "fieldtrip", label: "교외체험학습 등록" },
   { key: "month", label: "월별" },
   { key: "student", label: "학생별 검색" },
   { key: "unsubmitted", label: "미제출" },
@@ -38,7 +38,8 @@ const VIEWS: { key: View; label: string }[] = [
 /**
  * 출결 화면 (QC v4 US-4, AC-4.1~4.7). 날짜별 사유×성격 기록 + 신고서 필요
  * 자동 판정(질병결석·'생리통') + 제출 마킹 + 기록 수정 + 기간 입력.
- * 신고서 제출(미제출/교외체험 사후보고서)은 하단에 묶어 단일 렌더한다.
+ * 교외체험학습 등록은 별도 탭(오늘 입력 다음)으로 분리(전탭 하단 중복 섹션 제거).
+ * 미제출 탭은 출결 신고서·교외체험 사후보고서 두 소스를 머지해 노출한다.
  */
 export default async function AttendancePage({
   searchParams,
@@ -64,7 +65,7 @@ export default async function AttendancePage({
   // 담임반 학생만 (listHomeroomStudents). 항상 필요.
   const students = await listHomeroomStudents(db, ownerId, year);
 
-  // 뷰별 데이터 + 교외체험은 항상 로드.
+  // 뷰별 데이터(교외체험 등록도 별도 탭이므로 해당 탭에서만 로드).
   const [records, monthRows, studentRows, unsubmitted, fieldTrips] =
     await Promise.all([
       view === "today" ? listAttendanceByDate(db, ownerId, date) : Promise.resolve([]),
@@ -75,7 +76,7 @@ export default async function AttendancePage({
       view === "unsubmitted"
         ? listUnsubmittedAttendance(db, ownerId, year)
         : Promise.resolve([]),
-      listFieldTrips(db, ownerId),
+      view === "fieldtrip" ? listFieldTrips(db, ownerId) : Promise.resolve([]),
     ]);
   // 담임반 명단으로 오늘 뷰도 필터(공유 쿼리는 owner 전체 반환).
   const studentIdSet = new Set(students.map((s) => s.id));
@@ -144,6 +145,27 @@ export default async function AttendancePage({
         </>
       )}
 
+      {view === "fieldtrip" && (
+        <section className="mt-6 rounded-lg border border-neutral-200 p-5">
+          <h2 className="text-sm font-semibold text-neutral-700">교외체험학습 사후보고서</h2>
+          <p className="mt-1 text-xs text-neutral-400">
+            기간(시작~종료, 종료 생략=당일) 입력 시 수업일마다 인정결석이 자동 생성됩니다.
+            체험 종료일 기준 수업일 마감으로 미제출 시 티어가 오릅니다.
+          </p>
+          {students.length === 0 ? (
+            <p className="mt-3 text-sm text-neutral-400">
+              먼저{" "}
+              <Link href="/students" className="underline">
+                학생 명단
+              </Link>
+              을 임포트하세요.
+            </p>
+          ) : (
+            <FieldTripSection students={students} trips={fieldTrips} />
+          )}
+        </section>
+      )}
+
       {view === "month" && (
         <section className="mt-6">
           <form method="get" className="flex items-center gap-2 text-sm">
@@ -208,22 +230,6 @@ export default async function AttendancePage({
           <UnsubmittedTable rows={unsubmitted} />
         </section>
       )}
-
-      {/* 신고서 제출 묶음: 교외체험 사후보고서를 단일 섹션으로 렌더(탭별 중복 제거). */}
-      <section className="mt-10">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-neutral-700">교외체험학습 사후보고서</h2>
-          <form action={recomputeEscalationAction}>
-            <button className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
-              에스컬레이션 재계산
-            </button>
-          </form>
-        </div>
-        <p className="mt-1 text-xs text-neutral-400">
-          체험 종료일 기준 수업일 마감으로 미제출 시 티어가 오릅니다.
-        </p>
-        <FieldTripSection students={students} trips={fieldTrips} />
-      </section>
     </div>
   );
 }

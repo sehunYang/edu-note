@@ -6,6 +6,7 @@ import {
   toggleReportSubmittedAction,
   deleteAttendanceAction,
   updateAttendanceAction,
+  markUnsubmittedSubmittedAction,
 } from "./actions";
 import type { AttendanceStudentRow } from "@/lib/db/queries";
 
@@ -194,7 +195,14 @@ export interface UnsubmittedRow extends AttendanceStudentRow {
   deadlineDate: string | null;
   remainingSchoolDays: number | null;
   tier: "normal" | "warning" | "critical";
+  /** 출처: attendance=출결 신고서(id=attendance_record), fieldTrip=교외체험 사후보고서(id=field_trip). */
+  source: "attendance" | "fieldTrip";
 }
+
+const SOURCE_LABEL: Record<string, string> = {
+  attendance: "출결",
+  fieldTrip: "교외체험",
+};
 
 const TIER_LABEL: Record<string, string> = {
   normal: "정상",
@@ -236,7 +244,12 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
                 {r.sid} {r.name}
               </td>
               <td className="py-2">{r.date}</td>
-              <td className="py-2">{KIND_LABEL[r.kind]}</td>
+              <td className="py-2">
+                {KIND_LABEL[r.kind]}
+                <span className="ml-1 text-xs text-neutral-400">
+                  ({SOURCE_LABEL[r.source]})
+                </span>
+              </td>
               <td className="py-2 text-xs text-neutral-500">{periodsLabel(r.periods)}</td>
               <td className="py-2 text-xs text-neutral-500">
                 {r.deadlineDate ?? "—"}
@@ -253,9 +266,9 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
                 {TIER_LABEL[r.tier]}
               </td>
               <td className="py-2 text-right">
-                <form action={toggleReportSubmittedAction} className="inline">
+                <form action={markUnsubmittedSubmittedAction} className="inline">
                   <input type="hidden" name="id" value={r.id} />
-                  <input type="hidden" name="submitted" value="true" />
+                  <input type="hidden" name="source" value={r.source} />
                   <button className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
                     제출 처리
                   </button>

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, lt, lte, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import { counselingLogs, counselSlots, counselReservations } from "../schema/misc";
@@ -428,6 +428,121 @@ export async function listHomeroomUpcomingReservations(
         date: r.date,
         studentYearId: r.studentYearId,
         studentLabel: `${r.sid} ${r.name}`,
+      })),
+    );
+}
+
+/**
+ * 담임반 학생 전체의 특정 기간([fromDate, toDate]) 예약 상담을 날짜순으로 집계한다.
+ * 오늘의 학교 캘린더 월 네비게이션 재조회용(QC v5 c7 B.3) — 과거 달도 노출.
+ */
+export async function listHomeroomReservationsInRange(
+  db: DB,
+  ownerId: string,
+  year: number,
+  fromDate: string,
+  toDate: string,
+): Promise<HomeroomCounselReservation[]> {
+  return db
+    .select({
+      date: counselSlots.date,
+      studentYearId: counselReservations.studentYearId,
+      sid: studentYears.sid,
+      name: studentYears.name,
+    })
+    .from(counselReservations)
+    .innerJoin(counselSlots, eq(counselSlots.id, counselReservations.slotId))
+    .innerJoin(
+      homeroomMembers,
+      eq(homeroomMembers.studentYearId, counselReservations.studentYearId),
+    )
+    .innerJoin(homeroomClasses, eq(homeroomClasses.id, homeroomMembers.homeroomId))
+    .innerJoin(studentYears, eq(studentYears.id, counselReservations.studentYearId))
+    .where(
+      and(
+        eq(counselReservations.ownerId, ownerId),
+        eq(homeroomMembers.ownerId, ownerId),
+        eq(homeroomClasses.schoolYear, year),
+        gte(counselSlots.date, fromDate),
+        lte(counselSlots.date, toDate),
+      ),
+    )
+    .orderBy(asc(counselSlots.date), asc(studentYears.sid))
+    .then((rows) =>
+      rows.map((r) => ({
+        date: r.date,
+        studentYearId: r.studentYearId,
+        studentLabel: `${r.sid} ${r.name}`,
+      })),
+    );
+}
+
+// ── QC v5 c8 AC-8.1: 예약 슬롯 시각 경과 + 상담일지 미작성 → 넛지 ──────────────
+
+export interface PendingCounselLogReservation {
+  reservationId: string;
+  studentYearId: string;
+  studentLabel: string; // 학번 이름
+  date: string; // 슬롯 날짜
+}
+
+/**
+ * 예약 슬롯 날짜가 경과(< beforeDate)했으나 상담일지(counseling_logs)가 아직
+ * 작성되지 않은 예약을 집계한다(QC v5 c8 AC-8.1). 상담실 작성을 유도하는 넛지 입력.
+ *
+ * "상담일지 작성됨" 판정: 같은 (ownerId, studentYearId, 슬롯 날짜)로 counseling_logs
+ * 행이 1건이라도 있으면 해결된 것으로 본다(상담일지에는 reservationId 링크가 없어
+ * 날짜·학생 매칭으로 판정). beforeDate(KST 오늘)는 상위에서 clock 기준으로 주입한다.
+ */
+export async function listPendingCounselLogReservations(
+  db: DB,
+  ownerId: string,
+  year: number,
+  beforeDate: string,
+): Promise<PendingCounselLogReservation[]> {
+  const logExists = db
+    .select({ one: sql<number>`1` })
+    .from(counselingLogs)
+    .where(
+      and(
+        eq(counselingLogs.ownerId, ownerId),
+        eq(counselingLogs.studentYearId, counselReservations.studentYearId),
+        eq(counselingLogs.date, counselSlots.date),
+      ),
+    );
+
+  return db
+    .select({
+      reservationId: counselReservations.id,
+      studentYearId: counselReservations.studentYearId,
+      date: counselSlots.date,
+      sid: studentYears.sid,
+      name: studentYears.name,
+    })
+    .from(counselReservations)
+    .innerJoin(counselSlots, eq(counselSlots.id, counselReservations.slotId))
+    .innerJoin(
+      homeroomMembers,
+      eq(homeroomMembers.studentYearId, counselReservations.studentYearId),
+    )
+    .innerJoin(homeroomClasses, eq(homeroomClasses.id, homeroomMembers.homeroomId))
+    .innerJoin(studentYears, eq(studentYears.id, counselReservations.studentYearId))
+    .where(
+      and(
+        eq(counselReservations.ownerId, ownerId),
+        eq(homeroomMembers.ownerId, ownerId),
+        eq(homeroomClasses.schoolYear, year),
+        lt(counselSlots.date, beforeDate),
+        sql`not exists ${logExists}`,
+      ),
+    )
+    .orderBy(asc(counselSlots.date), asc(studentYears.sid))
+    .then((rows) =>
+      rows.map((r) => ({
+        reservationId: r.reservationId,
+        studentYearId: r.studentYearId,
+        studentLabel: `${r.sid} ${r.name}`,
+        date: r.date,
       })),
     );
 }

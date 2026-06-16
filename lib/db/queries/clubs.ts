@@ -51,6 +51,33 @@ export async function listClubs(db: DB, ownerId: string): Promise<ClubRow[]> {
     .orderBy(desc(clubs.createdAt));
 }
 
+/**
+ * 교사 단일 동아리(QC v5 c9 /clubroom 허브 — 교사당 동아리 1개 전제). 가장 먼저
+ * 만든(최초) 동아리 1건을 반환한다. 없으면 null(허브 게이팅에 사용).
+ */
+export async function getOwnerClub(
+  db: DB,
+  ownerId: string,
+): Promise<ClubRow | null> {
+  const rows = await db
+    .select({
+      id: clubs.id,
+      name: clubs.name,
+      memberCount: sql<number>`count(${clubMembers.id})::int`,
+      createdAt: clubs.createdAt,
+    })
+    .from(clubs)
+    .leftJoin(
+      clubMembers,
+      and(eq(clubMembers.clubId, clubs.id), eq(clubMembers.ownerId, ownerId)),
+    )
+    .where(eq(clubs.ownerId, ownerId))
+    .groupBy(clubs.id)
+    .orderBy(asc(clubs.createdAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
 /** 동아리 삭제(소유자 본인 행만). 부원은 FK cascade 로 함께 삭제. */
 export async function deleteClub(
   db: DB,

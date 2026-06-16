@@ -72,6 +72,18 @@ export interface SectionObservationInput {
   studentNames?: Record<string, string>;
 }
 
+/**
+ * 예약 슬롯 시각이 경과했으나 상담일지(createCounselingLog)가 아직 작성되지 않은
+ * 예약(QC v5 c8 AC-8.1). 상담실 딥링크로 작성을 유도한다.
+ */
+export interface PendingCounselLogInput {
+  reservationId: string;
+  studentYearId: string;
+  studentLabel: string;
+  /** 예약 슬롯 날짜(YYYY-MM-DD). 경과 판정은 상위 쿼리에서 clock 기준으로 끝낸 뒤 전달. */
+  date: string;
+}
+
 export interface NudgeInput {
   /** 오늘 진행하는 분반 수업 목록(이미 관찰된 분반은 상위에서 제외). */
   sectionObservations: SectionObservationInput[];
@@ -79,6 +91,8 @@ export interface NudgeInput {
   behaviorPendingStudentIds: readonly string[];
   /** 미제출 신고서 각각의 현재 티어. */
   pendingReportTiers: readonly ReportTier[];
+  /** 시각 경과 + 상담일지 미작성 예약(c8). 미전달 시 빈 배열로 취급. */
+  pendingCounselLogs?: readonly PendingCounselLogInput[];
 }
 
 /** 분반 수업당 1개의 교과 관찰 넛지(추천 1명 확정). */
@@ -90,6 +104,14 @@ export interface UnrecordedObservationNudge {
   candidateCount: number;
 }
 
+/** 시각 경과 + 상담일지 미작성 예약 1건(c8 AC-8.1). */
+export interface PendingCounselLogNudge {
+  reservationId: string;
+  studentYearId: string;
+  studentLabel: string;
+  date: string;
+}
+
 export interface NudgeResult {
   /** 오늘 분반 수업당 1개의 교과 관찰 넛지(AC-7.2). 빈 배열이면 없음. */
   unrecordedObservations: UnrecordedObservationNudge[];
@@ -99,6 +121,8 @@ export interface NudgeResult {
     warning: number;
     critical: number;
   } | null;
+  /** 시각 경과 + 상담일지 미작성 예약(c8 AC-8.1). 빈 배열이면 없음. */
+  pendingCounselLogs: PendingCounselLogNudge[];
   /** 노출할 넛지가 하나라도 있으면 true. */
   hasAny: boolean;
 }
@@ -146,12 +170,27 @@ export function assembleNudges(
         }
       : null;
 
+  // ⑤ 시각 경과 + 상담일지 미작성 예약(c8 AC-8.1). 경과 판정은 상위(쿼리)에서
+  //    clock 기준으로 끝낸 입력만 전달되므로 여기서는 그대로 매핑한다(순수 규칙).
+  const pendingCounselLogs: PendingCounselLogNudge[] = (
+    input.pendingCounselLogs ?? []
+  ).map((c) => ({
+    reservationId: c.reservationId,
+    studentYearId: c.studentYearId,
+    studentLabel: c.studentLabel,
+    date: c.date,
+  }));
+
   return {
     unrecordedObservations,
     behaviorNotes,
     pendingReports,
+    pendingCounselLogs,
     hasAny: Boolean(
-      unrecordedObservations.length > 0 || behaviorNotes || pendingReports,
+      unrecordedObservations.length > 0 ||
+        behaviorNotes ||
+        pendingReports ||
+        pendingCounselLogs.length > 0,
     ),
   };
 }

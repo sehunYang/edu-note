@@ -4,26 +4,22 @@ import Link from "next/link";
 import type { NudgeResult } from "@/lib/domain/nudge";
 
 /**
- * 오늘의 학교 넛지 모달 (QC v4 AC-7.1). 진입마다 표시하되, 닫으면 그 세션 동안
- * 다시 뜨지 않는다(sessionStorage 플래그). 새로고침/재진입(새 세션 아님)에도
- * 닫은 상태가 유지되며, 탭을 닫았다 새로 열면(새 세션) 다시 표시된다.
+ * 오늘의 학교 넛지 모달 (QC v5 c7 B.1). 해결 전까지 /today 진입마다 표시한다.
+ * sessionStorage dismiss 로직은 제거됨 — 새로고침/재진입에도 매번 다시 뜬다(AC-7.1).
  *
- * 각 넛지는 사전선택 딥링크로 이동(AC-7.3/7.5/7.6). 데스크톱 홈(/)은 모달이 아닌
- * 배너(NudgeBanner)를 쓰므로 이 컴포넌트는 /today 전용이다.
+ * "다음에 하기"(또는 ✕/배경 클릭)는 **모달 state 만 닫는다**. 상단 넛지 배너
+ * (NudgeBanner)는 별도 컴포넌트로 같은 nudges 를 읽으므로 모달을 닫아도 유지된다
+ * (AC-7.2). 각 넛지는 사전선택 딥링크로 이동. 이 컴포넌트는 /today 전용.
  */
-const DISMISS_KEY = "today-nudge-dismissed";
-
 export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!nudges.hasAny) return;
-    const dismissed = sessionStorage.getItem(DISMISS_KEY) === "1";
-    if (!dismissed) setOpen(true);
+    if (nudges.hasAny) setOpen(true);
   }, [nudges.hasAny]);
 
+  // 모달 state 만 닫는다(배너는 영향 없음 — AC-7.2).
   function close() {
-    sessionStorage.setItem(DISMISS_KEY, "1");
     setOpen(false);
   }
 
@@ -86,6 +82,25 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
             </li>
           )}
 
+          {nudges.pendingCounselLogs.map((c) => (
+            <li
+              key={c.reservationId}
+              className="flex items-center justify-between gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2"
+            >
+              <span>
+                상담일지 미작성 <strong>{c.studentLabel}</strong>
+                <span className="ml-1 text-xs text-sky-600">({c.date})</span>
+              </span>
+              <Link
+                href={`/homeroom/counsel?studentYearId=${c.studentYearId}`}
+                onClick={close}
+                className="shrink-0 rounded bg-neutral-800 px-2 py-1 text-xs text-white hover:bg-neutral-700"
+              >
+                작성
+              </Link>
+            </li>
+          ))}
+
           {nudges.pendingReports && (
             <li className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
               <span>
@@ -112,7 +127,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
           onClick={close}
           className="mt-5 w-full rounded-lg border border-neutral-300 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
         >
-          나중에 하기
+          다음에 하기
         </button>
       </div>
     </div>

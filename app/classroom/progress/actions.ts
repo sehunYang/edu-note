@@ -5,24 +5,16 @@ import { getOwnerId } from "@/lib/auth/owner";
 import {
   generateSemesterSessions,
   setProgressStatus,
-  markSessionDone,
-  getPlanForSession,
   listSectionsForSemester,
   writeAudit,
-  type PlanForSession,
 } from "@/lib/db/queries";
 import type { SessionStatus } from "@/lib/domain/types";
 
 /**
- * 수업 진척도 서버액션 (교실 2-2 단계3). getOwnerId 가드 + 페이지범위 revalidate + audit.
- * 핵심개념(keywords)은 콤마/공백 구분 입력을 배열로 정규화한다.
+ * 수업 진척도 서버액션 (교실 2-2 단계3, QC v5 c2 재설계). getOwnerId 가드 +
+ * 페이지범위 revalidate + audit. 차시 수행체크 기록 폼(완료 기록 입력)은 폐기됐고,
+ * 진도는 done 차시의 마지막 단원에서 자동 도출된다(AC-2.1/AC-2.2).
  */
-function parseKeywords(raw: string): string[] {
-  return raw
-    .split(/[,\s]+/)
-    .map((k) => k.replace(/^#/, "").trim())
-    .filter((k) => k.length > 0);
-}
 
 /** 활성 학기 분반들에 학기 전체 차시 생성/정리. */
 export async function generateSessionsAction(formData: FormData): Promise<void> {
@@ -69,44 +61,4 @@ export async function setProgressStatusAction(formData: FormData): Promise<void>
   await setProgressStatus(db, ownerId, sessionId, status);
   await writeAudit(db, ownerId, "progress_record", sessionId, { status });
   revalidatePath("/classroom/progress");
-}
-
-/** 완료 처리 + 실제수업내용·핵심개념·평가아이디어 저장. */
-export async function saveDoneRecordAction(formData: FormData): Promise<void> {
-  const ownerId = await getOwnerId();
-  const sessionId = String(formData.get("sessionId") ?? "").trim();
-  if (!sessionId) return;
-
-  const actualContent = String(formData.get("actualContent") ?? "");
-  const keywords = parseKeywords(String(formData.get("keywords") ?? ""));
-  const evalIdea = String(formData.get("evalIdea") ?? "");
-  const planOrdinalRaw = formData.get("planOrdinal");
-  const planOrdinal =
-    planOrdinalRaw != null && String(planOrdinalRaw).trim() !== ""
-      ? Number(planOrdinalRaw)
-      : null;
-
-  const db = getDb();
-  await markSessionDone(db, ownerId, sessionId, {
-    actualContent,
-    keywords,
-    evalIdea,
-    planOrdinal,
-  });
-  await writeAudit(db, ownerId, "progress_record", sessionId, {
-    done: true,
-    keywords: keywords.length,
-    planOrdinal,
-  });
-  revalidatePath("/classroom/progress");
-}
-
-/** 토글 불러오기 — 차시의 날짜순위 k → 과목 계획 ordinal k 내용. */
-export async function loadPlanForSessionAction(
-  sessionId: string,
-): Promise<PlanForSession | null> {
-  const ownerId = await getOwnerId();
-  if (!sessionId) return null;
-  const db = getDb();
-  return getPlanForSession(db, ownerId, sessionId);
 }

@@ -4,9 +4,7 @@ import {
   listSectionsForSemester,
   listProgressPopup,
   getSectionSessions,
-  getSessionRecord,
   getSectionProgressStats,
-  type SessionRow,
 } from "@/lib/db/queries";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import type { SectionProgressStat } from "@/lib/db/queries/progress";
@@ -14,7 +12,6 @@ import {
   ProgressBoard,
   type SectionView,
   type PopupView,
-  type SessionView,
 } from "./progress-board";
 
 export const dynamic = "force-dynamic";
@@ -49,17 +46,20 @@ export default async function ProgressPage({
     getSectionProgressStats(db, ownerId, year, sem),
   ]);
 
-  // 분반별 차시 + 기존 기록 조립.
+  // 분반별 차시 조립(상태만 — 수행체크 기록 폼 제거, AC-2.1).
   const sectionViews: SectionView[] = await Promise.all(
     sections.map(async (sec) => {
       const sessions = await getSectionSessions(db, ownerId, sec.sectionId);
-      const views = await assembleSessions(db, ownerId, sessions);
       return {
         sectionId: sec.sectionId,
         label: sec.label,
         subjectId: sec.subjectId,
         subjectName: sec.subjectName,
-        sessions: views,
+        sessions: sessions.map((s) => ({
+          id: s.id,
+          date: s.date,
+          status: s.status,
+        })),
       };
     }),
   );
@@ -96,32 +96,5 @@ export default async function ProgressPage({
         statusLabel={STATUS_LABEL}
       />
     </div>
-  );
-}
-
-/** 차시 목록에 기존 session_records 를 병합. */
-async function assembleSessions(
-  db: ReturnType<typeof getDb>,
-  ownerId: string,
-  sessions: SessionRow[],
-): Promise<SessionView[]> {
-  return Promise.all(
-    sessions.map(async (s) => {
-      const rec =
-        s.status === "done" ? await getSessionRecord(db, ownerId, s.id) : null;
-      return {
-        id: s.id,
-        date: s.date,
-        status: s.status,
-        record: rec
-          ? {
-              actualContent: rec.actualContent ?? "",
-              keywords: rec.keywords ?? [],
-              evalIdea: rec.evalIdea ?? "",
-              planOrdinal: rec.planOrdinal,
-            }
-          : null,
-      };
-    }),
   );
 }

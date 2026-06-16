@@ -1,10 +1,8 @@
 "use client";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   generateSessionsAction,
   setProgressStatusAction,
-  saveDoneRecordAction,
-  loadPlanForSessionAction,
 } from "./actions";
 import type { SessionStatus } from "@/lib/domain/types";
 import { Paginator } from "@/lib/ui/paginator";
@@ -21,27 +19,24 @@ export interface StatView {
   targetRate: number;
   actualRate: number;
   color: "green" | "red";
+  /** QC v5 c2(AC-2.2) — done 차시 마지막 도달 단원코드(빈셀 제외). 없으면 null. */
+  lastDoneUnitCode: number | null;
+  lastDoneUnitLabel: string | null;
+  /** QC v5 c2(AC-2.4) — 지필 둘 다 미시행이면 false → 시험진도율 블록 생략. */
+  showExamProgress: boolean;
 }
 
 /**
- * 수업 진척도 클라이언트 보드 (교실 2-2 단계3, 전면 신규 — /sessions UI 미재사용).
+ * 수업 진척도 클라이언트 보드 (교실 2-2 단계3, QC v5 c2 재설계).
  *
- * 상단: 금주∪연체 planned 차시 팝업 패널. 각 차시 예정/미진행/완료 토글.
- * 완료 시 인라인 폼(실제수업내용·핵심개념 칩·평가아이디어 + 계획 불러오기)을 펼친다.
- * neutral Tailwind, app/sessions/page.tsx 시각 밀도와 일관.
+ * 상단: 분반별 진도 현황(단원진도 자동 도출 + 지필 과목 시험진도율). 금주∪연체 planned
+ * 차시 팝업. 각 차시 예정/미진행/완료 상태 토글(완료=즉시 status='done', 별도 수행체크
+ * 입력 폼 없음 — 진도는 done 차시의 마지막 단원에서 자동 도출, AC-2.1/AC-2.2).
  */
-export interface SessionRecordView {
-  actualContent: string;
-  keywords: string[];
-  evalIdea: string;
-  planOrdinal: number | null;
-}
-
 export interface SessionView {
   id: string;
   date: string;
   status: SessionStatus;
-  record: SessionRecordView | null;
 }
 
 export interface SectionView {
@@ -76,9 +71,6 @@ export function ProgressBoard({
   stats: StatView[];
   statusLabel: Record<string, string>;
 }) {
-  // 완료 폼이 열린 차시 id(인라인 토글).
-  const [openDone, setOpenDone] = useState<string | null>(null);
-
   return (
     <div className="mt-6 space-y-8">
       {/* 진도율 통계(AC-2.4~2.6) */}
@@ -130,18 +122,8 @@ export function ProgressBoard({
                     sessionId={p.sessionId}
                     current="planned"
                     statusLabel={statusLabel}
-                    onDoneClick={() =>
-                      setOpenDone(openDone === p.sessionId ? null : p.sessionId)
-                    }
                   />
                 </div>
-                {openDone === p.sessionId && (
-                  <DoneForm
-                    sessionId={p.sessionId}
-                    record={null}
-                    onClose={() => setOpenDone(null)}
-                  />
-                )}
               </li>
             ))}
           </ul>
@@ -164,8 +146,6 @@ export function ProgressBoard({
                 key={sec.sectionId}
                 section={sec}
                 statusLabel={statusLabel}
-                openDone={openDone}
-                setOpenDone={setOpenDone}
               />
             ))}
           </div>
@@ -175,47 +155,76 @@ export function ProgressBoard({
   );
 }
 
-/** 진도율 통계 헤더(분반별 목표 vs 실제, 초록/빨강). */
+/** 6자리 코드 표기(대2+중2+소2). */
+function fmtCode(code: number): string {
+  return String(code).padStart(6, "0");
+}
+
+/**
+ * 진도율 통계 헤더(분반별). 단원진도(마지막 도달 단원, AC-2.2)는 항상 표시하고,
+ * 시험진도율(목표 vs 실제, 초록/빨강)은 지필 시행 과목(showExamProgress)만 표시한다(AC-2.4).
+ */
 function StatsHeader({ stats }: { stats: StatView[] }) {
   if (stats.length === 0) return null;
   const pct = (r: number) => `${Math.round(r * 100)}%`;
   return (
     <section className="rounded-lg border border-neutral-200 p-5">
-      <h3 className="font-semibold text-neutral-800">시험까지 진도율(분반별)</h3>
+      <h3 className="font-semibold text-neutral-800">진도 현황(분반별)</h3>
       <p className="mt-1 text-xs text-neutral-400">
-        목표 = 계획상 오늘까지 차시 ÷ 시험목표 총 차시 / 실제 = 진행 차시 ÷ 시험목표 총
-        차시. 계획보다 2차시 이상 뒤지면 빨강.
+        단원진도 = 완료(done) 차시의 마지막 도달 단원(여유차시 제외, 자동 도출). 시험진도율은
+        지필 시행 과목만 표시(목표 = 오늘까지 차시 ÷ 시험목표 차시, 2차시 이상 뒤지면 빨강).
       </p>
       <ul className="mt-3 space-y-2">
         {stats.map((st) => (
           <li
             key={st.sectionId}
             className={`flex flex-wrap items-center justify-between gap-2 rounded border px-3 py-2 text-sm ${
-              st.color === "red"
-                ? "border-red-200 bg-red-50"
-                : "border-green-200 bg-green-50"
+              st.showExamProgress
+                ? st.color === "red"
+                  ? "border-red-200 bg-red-50"
+                  : "border-green-200 bg-green-50"
+                : "border-neutral-200 bg-neutral-50"
             }`}
           >
             <span className="font-medium">
               {st.subjectName}{" "}
               <span className="text-neutral-400">{st.label}</span>
             </span>
-            <span className="flex items-center gap-3">
+            <span className="flex flex-wrap items-center gap-3">
               <span className="text-neutral-600">
-                목표 {pct(st.targetRate)} · 실제{" "}
-                <span
-                  className={
-                    st.color === "red"
-                      ? "font-semibold text-red-600"
-                      : "font-semibold text-green-700"
-                  }
-                >
-                  {pct(st.actualRate)}
-                </span>
+                단원진도{" "}
+                {st.lastDoneUnitCode != null ? (
+                  <span className="font-medium text-neutral-800">
+                    {fmtCode(st.lastDoneUnitCode)}
+                    {st.lastDoneUnitLabel && (
+                      <span className="ml-1 text-xs text-neutral-500">
+                        {st.lastDoneUnitLabel}
+                      </span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-neutral-400">진행 전</span>
+                )}
               </span>
-              <span className="text-xs text-neutral-400">
-                ({st.actualDone}/{st.examTargetTotal}차시)
-              </span>
+              {st.showExamProgress && (
+                <>
+                  <span className="text-neutral-600">
+                    목표 {pct(st.targetRate)} · 실제{" "}
+                    <span
+                      className={
+                        st.color === "red"
+                          ? "font-semibold text-red-600"
+                          : "font-semibold text-green-700"
+                      }
+                    >
+                      {pct(st.actualRate)}
+                    </span>
+                  </span>
+                  <span className="text-xs text-neutral-400">
+                    ({st.actualDone}/{st.examTargetTotal}차시)
+                  </span>
+                </>
+              )}
             </span>
           </li>
         ))}
@@ -229,13 +238,9 @@ const SECTION_PAGE_SIZE = 20;
 function SectionBlock({
   section,
   statusLabel,
-  openDone,
-  setOpenDone,
 }: {
   section: SectionView;
   statusLabel: Record<string, string>;
-  openDone: string | null;
-  setOpenDone: (id: string | null) => void;
 }) {
   const [page, setPage] = useState(1);
   const { pageItems, totalPages, currentPage } = paginate(
@@ -272,18 +277,8 @@ function SectionBlock({
                   sessionId={s.id}
                   current={s.status}
                   statusLabel={statusLabel}
-                  onDoneClick={() =>
-                    setOpenDone(openDone === s.id ? null : s.id)
-                  }
                 />
               </div>
-              {openDone === s.id && (
-                <DoneForm
-                  sessionId={s.id}
-                  record={s.record}
-                  onClose={() => setOpenDone(null)}
-                />
-              )}
             </li>
           ))}
         </ul>
@@ -299,20 +294,21 @@ function SectionBlock({
   );
 }
 
+/**
+ * 차시 상태 토글(예정/미진행/완료). 세 상태 모두 즉시 status 변경(별도 수행체크 입력
+ * 폼 없음 — AC-2.1). 완료(done) 차시의 마지막 단원이 진척도 헤더에 자동 도출된다.
+ */
 function StatusButtons({
   sessionId,
   current,
   statusLabel,
-  onDoneClick,
 }: {
   sessionId: string;
   current: SessionStatus;
   statusLabel: Record<string, string>;
-  onDoneClick: () => void;
 }) {
   const [pending, startTransition] = useTransition();
 
-  // 예정/미진행은 즉시 액션, 완료는 폼을 펼친다.
   function setStatus(status: SessionStatus) {
     const fd = new FormData();
     fd.set("sessionId", sessionId);
@@ -324,7 +320,7 @@ function StatusButtons({
 
   return (
     <span className="flex gap-1">
-      {(["planned", "not_held"] as const).map((st) => (
+      {(["planned", "not_held", "done"] as const).map((st) => (
         <button
           key={st}
           type="button"
@@ -339,155 +335,6 @@ function StatusButtons({
           {statusLabel[st]}
         </button>
       ))}
-      <button
-        type="button"
-        onClick={onDoneClick}
-        className={`rounded border px-2 py-0.5 text-xs ${
-          current === "done"
-            ? "border-neutral-800 bg-neutral-800 text-white"
-            : "border-neutral-300 hover:bg-neutral-50"
-        }`}
-      >
-        {statusLabel.done}
-      </button>
     </span>
-  );
-}
-
-function DoneForm({
-  sessionId,
-  record,
-  onClose,
-}: {
-  sessionId: string;
-  record: SessionRecordView | null;
-  onClose: () => void;
-}) {
-  const [actualContent, setActualContent] = useState(record?.actualContent ?? "");
-  const [keywords, setKeywords] = useState((record?.keywords ?? []).join(" "));
-  const [evalIdea, setEvalIdea] = useState(record?.evalIdea ?? "");
-  const [planOrdinal, setPlanOrdinal] = useState<string>(
-    record?.planOrdinal != null ? String(record.planOrdinal) : "",
-  );
-  const [loadMsg, setLoadMsg] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, startSave] = useTransition();
-
-  // 계획 불러오기: 날짜순위 k 기본. 실제수업내용+핵심개념 prefill(편집 가능).
-  async function loadPlan() {
-    setLoading(true);
-    setLoadMsg(null);
-    try {
-      const plan = await loadPlanForSessionAction(sessionId);
-      if (!plan) {
-        setLoadMsg("해당 차시에 매핑되는 계획이 없습니다.");
-        return;
-      }
-      setActualContent(plan.content ?? "");
-      setKeywords((plan.keywords ?? []).join(" "));
-      setPlanOrdinal(String(plan.ordinal));
-      setLoadMsg(`${plan.ordinal}차시 계획을 불러왔습니다.`);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // AC-2.2: 기존 기록이 없으면 폼을 펼칠 때 계획 내용을 자동 복사(이후 수정 가능).
-  useEffect(() => {
-    if (!record) void loadPlan();
-    // 마운트 시 1회만. sessionId 고정.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function save() {
-    const fd = new FormData();
-    fd.set("sessionId", sessionId);
-    fd.set("actualContent", actualContent);
-    fd.set("keywords", keywords);
-    fd.set("evalIdea", evalIdea);
-    if (planOrdinal.trim() !== "") fd.set("planOrdinal", planOrdinal.trim());
-    startSave(() => {
-      void saveDoneRecordAction(fd).then(() => onClose());
-    });
-  }
-
-  return (
-    <div className="mt-2 rounded-lg border border-neutral-300 bg-neutral-50 p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-neutral-700">완료 기록</span>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-xs text-neutral-400 hover:text-neutral-700"
-        >
-          닫기
-        </button>
-      </div>
-
-      <div className="mt-2 flex flex-wrap items-end gap-2">
-        <label className="text-xs text-neutral-500">
-          계획 차시(수동 재지정)
-          <input
-            type="number"
-            min={1}
-            value={planOrdinal}
-            onChange={(e) => setPlanOrdinal(e.target.value)}
-            placeholder="자동"
-            className="ml-2 w-16 rounded border border-neutral-300 px-2 py-1 text-sm"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={loadPlan}
-          disabled={loading}
-          className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-white disabled:opacity-50"
-        >
-          {loading ? "불러오는 중…" : "계획 불러오기"}
-        </button>
-        {loadMsg && <span className="text-xs text-blue-600">{loadMsg}</span>}
-      </div>
-
-      <div className="mt-3 space-y-2">
-        <textarea
-          value={actualContent}
-          onChange={(e) => setActualContent(e.target.value)}
-          rows={3}
-          placeholder="실제 수업내용"
-          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
-        />
-        <input
-          value={keywords}
-          onChange={(e) => setKeywords(e.target.value)}
-          placeholder="핵심개념(콤마/공백 구분, #는 자동 제거)"
-          className="w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
-        />
-        {keywords.trim() !== "" && (
-          <p className="text-xs text-blue-600">
-            #
-            {keywords
-              .split(/[,\s]+/)
-              .map((k) => k.replace(/^#/, "").trim())
-              .filter((k) => k.length > 0)
-              .join(" #")}
-          </p>
-        )}
-        <textarea
-          value={evalIdea}
-          onChange={(e) => setEvalIdea(e.target.value)}
-          rows={2}
-          placeholder="평가 아이디어"
-          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
-        />
-      </div>
-
-      <button
-        type="button"
-        onClick={save}
-        disabled={saving}
-        className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
-      >
-        {saving ? "저장 중…" : "완료 저장"}
-      </button>
-    </div>
   );
 }

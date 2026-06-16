@@ -145,6 +145,51 @@ describe("assembleNudges", () => {
     expect(r.pendingReports).toEqual({ total: 4, warning: 1, critical: 2 });
   });
 
+  it("상담일지 미작성 예약(c8)을 그대로 매핑하고 hasAny=true", () => {
+    const r = assembleNudges(
+      {
+        sectionObservations: [],
+        behaviorPendingStudentIds: [],
+        pendingReportTiers: [],
+        pendingCounselLogs: [
+          {
+            reservationId: "r1",
+            studentYearId: "s1",
+            studentLabel: "10101 김가",
+            date: "2026-06-15",
+          },
+          {
+            reservationId: "r2",
+            studentYearId: "s2",
+            studentLabel: "10102 이나",
+            date: "2026-06-14",
+          },
+        ],
+      },
+      { now: at(16) },
+    );
+    expect(r.pendingCounselLogs).toEqual([
+      {
+        reservationId: "r1",
+        studentYearId: "s1",
+        studentLabel: "10101 김가",
+        date: "2026-06-15",
+      },
+      {
+        reservationId: "r2",
+        studentYearId: "s2",
+        studentLabel: "10102 이나",
+        date: "2026-06-14",
+      },
+    ]);
+    expect(r.hasAny).toBe(true);
+  });
+
+  it("pendingCounselLogs 미전달 시 빈 배열(기본값)", () => {
+    const r = assembleNudges(base, { now: at(10), rng: () => 0 });
+    expect(r.pendingCounselLogs).toEqual([]);
+  });
+
   it("아무 넛지도 없으면 hasAny=false", () => {
     const r = assembleNudges(
       {

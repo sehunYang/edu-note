@@ -4,12 +4,13 @@ import { getDb } from "@/lib/db";
 import { activeSemester } from "@/lib/domain/school-year";
 import {
   getTeacherTimetable,
-  getUpcomingEvents,
   getMealsInRange,
+  getEventsInRange,
   listSectionsWithProgress,
   collectNudges,
   listPendingReportTiers,
-  listHomeroomUpcomingReservations,
+  listHomeroomReservationsInRange,
+  listTodayMemosInRange,
   listTeacherNotes,
   listNoticeEvents,
 } from "@/lib/db/queries";
@@ -86,24 +87,33 @@ export default async function TodayPage() {
   const semester = activeSemester(new Date());
   const { date, weekday } = kstToday();
 
+  // 캘린더 초기 표시 월(=오늘이 속한 월) 범위. 월 네비 시엔 클라이언트가 재조회(B.3).
+  const [cy, cm] = date.split("-").map(Number);
+  const mm = String(cm).padStart(2, "0");
+  const lastDay = new Date(cy, cm, 0).getDate();
+  const monthFrom = `${cy}-${mm}-01`;
+  const monthTo = `${cy}-${mm}-${String(lastDay).padStart(2, "0")}`;
+
   const [
     allSlots,
-    events,
+    monthEvents,
     meals,
     sections,
     nudges,
     pendingTiers,
-    counselReservations,
+    monthReservations,
+    monthMemos,
     teacherNotes,
     noticeEvents,
   ] = await Promise.all([
     getTeacherTimetable(db, ownerId, year, semester),
-    getUpcomingEvents(db, ownerId, date, 30),
+    getEventsInRange(db, ownerId, monthFrom, monthTo),
     getMealsInRange(db, ownerId, date, date),
     listSectionsWithProgress(db, ownerId, year),
     collectNudges(db, ownerId, year),
     listPendingReportTiers(db, ownerId),
-    listHomeroomUpcomingReservations(db, ownerId, year, date),
+    listHomeroomReservationsInRange(db, ownerId, year, monthFrom, monthTo),
+    listTodayMemosInRange(db, ownerId, monthFrom, monthTo),
     listTeacherNotes(db, ownerId),
     listNoticeEvents(db, ownerId),
   ]);
@@ -185,16 +195,16 @@ export default async function TodayPage() {
           {todayMeals.length === 0 ? (
             <p className="mt-2 text-sm text-neutral-400">급식 정보가 없습니다.</p>
           ) : (
-            <table className="mt-2 w-full border-collapse text-left text-sm">
+            <table className="mt-2 w-full table-fixed border-collapse text-left text-sm">
               <thead>
                 <tr>
                   <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
                     메뉴
                   </th>
-                  <th className="w-20 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+                  <th className="w-16 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
                     칼로리
                   </th>
-                  <th className="w-40 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+                  <th className="w-32 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
                     영양
                   </th>
                 </tr>
@@ -202,13 +212,13 @@ export default async function TodayPage() {
               <tbody>
                 {todayMeals.map((m, i) => (
                   <tr key={i}>
-                    <td className="border border-neutral-200 px-2 py-1 align-top whitespace-pre-line">
+                    <td className="max-w-0 break-words border border-neutral-200 px-2 py-1 align-top whitespace-pre-line">
                       {m.menu.join("\n")}
                     </td>
                     <td className="border border-neutral-200 px-2 py-1 align-top text-neutral-600">
                       {m.calInfo ?? "-"}
                     </td>
-                    <td className="border border-neutral-200 px-2 py-1 align-top whitespace-pre-line text-xs text-neutral-600">
+                    <td className="break-words border border-neutral-200 px-2 py-1 align-top whitespace-pre-line text-xs text-neutral-600">
                       {m.ntrInfo ?? "-"}
                     </td>
                   </tr>
@@ -218,13 +228,14 @@ export default async function TodayPage() {
           )}
         </section>
 
-        {/* 다가오는 학사일정 — 캘린더 + 전체 상담 오버레이(AC-7.9) */}
+        {/* 학사일정 캘린더 — 월 범위 조회 + 상담 오버레이 + 날짜 메모(B.3/B.4) */}
         <EventsCalendar
-          events={events.map((e) => ({ date: e.date, title: e.title }))}
-          counsel={counselReservations.map((c) => ({
+          events={monthEvents.map((e) => ({ date: e.date, title: e.title }))}
+          counsel={monthReservations.map((c) => ({
             date: c.date,
             studentLabel: c.studentLabel,
           }))}
+          memos={monthMemos}
         />
 
         {/* 공지 위젯 — 한마디 스와이프 + 할일·공지(내용 포함) (AC-7.10) */}

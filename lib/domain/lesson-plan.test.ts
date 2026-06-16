@@ -5,6 +5,10 @@ import {
   pickRepresentativeSection,
   representativeDates,
   monthWeekLabel,
+  isSlackCell,
+  shiftSlackCell,
+  unshiftSlackCell,
+  type PlanSlot,
 } from "./lesson-plan";
 
 /**
@@ -104,5 +108,61 @@ describe("QC v3 차시 대표분반", () => {
     expect(monthWeekLabel("2026-03-08")).toEqual({ month: 3, weekOfMonth: 2 });
     expect(monthWeekLabel("2026-03-15")).toEqual({ month: 3, weekOfMonth: 3 });
     expect(monthWeekLabel("2026-08-31")).toEqual({ month: 8, weekOfMonth: 5 });
+  });
+});
+
+describe("QC v5 c1 여유차시(slack) 시프트 도메인", () => {
+  function slot(
+    ordinal: number,
+    unitId: string | null,
+    content: string | null,
+  ): PlanSlot {
+    return { ordinal, unitId, content, keywords: content ? [content] : null };
+  }
+
+  it("isSlackCell — unitId·content 둘 다 null 이면 true(M2 단일 정의)", () => {
+    expect(isSlackCell({ unitId: null, content: null, keywords: null })).toBe(true);
+    expect(isSlackCell({ unitId: "u1", content: null, keywords: null })).toBe(false);
+    expect(isSlackCell({ unitId: null, content: "내용", keywords: null })).toBe(false);
+    // keywords 만 있어도 내용 기준상 빈셀(unitId·content null) → slack.
+    expect(isSlackCell({ unitId: null, content: null, keywords: ["x"] })).toBe(true);
+  });
+
+  it("shiftSlackCell — ordinal k 부터 끝까지 한 칸 뒤로, k 는 빈셀(ordinal 보존)", () => {
+    const plans = [
+      slot(1, "u1", "a"),
+      slot(2, "u2", "b"),
+      slot(3, "u3", "c"),
+      slot(4, null, null), // 끝 여유 슬랙
+    ];
+    const out = shiftSlackCell(plans, 2);
+    expect(out.map((p) => p.ordinal)).toEqual([1, 2, 3, 4]); // ordinal 불변
+    expect(out[0]).toMatchObject({ ordinal: 1, unitId: "u1", content: "a" });
+    expect(isSlackCell(out[1])).toBe(true); // ordinal 2 = 빈 여유차시
+    expect(out[2]).toMatchObject({ ordinal: 3, unitId: "u2", content: "b" });
+    expect(out[3]).toMatchObject({ ordinal: 4, unitId: "u3", content: "c" });
+  });
+
+  it("unshiftSlackCell — shiftSlackCell 역연산(마지막에 슬랙 있으면 원본 복원)", () => {
+    const plans = [
+      slot(1, "u1", "a"),
+      slot(2, "u2", "b"),
+      slot(3, "u3", "c"),
+      slot(4, null, null),
+    ];
+    const shifted = shiftSlackCell(plans, 2);
+    const restored = unshiftSlackCell(shifted, 2);
+    // unitId/content 가 원본과 동일(빈셀 keywords 정규화는 무시하고 핵심 필드 비교).
+    expect(restored.map((p) => ({ o: p.ordinal, u: p.unitId, c: p.content }))).toEqual(
+      plans.map((p) => ({ o: p.ordinal, u: p.unitId, c: p.content })),
+    );
+  });
+
+  it("shiftSlackCell — 마지막 칸 내용은 범위 밖으로 탈락(슬랙 없으면 손실)", () => {
+    const plans = [slot(1, "u1", "a"), slot(2, "u2", "b")]; // 끝 슬랙 없음
+    const out = shiftSlackCell(plans, 1);
+    expect(isSlackCell(out[0])).toBe(true);
+    expect(out[1]).toMatchObject({ unitId: "u1", content: "a" });
+    // u2/b 는 탈락 — 호출 측이 슬랙 한도로 사전 차단해야 함(쿼리 계층 책임).
   });
 });

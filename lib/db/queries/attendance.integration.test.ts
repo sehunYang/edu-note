@@ -5,6 +5,7 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { and, eq, gte, lte, sql as dsql } from "drizzle-orm";
 import * as schema from "../schema";
 import { persons, studentYears } from "../schema/identity";
+import { homeroomClasses, homeroomMembers } from "../schema/classes";
 import {
   attendanceRecords,
   fieldTripReports,
@@ -18,6 +19,7 @@ import {
   addFieldTrip,
   addAbsenceRange,
   updateAttendanceRecord,
+  listUnsubmittedAttendance,
 } from "./attendance";
 import { submissionTier } from "@/lib/domain/attendance";
 
@@ -68,6 +70,8 @@ describe.skipIf(!RUN)("출결 — reportRequired + report_tracking", () => {
     await db.delete(fieldTripReports).where(eq(fieldTripReports.ownerId, owner));
     await db.delete(attendanceRecords).where(eq(attendanceRecords.ownerId, owner));
     await db.delete(schoolDayCalendar).where(eq(schoolDayCalendar.ownerId, owner));
+    await db.delete(homeroomMembers).where(eq(homeroomMembers.ownerId, owner));
+    await db.delete(homeroomClasses).where(eq(homeroomClasses.ownerId, owner));
     await db.delete(studentYears).where(eq(studentYears.ownerId, owner));
     await db.delete(persons).where(eq(persons.ownerId, owner));
     await sql.end();
@@ -378,5 +382,122 @@ describe.skipIf(!RUN)("출결 — reportRequired + report_tracking", () => {
     const byDate = Object.fromEntries(rows.map((r) => [r.date, r.reportRequired]));
     expect(byDate["2099-07-01"]).toBe(false); // 미인정 결석 → 불필요
     expect(byDate["2099-07-02"]).toBe(true); // 질병결석 → 필요
+  });
+
+  // C4 미제출 통합(JS 머지) — attendance·fieldTrip 두 소스 머지 + reportTrackingId dedupe.
+  describe("미제출 통합 — attendance·fieldTrip JS 머지 (AC-4.4)", () => {
+    const HR_YEAR = 2098;
+    let hStudent: string; // 담임반 학생
+    let outsider: string; // 담임반 아님(필터로 제외되어야 함)
+
+    beforeAll(async () => {
+      // 담임 학급 + 멤버 1명(필터 통과), 외부 학생 1명(필터 제외).
+      const [hr] = await db
+        .insert(homeroomClasses)
+        .values({ ownerId: owner, schoolYear: HR_YEAR, grade: 1, classNo: 1 })
+        .returning({ id: homeroomClasses.id });
+
+      const [p] = await db
+        .insert(persons)
+        .values({ ownerId: owner, displayName: "머지학생" })
+        .returning({ id: persons.id });
+      [{ id: hStudent }] = await db
+        .insert(studentYears)
+        .values({
+          ownerId: owner,
+          personId: p.id,
+          schoolYear: HR_YEAR,
+          sid: "10101",
+          grade: 1,
+          classNo: 1,
+          number: 1,
+          name: "머지학생",
+        })
+        .returning({ id: studentYears.id });
+      [{ id: outsider }] = await db
+        .insert(studentYears)
+        .values({
+          ownerId: owner,
+          personId: p.id,
+          schoolYear: HR_YEAR,
+          sid: "10199",
+          grade: 1,
+          classNo: 1,
+          number: 99,
+          name: "외부학생",
+        })
+        .returning({ id: studentYears.id });
+      await db
+        .insert(homeroomMembers)
+        .values({ ownerId: owner, homeroomId: hr.id, studentYearId: hStudent });
+
+      // 수업일 캘린더(다일 체험 범위 포함).
+      await db.insert(schoolDayCalendar).values([
+        { ownerId: owner, date: "2098-05-04", isSchoolDay: true },
+        { ownerId: owner, date: "2098-05-05", isSchoolDay: true },
+        { ownerId: owner, date: "2098-05-06", isSchoolDay: true },
+      ]);
+    });
+
+    it("다일 체험 미제출이 1행으로만 노출(date 중복 폭발 없음) + 담임 외 제외", async () => {
+      // 담임 학생: 3일짜리 체험(미제출). 인정결석 3건이 생기지만 미제출 목록엔 체험 1행만.
+      await addFieldTrip(db, owner, hStudent, "2098-05-04", "2098-05-06");
+      // 외부 학생: 체험 미제출이지만 담임 필터로 제외되어야 함.
+      await addFieldTrip(db, owner, outsider, "2098-05-04", "2098-05-06");
+
+      const rows = await listUnsubmittedAttendance(db, owner, HR_YEAR);
+      const tripRows = rows.filter((r) => r.source === "fieldTrip");
+      // 담임 학생 체험 1행만(다일이 date별로 폭발하지 않음), 외부 학생 제외.
+      expect(tripRows).toHaveLength(1);
+      expect(tripRows[0].studentYearId).toBe(hStudent);
+      expect(tripRows[0].date).toBe("2098-05-04"); // 시작일 대표
+      // 인정결석(report_required=false)은 attendance 소스에 안 잡힘.
+      const attForHStudent = rows.filter(
+        (r) => r.source === "attendance" && r.studentYearId === hStudent,
+      );
+      expect(attForHStudent).toHaveLength(0);
+    });
+
+    it("attendance 미제출도 같은 목록에 머지 + (date,sid) 정렬", async () => {
+      // 담임 학생에게 질병결석(신고서 필요·미제출) 추가.
+      await upsertAttendance(db, owner, {
+        studentYearId: hStudent,
+        date: "2098-05-05",
+        reason: "illness",
+        kind: "absent",
+      });
+      const rows = await listUnsubmittedAttendance(db, owner, HR_YEAR);
+      const mine = rows.filter((r) => r.studentYearId === hStudent);
+      // 체험 1행 + 출결 1행 = 2행.
+      expect(mine).toHaveLength(2);
+      expect(mine.some((r) => r.source === "fieldTrip")).toBe(true);
+      expect(mine.some((r) => r.source === "attendance")).toBe(true);
+      // 날짜 오름차순 정렬.
+      const dates = mine.map((r) => r.date);
+      expect([...dates].sort()).toEqual(dates);
+    });
+
+    it("slicePage 는 머지된 전체 목록 기준 1회만 적용", async () => {
+      const all = await listUnsubmittedAttendance(db, owner, HR_YEAR);
+      const total = all.length;
+      expect(total).toBeGreaterThanOrEqual(2);
+      const firstPage = await listUnsubmittedAttendance(db, owner, HR_YEAR, new Date(), {
+        limit: 1,
+        offset: 0,
+      });
+      const secondPage = await listUnsubmittedAttendance(
+        db,
+        owner,
+        HR_YEAR,
+        new Date(),
+        { limit: 1, offset: 1 },
+      );
+      expect(firstPage).toHaveLength(1);
+      expect(secondPage).toHaveLength(1);
+      // 페이지 경계가 머지 전체 기준 — 두 페이지 id 가 서로 다름.
+      expect(firstPage[0].id).not.toBe(secondPage[0].id);
+      // 두 페이지를 합치면 전체 목록의 앞 2건과 일치(소스별 slice 가 아님).
+      expect([firstPage[0].id, secondPage[0].id]).toEqual([all[0].id, all[1].id]);
+    });
   });
 });

@@ -165,6 +165,45 @@ export async function createTeacherNote(
 }
 
 /**
+ * 개별 공지 일괄 생성 (QC v5 c5, AC-5.3). 선택 학생 N명 각자에게 **별도 개별공지 N개**를
+ * 생성한다(공통 body 공유, 각 note 는 단일 대상 1학생). activities bulkSave 패턴 차용 —
+ * 학생 1명당 row 1개. 각 row 는 독립 id 로 이후 개별 수정/삭제 가능.
+ * sortOrder 는 현재 최대값+1 부터 학생 순서대로 1씩 증가시켜 말미에 추가한다.
+ * 생성된 noteId 목록 반환.
+ */
+export async function bulkCreateIndividualTeacherNotes(
+  db: DB,
+  ownerId: string,
+  body: string,
+  studentYearIds: string[],
+): Promise<string[]> {
+  const unique = [...new Set(studentYearIds.filter((s) => s))];
+  if (unique.length === 0) return [];
+  const trimmed = body.trim();
+  if (!trimmed) return [];
+  const baseOrder = (await listTeacherNotes(db, ownerId)).reduce(
+    (m, n) => Math.max(m, n.sortOrder + 1),
+    0,
+  );
+  const rows = await db
+    .insert(teacherNotes)
+    .values(
+      unique.map((_studentYearId, i) => ({
+        ownerId,
+        body: trimmed,
+        sortOrder: baseOrder + i,
+        targetScope: "individual" as TeacherNoteScope,
+      })),
+    )
+    .returning({ id: teacherNotes.id });
+  // 각 note 에 학생 1명씩 단일 대상 매핑.
+  await db.insert(teacherNoteTargets).values(
+    rows.map((r, i) => ({ ownerId, noteId: r.id, studentYearId: unique[i] })),
+  );
+  return rows.map((r) => r.id);
+}
+
+/**
  * 교사 한마디 내용 수정(본인 소유만). targetScope 지정 시 대상 범위/매핑도 갱신.
  * 'all' 로 바꾸면 기존 개별 대상 매핑을 비운다.
  */

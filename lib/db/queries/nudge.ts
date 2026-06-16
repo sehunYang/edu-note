@@ -23,6 +23,7 @@ import {
 import type { ReportTier } from "@/lib/domain/types";
 import { activeSemester } from "@/lib/domain/school-year";
 import { studentsWithoutBehaviorNoteToday } from "./observations";
+import { listPendingCounselLogReservations } from "./counseling";
 
 /**
  * 넛지 수집 (계획 §3.4 nudgeEngine, AC-C). DB 조회 후 순수 assembleNudges 로 조립.
@@ -189,15 +190,27 @@ export async function collectNudges(
   options: Pick<NudgeOptions, "now" | "rng"> = {},
 ): Promise<NudgeResult> {
   const now = options.now ?? new Date();
-  const [sectionObservations, behaviorPendingStudentIds, pendingReportTiers] =
-    await Promise.all([
-      collectTodaySectionObservations(db, ownerId, schoolYear, now),
-      studentsWithoutBehaviorNoteToday(db, ownerId, schoolYear, kstDate(now)),
-      listPendingReportTiers(db, ownerId),
-    ]);
+  const today = kstDate(now);
+  const [
+    sectionObservations,
+    behaviorPendingStudentIds,
+    pendingReportTiers,
+    pendingCounselLogs,
+  ] = await Promise.all([
+    collectTodaySectionObservations(db, ownerId, schoolYear, now),
+    studentsWithoutBehaviorNoteToday(db, ownerId, schoolYear, today),
+    listPendingReportTiers(db, ownerId),
+    // c8: 슬롯 날짜가 경과(< 오늘 KST)했으나 상담일지 미작성인 예약.
+    listPendingCounselLogReservations(db, ownerId, schoolYear, today),
+  ]);
 
   return assembleNudges(
-    { sectionObservations, behaviorPendingStudentIds, pendingReportTiers },
+    {
+      sectionObservations,
+      behaviorPendingStudentIds,
+      pendingReportTiers,
+      pendingCounselLogs,
+    },
     { rng: options.rng },
   );
 }

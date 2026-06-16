@@ -78,3 +78,86 @@ export function monthWeekLabel(date: string): { month: number; weekOfMonth: numb
   const day = d.getUTCDate();
   return { month, weekOfMonth: Math.floor((day - 1) / 7) + 1 };
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * QC v5 c1/c2 — 여유차시(slack) 시프트 도메인. 순수 함수(DB·네트워크 없음).
+ *
+ * 여유차시 = 내용 없는 빈 차시. ordinal 은 보존하되 unitId/content 가 모두 null 인
+ * 차시를 "여유차시(slack)"로 간주한다. 이 predicate 는 **1곳 정의·공용**으로,
+ *  - c1 "여유차시로 등록" 토글(시프트/해제)이 빈 차시를 만들고,
+ *  - c2 진척도 last-done-unit 도출이 빈 차시를 건너뛴다.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** 시프트 대상이 되는 차시 내용 셀(ordinal 무관, 내용 필드만). */
+export interface PlanCell {
+  unitId: string | null;
+  content: string | null;
+  keywords: string[] | null;
+}
+
+/** ordinal 을 가진 차시 셀(시프트 입출력 단위). */
+export interface PlanSlot extends PlanCell {
+  ordinal: number;
+}
+
+/**
+ * 여유차시(slack) 판정(M2 — 이 1곳이 유일 정의). unitId·content 둘 다 null 이면
+ * 내용 없는 빈(여유) 차시다. keywords 는 판정에 쓰지 않는다(빈 차시는 내용 기준).
+ * c1 시프트(빈 차시 생성)와 c2 도출(빈 차시 제외)이 동일 기준을 공유한다.
+ */
+export function isSlackCell(plan: PlanCell): boolean {
+  return plan.unitId == null && plan.content == null;
+}
+
+/** 빈 셀(여유차시) 1개. 시프트 시 비워진 칸을 채운다. */
+function emptyCell(): PlanCell {
+  return { unitId: null, content: null, keywords: null };
+}
+
+/**
+ * "여유차시로 등록" 토글 — 순수 시프트(AC-1.5). ordinal `k` 부터 끝까지
+ * {unitId,content,keywords} 를 한 칸씩 뒤로 이관하고, ordinal k 칸을 빈(여유)
+ * 차시로 만든다. ordinal 자체는 1..N 으로 보존(연속). 마지막 칸의 기존 내용은
+ * 밀려나므로, 호출 측이 슬랙 한도(빈 차시 예약 수) 안에서만 허용해야 한다.
+ *
+ * 입력 plans 는 ordinal 1..N 연속(빈 차시는 빈 셀로 포함)을 가정한다. 반환은
+ * 동일 길이·동일 ordinal 의 새 배열(원본 불변). DB 반영 순서는 쿼리 계층 책임.
+ */
+export function shiftSlackCell(plans: PlanSlot[], k: number): PlanSlot[] {
+  const sorted = [...plans].sort((a, b) => a.ordinal - b.ordinal);
+  const cells: PlanCell[] = sorted.map((p) => ({
+    unitId: p.unitId,
+    content: p.content,
+    keywords: p.keywords,
+  }));
+  const idx = sorted.findIndex((p) => p.ordinal === k);
+  if (idx < 0) return sorted;
+  // idx 부터 끝까지 한 칸 뒤로 이관(마지막 셀은 범위 밖으로 탈락), idx 는 빈 셀.
+  for (let i = cells.length - 1; i > idx; i--) {
+    cells[i] = cells[i - 1];
+  }
+  cells[idx] = emptyCell();
+  return sorted.map((p, i) => ({ ordinal: p.ordinal, ...cells[i] }));
+}
+
+/**
+ * 토글 해제 — `shiftSlackCell` 역연산(AC-1.5). ordinal k 의 빈(여유) 차시를 없애고
+ * k+1..N 내용을 한 칸씩 앞으로 당겨 원위치 복원한다(마지막 칸은 빈 셀). 토글→해제
+ * 시 (탈락 셀이 없었다면) 원본과 동일하다. 원본 불변, 동일 길이/ordinal 반환.
+ */
+export function unshiftSlackCell(plans: PlanSlot[], k: number): PlanSlot[] {
+  const sorted = [...plans].sort((a, b) => a.ordinal - b.ordinal);
+  const cells: PlanCell[] = sorted.map((p) => ({
+    unitId: p.unitId,
+    content: p.content,
+    keywords: p.keywords,
+  }));
+  const idx = sorted.findIndex((p) => p.ordinal === k);
+  if (idx < 0) return sorted;
+  // idx 부터 끝-1 까지 다음 셀을 당겨오고, 마지막 셀은 빈 셀.
+  for (let i = idx; i < cells.length - 1; i++) {
+    cells[i] = cells[i + 1];
+  }
+  cells[cells.length - 1] = emptyCell();
+  return sorted.map((p, i) => ({ ordinal: p.ordinal, ...cells[i] }));
+}

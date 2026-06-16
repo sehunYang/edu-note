@@ -85,10 +85,15 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
         </p>
         <ul className="mt-3 space-y-3">
           {sortedUnits.map((u) => (
-            <UnitRow key={u.id} subjectId={selected.subjectId} unit={u} />
+            <UnitRow
+              key={u.id}
+              subjectId={selected.subjectId}
+              unit={u}
+              existingUnits={sortedUnits}
+            />
           ))}
         </ul>
-        <UnitRow subjectId={selected.subjectId} />
+        <UnitRow subjectId={selected.subjectId} existingUnits={sortedUnits} />
       </section>
 
       <ExamTargetsSection subject={selected} units={sortedUnits} />
@@ -99,9 +104,11 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
 function UnitRow({
   subjectId,
   unit,
+  existingUnits,
 }: {
   subjectId: string;
   unit?: SemesterUnit;
+  existingUnits: SemesterUnit[];
 }) {
   const [saveState, saveAction] = useActionState(saveLessonUnitAction, INIT);
   const [deleteState, deleteAction] = useActionState(
@@ -109,6 +116,58 @@ function UnitRow({
     INIT,
   );
   const isNew = !unit;
+
+  // AC-1.1 단원명 자동채움: 대/중단원 번호를 입력하면 기존 단원에서 같은
+  // majorNo→majorName, (majorNo,midNo)→midName 을 찾아 prefill 한다(소단원명은 수동).
+  const [majorNo, setMajorNo] = useState<string>(
+    unit?.majorNo != null ? String(unit.majorNo) : "",
+  );
+  const [midNo, setMidNo] = useState<string>(
+    unit?.midNo != null ? String(unit.midNo) : "",
+  );
+  const [majorName, setMajorName] = useState(unit?.majorName ?? "");
+  const [midName, setMidName] = useState(unit?.midName ?? "");
+  // 자동채움 여부(사용자가 직접 고친 뒤에는 덮어쓰지 않기 위해, 채움 출처를 표시).
+  const [majorAuto, setMajorAuto] = useState(false);
+  const [midAuto, setMidAuto] = useState(false);
+
+  const majorNameByNo = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const u of existingUnits) if (!m.has(u.majorNo)) m.set(u.majorNo, u.majorName);
+    return m;
+  }, [existingUnits]);
+  const midNameByNo = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const u of existingUnits) {
+      const key = `${u.majorNo}-${u.midNo}`;
+      if (!m.has(key)) m.set(key, u.midName);
+    }
+    return m;
+  }, [existingUnits]);
+
+  function onMajorNoChange(v: string) {
+    setMajorNo(v);
+    const n = Number(v);
+    const found = v !== "" && Number.isInteger(n) ? majorNameByNo.get(n) : undefined;
+    // 비어있거나 직전 자동채움 값이면 prefill(사용자 수동입력은 보존).
+    if (found != null && (majorName === "" || majorAuto)) {
+      setMajorName(found);
+      setMajorAuto(true);
+    }
+  }
+  function onMidNoChange(v: string) {
+    setMidNo(v);
+    const mn = Number(majorNo);
+    const md = Number(v);
+    const found =
+      v !== "" && Number.isInteger(mn) && Number.isInteger(md)
+        ? midNameByNo.get(`${mn}-${md}`)
+        : undefined;
+    if (found != null && (midName === "" || midAuto)) {
+      setMidName(found);
+      setMidAuto(true);
+    }
+  }
 
   return (
     <li className="rounded-lg border border-neutral-200 p-4">
@@ -131,22 +190,32 @@ function UnitRow({
             label="대단원"
             noName="majorNo"
             nameName="majorName"
-            noVal={unit?.majorNo}
-            nameVal={unit?.majorName}
+            noVal={majorNo}
+            nameVal={majorName}
+            onNoChange={onMajorNoChange}
+            onNameChange={(v) => {
+              setMajorName(v);
+              setMajorAuto(false);
+            }}
           />
           <NumName
             label="중단원"
             noName="midNo"
             nameName="midName"
-            noVal={unit?.midNo}
-            nameVal={unit?.midName}
+            noVal={midNo}
+            nameVal={midName}
+            onNoChange={onMidNoChange}
+            onNameChange={(v) => {
+              setMidName(v);
+              setMidAuto(false);
+            }}
           />
           <NumName
             label="소단원"
             noName="minorNo"
             nameName="minorName"
-            noVal={unit?.minorNo}
-            nameVal={unit?.minorName}
+            noVal={unit?.minorNo != null ? String(unit.minorNo) : ""}
+            nameVal={unit?.minorName ?? ""}
           />
         </div>
         <input
@@ -185,33 +254,62 @@ function NumName({
   nameName,
   noVal,
   nameVal,
+  onNoChange,
+  onNameChange,
 }: {
   label: string;
   noName: string;
   nameName: string;
-  noVal?: number;
+  noVal?: string;
   nameVal?: string;
+  /** 제공되면 controlled(자동채움), 미제공이면 uncontrolled(defaultValue). */
+  onNoChange?: (v: string) => void;
+  onNameChange?: (v: string) => void;
 }) {
+  const controlled = onNoChange != null && onNameChange != null;
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-1">
         <span className="text-xs text-neutral-500">{label}</span>
-        <input
-          type="number"
-          name={noName}
-          min={0}
-          max={99}
-          defaultValue={noVal ?? ""}
-          placeholder="번호"
-          className="w-14 rounded border border-neutral-300 px-2 py-1 text-sm"
-        />
+        {controlled ? (
+          <input
+            type="number"
+            name={noName}
+            min={0}
+            max={99}
+            value={noVal ?? ""}
+            onChange={(e) => onNoChange?.(e.target.value)}
+            placeholder="번호"
+            className="w-14 rounded border border-neutral-300 px-2 py-1 text-sm"
+          />
+        ) : (
+          <input
+            type="number"
+            name={noName}
+            min={0}
+            max={99}
+            defaultValue={noVal ?? ""}
+            placeholder="번호"
+            className="w-14 rounded border border-neutral-300 px-2 py-1 text-sm"
+          />
+        )}
       </div>
-      <input
-        name={nameName}
-        defaultValue={nameVal ?? ""}
-        placeholder={`${label}명`}
-        className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
-      />
+      {controlled ? (
+        <input
+          name={nameName}
+          value={nameVal ?? ""}
+          onChange={(e) => onNameChange?.(e.target.value)}
+          placeholder={`${label}명`}
+          className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
+        />
+      ) : (
+        <input
+          name={nameName}
+          defaultValue={nameVal ?? ""}
+          placeholder={`${label}명`}
+          className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
+        />
+      )}
     </div>
   );
 }

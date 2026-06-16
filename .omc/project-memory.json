@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1781437691910,
+  "lastScanned": 1781531896956,
   "projectRoot": "C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note",
   "techStack": {
     "languages": [
@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===BUILD===\" && npm run build 2>&1 | tail -5 && echo BUILD_DONE",
-    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run typecheck 2>&1 | tail -4 && echo \"===NUDGE===\" && node ./node_modules/vitest/vitest.mjs run lib/domain/nudge.test.ts 2>&1 | tail -5 && echo \"===BUILD===\" && npm run build 2>&1 | tail -5 && echo BUILD_DONE",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | sed -E 's/\\x1b\\[[0-9;]*m//g' | grep -E \"Compiled|Failed|error|✓|Error\" | head -15; echo \"BUILD_EXIT=${PIPESTATUS[0]}\"",
+    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run 2>&1 | sed -E 's/\\x1b\\[[0-9;]*m//g' > .omc/itest-v5-run1.log; echo \"done exit=$?\"; grep -E \"^ FAIL |Test Files|^      Tests \" .omc/itest-v5-run1.log | tail -20",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -66,8 +66,8 @@
     }
   },
   "conventions": {
-    "namingStyle": null,
-    "importStyle": null,
+    "namingStyle": "camelCase",
+    "importStyle": "ES modules",
     "testPattern": null,
     "fileOrganization": null
   },
@@ -88,7 +88,7 @@
       "path": "app",
       "purpose": "Application code",
       "fileCount": 4,
-      "lastAccessed": 1781437691543,
+      "lastAccessed": 1781531896843,
       "keyFiles": [
         "globals.css",
         "layout.tsx",
@@ -100,7 +100,7 @@
       "path": "content",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1781437691597,
+      "lastAccessed": 1781531896881,
       "keyFiles": [
         "세특 작성 지침.md"
       ]
@@ -109,7 +109,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 3,
-      "lastAccessed": 1781437691600,
+      "lastAccessed": 1781531896882,
       "keyFiles": [
         "DEPLOY_MANUAL.md",
         "GOOGLE_OAUTH_SETUP.md",
@@ -119,15 +119,18 @@
     "lib": {
       "path": "lib",
       "purpose": "Library code",
-      "fileCount": 0,
-      "lastAccessed": 1781437691602,
-      "keyFiles": []
+      "fileCount": 2,
+      "lastAccessed": 1781531896883,
+      "keyFiles": [
+        "device.test.ts",
+        "device.ts"
+      ]
     },
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 3,
-      "lastAccessed": 1781437691603,
+      "lastAccessed": 1781531896884,
       "keyFiles": [
         "apply-sql.mjs",
         "comcigan-probe.mjs",
@@ -138,65 +141,62 @@
       "path": "app\\api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1781437691606,
+      "lastAccessed": 1781531896886,
       "keyFiles": []
     },
     "lib\\public": {
       "path": "lib\\public",
       "purpose": "Public files",
-      "fileCount": 4,
-      "lastAccessed": 1781437691610,
+      "fileCount": 6,
+      "lastAccessed": 1781531896888,
       "keyFiles": [
         "dto.test.ts",
         "dto.ts",
-        "get-public-page.ts"
-      ]
-    },
-    "lib\\test": {
-      "path": "lib\\test",
-      "purpose": "Test files",
-      "fileCount": 1,
-      "lastAccessed": 1781437691612,
-      "keyFiles": [
-        "server-only-stub.ts"
+        "get-public-page-v4.integration.test.ts"
       ]
     }
   },
   "hotPaths": [
     {
       "path": "lib\\db\\queries\\index.ts",
-      "accessCount": 67,
-      "lastAccessed": 1781511197995,
+      "accessCount": 75,
+      "lastAccessed": 1781602071277,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\misc.ts",
-      "accessCount": 54,
-      "lastAccessed": 1781511229488,
+      "accessCount": 68,
+      "lastAccessed": 1781602071402,
       "type": "file"
     },
     {
       "path": "lib\\db\\queries\\audit.ts",
-      "accessCount": 46,
-      "lastAccessed": 1781510954877,
+      "accessCount": 54,
+      "lastAccessed": 1781602121829,
       "type": "file"
     },
     {
       "path": "app\\page.tsx",
-      "accessCount": 40,
-      "lastAccessed": 1781511411752,
+      "accessCount": 46,
+      "lastAccessed": 1781602107472,
       "type": "file"
     },
     {
-      "path": "lib\\public\\dto.ts",
-      "accessCount": 32,
-      "lastAccessed": 1781511190060,
+      "path": "lib\\db\\schema\\records.ts",
+      "accessCount": 40,
+      "lastAccessed": 1781601370211,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\classes.ts",
-      "accessCount": 31,
-      "lastAccessed": 1781441240400,
+      "accessCount": 37,
+      "lastAccessed": 1781582969003,
+      "type": "file"
+    },
+    {
+      "path": "lib\\public\\dto.ts",
+      "accessCount": 34,
+      "lastAccessed": 1781582436052,
       "type": "file"
     },
     {
@@ -206,27 +206,21 @@
       "type": "file"
     },
     {
-      "path": "lib\\db\\schema\\records.ts",
-      "accessCount": 28,
-      "lastAccessed": 1781500621490,
-      "type": "file"
-    },
-    {
       "path": "lib\\db\\queries\\roster.ts",
-      "accessCount": 26,
-      "lastAccessed": 1781469716941,
+      "accessCount": 27,
+      "lastAccessed": 1781566784563,
       "type": "file"
     },
     {
       "path": "lib\\integrations\\neis.ts",
-      "accessCount": 17,
-      "lastAccessed": 1781510526915,
+      "accessCount": 23,
+      "lastAccessed": 1781582404044,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\identity.ts",
-      "accessCount": 15,
-      "lastAccessed": 1781509863749,
+      "accessCount": 16,
+      "lastAccessed": 1781566777465,
       "type": "file"
     },
     {
@@ -239,6 +233,12 @@
       "path": "lib\\public\\get-public-page.ts",
       "accessCount": 12,
       "lastAccessed": 1781510451955,
+      "type": "file"
+    },
+    {
+      "path": "lib\\domain\\byte-count.ts",
+      "accessCount": 12,
+      "lastAccessed": 1781601721062,
       "type": "file"
     },
     {
@@ -279,8 +279,8 @@
     },
     {
       "path": "lib\\db\\schema\\_shared.ts",
-      "accessCount": 8,
-      "lastAccessed": 1781442349801,
+      "accessCount": 9,
+      "lastAccessed": 1781582020372,
       "type": "file"
     },
     {
@@ -293,12 +293,6 @@
       "path": "lib\\setech\\verify.ts",
       "accessCount": 7,
       "lastAccessed": 1781247765192,
-      "type": "file"
-    },
-    {
-      "path": "lib\\domain\\byte-count.ts",
-      "accessCount": 7,
-      "lastAccessed": 1781442731140,
       "type": "file"
     },
     {
@@ -356,6 +350,12 @@
       "type": "file"
     },
     {
+      "path": "lib\\db\\queries\\integration.test.ts",
+      "accessCount": 5,
+      "lastAccessed": 1781601571372,
+      "type": "file"
+    },
+    {
       "path": "scripts\\comcigan-probe.mjs",
       "accessCount": 4,
       "lastAccessed": 1780732758620,
@@ -407,12 +407,6 @@
       "path": "lib\\domain\\index.ts",
       "accessCount": 3,
       "lastAccessed": 1781469707931,
-      "type": "file"
-    },
-    {
-      "path": "lib\\db\\queries\\integration.test.ts",
-      "accessCount": 3,
-      "lastAccessed": 1781474813626,
       "type": "file"
     },
     {

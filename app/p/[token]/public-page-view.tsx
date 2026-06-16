@@ -343,9 +343,11 @@ function TimetableCell({
   const [err, setErr] = useState<string | null>(null);
 
   if (slot.isFixed) {
-    return <span>{slot.subjectName}</span>;
+    // 공통과목: 짙은 회색 텍스트
+    return <span className="text-neutral-700">{slot.subjectName}</span>;
   }
   // 선택과목 칸: 매핑값 있으면 표시, 없으면 '선택과목' + 토글.
+  // AC-6.1: 선택과목은 항상 파란 계열(공통과목 text-neutral-700 과 시각적 구분).
   const label = slot.electiveMapped ?? "선택과목";
 
   function submit() {
@@ -366,7 +368,7 @@ function TimetableCell({
         onClick={() => setOpen((v) => !v)}
         className={`w-full truncate rounded px-1 py-0.5 ${
           slot.electiveMapped
-            ? "text-neutral-700"
+            ? "text-blue-700"
             : "text-blue-600 underline decoration-dotted"
         }`}
         title="선택과목 지정"

@@ -1,0 +1,90 @@
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+
+ RUN  v2.1.9 C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note
+
+ ✓ lib/public/dto.test.ts (16 tests) 12ms
+ ✓ lib/domain/calendar-keywords.test.ts (19 tests) 14ms
+ ✓ lib/domain/lesson-plan.test.ts (14 tests) 12ms
+ ✓ lib/db/queries/activities.integration.test.ts (8 tests) 737ms
+ ✓ lib/domain/nudge.test.ts (15 tests) 12ms
+ ✓ lib/db/queries/homeroom-timetable.integration.test.ts (3 tests) 640ms
+ ✓ lib/db/queries/calendar.integration.test.ts (8 tests) 1612ms
+   ✓ 캘린더 sync — 라이브 NEIS → DB > 학교검색 → 학사일정·급식 sync → 수업일/이벤트/급식 DB 반영 584ms
+ ✓ lib/db/queries/setech.integration.test.ts (10 tests) 1461ms
+ ✓ lib/db/queries/clubs.integration.test.ts (6 tests) 1652ms
+ ✓ lib/db/queries/observations.integration.test.ts (10 tests) 1829ms
+ ✓ lib/public/get-public-page-v4.integration.test.ts (3 tests) 1314ms
+   ✓ get_public_page v4 — 계약(US-6) > (a)(b)(c) 상담예약 캘린더 반영 + 급식 분리 + 개별 공지 병렬 421ms
+   ✓ get_public_page v4 — 계약(US-6) > (e) 학생 취소요청 → 교사 승인 시 예약 삭제·정원 환원 358ms
+ ✓ lib/db/queries/student-report.integration.test.ts (4 tests) 1860ms
+ ✓ lib/integrations/comcigan.test.ts (17 tests) 43ms
+ ✓ lib/integrations/neis.test.ts (15 tests) 9ms
+ ✓ lib/domain/school-year.test.ts (15 tests) 16ms
+ ✓ lib/db/queries/grades.integration.test.ts (3 tests) 2632ms
+   ✓ 성적 기록 쿼리 > upsertPerformanceScores — 저장 + weight 초과 경고 + 미매칭 스킵 698ms
+   ✓ 성적 기록 쿼리 > getGradeView — 환산(중간만/기말만/둘다/미시행) 1458ms
+ ✓ lib/setech/bulk.test.ts (9 tests) 10ms
+ ✓ lib/db/queries/roster.integration.test.ts (12 tests) 2964ms
+   ✓ C4 학생 명단 — 매칭/상속/역할/담임/공개링크 > linkYearStudents: 유일=auto_linked, 다건=pending, 0건=new_person (AC-4.1) 331ms
+   ✓ 학생 명단 C — 삭제·수정·CSV역할·과거학번 > CSV 역할 import → class_roles 생성 + 재임포트 중복 방지(create-only) (AC-C5) 350ms
+   ✓ 학생 명단 C — 삭제·수정·CSV역할·과거학번 > deleteStudentYear: 과거 학적·person 보존(다년) → 고아 person 삭제(단년) (AC-C3) 512ms
+ ✓ lib/db/queries/lesson-plan.integration.test.ts (19 tests) 3026ms
+ ✓ lib/db/queries/notice.integration.test.ts (10 tests) 3195ms
+   ✓ 공지실 — 다중 한마디 / 할일 content / 고정반(US-B10) > (a) 다중 교사 한마디 영속 + sortOrder 정렬 + 수정/삭제 330ms
+   ✓ 공지실 — 개별 공지 대상 / 순서변경(US-5) > (a) 개별 공지 — target_scope='individual' + 다중 대상 매핑 round-trip 319ms
+   ✓ 공지실 — 개별 공지 대상 / 순서변경(US-5) > (b) moveTeacherNote 위/아래 순서변경 542ms
+ ✓ lib/csv/student-roster.test.ts (12 tests) 14ms
+ ✓ lib/db/queries/attendance.integration.test.ts (19 tests) 3474ms
+   ✓ 출결 — reportRequired + report_tracking > 미제출 통합 — attendance·fieldTrip JS 머지 (AC-4.4) > 다일 체험 미제출이 1행으로만 노출(date 중복 폭발 없음) + 담임 외 제외 532ms
+ ✓ lib/db/queries/homeroom-record.integration.test.ts (2 tests) 899ms
+ ✓ lib/csv/grades.test.ts (8 tests) 12ms
+ ✓ lib/domain/student-report.test.ts (21 tests) 10ms
+ ✓ lib/integrations/school-resolve.test.ts (7 tests) 7ms
+ ✓ lib/setech/prompt.test.ts (7 tests) 7ms
+ ✓ lib/db/queries/integration.test.ts (6 tests) 821ms
+   ✓ DB 통합 — 명단/토큰/감사 > CSV 파싱 → 명단 임포트(신규 생성) 317ms
+ ✓ lib/db/queries/escalation.integration.test.ts (3 tests) 1058ms
+ ✓ lib/setech/verify.test.ts (10 tests) 8ms
+ ✓ lib/db/queries/progress.integration.test.ts (12 tests) 4196ms
+   ✓ 수업 진척도 쿼리 > generateSemesterSessions — 학기 전체 차시 생성 + 기존 done 보존 551ms
+   ✓ 수업 진척도 쿼리 > generateSemesterSessions — 여름방학 경계: 방학 이후 8월 수업일이 2학기로 분류 413ms
+   ✓ getSectionProgressStats (QC v4 US-3) > 시험목표 범위 필터 + 분반별 목표/실제 진도율 + 초록/빨강 438ms
+   ✓ getSectionProgressStats (QC v4 US-3) > AC-2.2/M2 — done 차시 마지막 단원코드 도출, 여유차시(빈셀)는 제외 383ms
+   ✓ getSectionProgressStats (QC v4 US-3) > AC-2.4 — 지필 둘 다 미시행이면 시험진도율 생략(showExamProgress=false) 404ms
+ ✓ lib/db/queries/sessions.integration.test.ts (4 tests) 854ms
+ ✓ lib/domain/lesson-unit.test.ts (6 tests) 7ms
+ ✓ lib/db/queries/counsel.integration.test.ts (5 tests) 1471ms
+ ✓ lib/db/queries/lifecycle.integration.test.ts (5 tests) 1198ms
+   ✓ 학년도 생명주기 — 조회·삭제·참조보존 > (a) 활성연도 필터: listStudents 는 해당 연도만 반환 331ms
+   ✓ 학년도 생명주기 — 조회·삭제·참조보존 > (c) 연도삭제: 미래연도 학적 보유 영속학생은 보존 318ms
+ ✓ lib/domain/escalation.test.ts (6 tests) 9ms
+ ✓ lib/db/queries/profile.integration.test.ts (3 tests) 525ms
+ ✓ lib/db/queries/staffroom.integration.test.ts (4 tests) 683ms
+ ✓ lib/domain/attendance-rules.test.ts (6 tests) 7ms
+ ✓ lib/domain/eval-weight.test.ts (6 tests) 6ms
+ ✓ lib/csv/parse.test.ts (12 tests) 10ms
+ ✓ lib/db/pagination.test.ts (7 tests) 8ms
+ ✓ lib/domain/byte-count.test.ts (7 tests) 7ms
+ ✓ lib/db/queries/setup-state.integration.test.ts (5 tests) 617ms
+ ✓ lib/domain/attendance.test.ts (8 tests) 8ms
+ ✓ lib/domain/remaining-sessions.test.ts (4 tests) 6ms
+ ✓ lib/domain/elective.test.ts (5 tests) 21ms
+ ✓ lib/domain/progress.test.ts (4 tests) 5ms
+ ✓ lib/device.test.ts (3 tests) 4ms
+ ✓ lib/domain/eval-method-display.test.ts (3 tests) 4ms
+ ✓ lib/domain/activity-placement.test.ts (2 tests) 3ms
+ ✓ lib/db/queries/counseling.integration.test.ts (2 tests) 407ms
+ ✓ lib/db/queries/timetable.integration.test.ts (15 tests) 5748ms
+   ✓ 시간표 sync — 컴시간 라이브 → DB > 인천해송고/양세훈 시간표를 sync 하고 화면용으로 조회 1156ms
+   ✓ 시간표 sync — 컴시간 라이브 → DB > 재sync 는 멱등(중복 슬롯 미생성) 712ms
+   ✓ C5 수업 관리 — 평가/등록/시험일/역할 > P3 배치 쿼리 = 단건 함수 결과 동치 (AC-P3) 340ms
+   ✓ 학기 모델 — 과목 학기별 행 분리·활성학기 필터 (AC-A3~A6) > 동명 과목을 1·2학기 각각 sync → 별도 subject 행 2개 공존 373ms
+ ✓ lib/db/queries/backup.integration.test.ts (2 tests) 1904ms
+   ✓ 백업 내보내기 — owner 격리 > owner1 백업에 owner1 학생 포함, owner2 미포함 787ms
+   ✓ 백업 내보내기 — owner 격리 > 백업은 핵심 테이블 키를 모두 포함한다 773ms
+
+ Test Files  54 passed (54)
+      Tests  447 passed (447)
+   Start at  19:17:02
+   Duration  10.58s (transform 4.40s, setup 0ms, collect 42.75s, tests 47.07s, environment 16ms, prepare 13.43s)
+
