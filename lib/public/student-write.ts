@@ -186,3 +186,89 @@ export async function requestCounselCancel(
     return { ok: false, message: "취소 요청에 실패했습니다." };
   }
 }
+
+// ── 학생 개인 메모/일정(QC v6 ⑤, AC-5.4) ────────────────────────────────────
+// 토큰 스코프 CRUD. **클라이언트가 보낸 studentYearId 는 절대 신뢰하지 않고**, 토큰에서
+// 도출한 studentYearId 로만 쓰기·수정·삭제한다. 수정/삭제는 (id AND student_year_id) 조건이라
+// 다른 학생의 메모에는 횡적으로 접근할 수 없다.
+
+const MEMO_BODY_MAX = 2000;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * 메모 저장(토큰 스코프). id 미지정=신규 insert, id 지정=본인 메모 update.
+ * 다른 학생 메모는 (id, student_year_id) 조건으로 차단.
+ */
+export async function saveStudentMemo(
+  token: string,
+  date: string,
+  body: string,
+  id?: string | null,
+): Promise<StudentWriteResult> {
+  const text = body.trim();
+  if (!text) return { ok: false, message: "내용이 비어 있습니다." };
+  if (text.length > MEMO_BODY_MAX) {
+    return { ok: false, message: `내용은 ${MEMO_BODY_MAX}자 이내여야 합니다.` };
+  }
+  if (!DATE_RE.test(date)) {
+    return { ok: false, message: "날짜가 올바르지 않습니다." };
+  }
+  const db = publicDb();
+  const resolved = await resolveToken(db, token);
+  if (!resolved) return { ok: false, message: "유효하지 않은 링크입니다." };
+  try {
+    if (id) {
+      // 본인 메모만 수정(횡적 접근 차단). 다른 student_year_id 행이면 0 rows 갱신.
+      await db
+        .update(schema.studentCalendarMemos)
+        .set({ date, body: text, updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.studentCalendarMemos.id, id),
+            eq(
+              schema.studentCalendarMemos.studentYearId,
+              resolved.studentYearId,
+            ),
+          ),
+        );
+    } else {
+      await db.insert(schema.studentCalendarMemos).values({
+        studentYearId: resolved.studentYearId,
+        date,
+        body: text,
+      });
+    }
+    await writeAudit(db, resolved.ownerId, "student_memo_save", resolved.studentYearId, {
+      date,
+      id: id ?? null,
+    });
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "저장에 실패했습니다." };
+  }
+}
+
+/** 메모 삭제(토큰 스코프). (id, student_year_id) 조건으로 본인 메모만 삭제. */
+export async function deleteStudentMemo(
+  token: string,
+  id: string,
+): Promise<StudentWriteResult> {
+  if (!id) return { ok: false, message: "대상이 지정되지 않았습니다." };
+  const db = publicDb();
+  const resolved = await resolveToken(db, token);
+  if (!resolved) return { ok: false, message: "유효하지 않은 링크입니다." };
+  try {
+    await db
+      .delete(schema.studentCalendarMemos)
+      .where(
+        and(
+          eq(schema.studentCalendarMemos.id, id),
+          eq(schema.studentCalendarMemos.studentYearId, resolved.studentYearId),
+        ),
+      );
+    await writeAudit(db, resolved.ownerId, "student_memo_delete", resolved.studentYearId, { id });
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "삭제에 실패했습니다." };
+  }
+}

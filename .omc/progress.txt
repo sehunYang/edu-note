@@ -1,250 +1,27 @@
-# QC v5 Ralph 실행 (plan: .omc/plans/qc-v5-consensus-plan.md)
-[전략] 마이그 DB 적용 + RUN_DB_ITEST 429 전수는 US-V 회귀 게이트에서 일괄. 코드 스토리는 npm run build로 per-story 확인. prod 마이그/배포=사용자 승인 게이트(PRD 밖).
-itest 명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>
+# QC v6 Ralph 실행 (plan: .omc/plans/qc-v6-consensus-plan.md)
 
-[US-0] Phase 0 — DONE (iter1): 마이그 0038 club_activity_sessions(uq(club_id,date), ordinal 비-unique, RLS), 0039 today_calendar_memos(unique없음/다건, idx(owner_id,date), RLS), 0040 get_public_page_v5(급식 서브쿼리만 KST (now() AT TIME ZONE 'Asia/Seoul')::date + 메뉴 string_agg E'\n', 타 current_date 불변). Drizzle misc.ts clubActivitySessions+todayCalendarMemos, unique SQL 1:1 검증. 테스트 get-public-page-v4.integration today()=KST 결정론화. build exit0. DB적용 US-V 이연.
-[학습] 최신 0037→0038부터. get_public_page CREATE OR REPLACE라 호출부 불변. 영양 stale=calendar.ts meal sync 재동기화(US-6). 허브=homeroom/layout.tsx, classroom/page.tsx redirect. CRUD=homeroom/activities/actions.ts. 생기부=homeroom-record.ts.
+## Baseline (feat/qc-v6 분기)
+- npm test: 264 passed, 183 skipped(DB 통합 미연결), 0 failed
+- itest 명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>
 
-[US-3,4,5,6] Phase A — DONE: c3 homeroom/page redirect, c4 출결(별도탭+버튼제거+미제출 JS merge-then-slice reportTrackingId dedupe+source-aware 제출액션), c5 공지실(개별/전체 분리+bulkCreateIndividualTeacherNotes N개), c6 학생안내(선택과목 색분기, 메뉴/영양은 기존코드+0040로 동작). build exit0.
-[US-1,2] Phase C — DONE: lib/domain/lesson-plan.ts isSlackCell 1곳 정의+순수 shift/unshift. c1 여유차시 토글=**ordinal 불변+content(unitId/content/keywords) 재배치**(비-deferrable uq_lesson_plans 구조적 회피, plan 원안보다 안전). c2 progress.ts deriveLastDoneUnit(슬랙셀 isSlackCell 제외)+showExamProgress(jipil 둘다 false면 생략)+활성조건. 단위테스트 추가.
-[US-7,8] Phase B — DONE: c7 nudge-modal sessionStorage 제거(진입마다)+배너 분리, 급식표 max-w-0 break-words, events-calendar 월범위 재조회(getEventsInRange/listHomeroomReservationsInRange/listTodayMemosInRange)+DayDetailModal 메모 CRUD(today-memo.ts, today-only). c8 listPendingCounselLogReservations(경과+NOT EXISTS log)+nudge pendingCounselLogs 타입.
-[US-9] Phase D — DONE: app/clubroom 허브(layout 5탭 게이팅, page redirect)+5하위(create/assign/plan/entry/record)+club-activity.ts(reconcile (club_id,date) onConflict planned_activity 보존, collectClubRecordSources, saveClubRecordDraft 3000). 기존 app/club→/clubroom redirect, 홈네비 갱신.
-[US-V] 자율 부분 DONE: architect THOROUGH APPROVED(9 스토리 AC 충족, 6 차단 메커니즘 정확, 차단결함 0). deslop(code-simplifier) 후 재회귀 green(build exit0+tsc exit0+단위 264 passed).
-[US-V 완료] 사용자 승인 후 0038/0039/0040 서울 Supabase 적용(scripts/apply-sql.mjs, 멱등 NOTICE만). RUN_DB_ITEST 전수 = 54 파일 447 tests passed exit0(이전 429→신규케이스 포함 447, 회귀 0). 전 게이트 green: build+tsc+단위264+통합447 + architect THOROUGH APPROVED + deslop 재회귀 green.
-[배포 = 별도 사용자 결정] feat/qc-v4 브랜치 변경 미커밋 상태. git 커밋/푸시/main 머지/Vercel 배포는 사용자 요청 시에만(CLAUDE.md). PRD 범위 밖.
-[QC v5 RALPH 완료] 11개 스토리 전부 passes:true.
+## 학습/패턴
+- 마이그 named unique = Drizzle 스키마 1:1 (0037 교훈). exam_segment_plans=(subjectId,examOrdinal), semester 제외(subjectId가 학기-스코프).
+- 공개 페이지 읽기=단일 SQL 함수 get_public_page. 새 데이터는 함수 마이그(v6)+dto allowlist 필수.
+- 공개 쓰기=lib/public/student-write.ts resolveToken 재사용(클라 studentYearId 무시).
+- 마이그 DB 적용은 US-9 배포/사용자 승인 게이트로 이연. 코드 스토리는 build+단위테스트로 per-story 확인.
 
-====================================================================
+## 스토리 진행
+- US-2 진척도 페이지네이션 DONE: progress-board.tsx PopupSection 추출(paginate+Paginator, size 20).
+- US-7 메인 8카드 DONE: app/page.tsx 대표8개 순서+이모지(🗓️🗂️📊🖨️), 나머지6 제거.
+- US-4 개별공지 캐러셀 DONE: public-page-view IndividualNotices ‹N/M› idx 캐러셀.
+- US-3 출결 DONE: addFieldTrip noteField='체험학습'(isReportRequired 무영향 확인), listAttendanceByMonth/searchAttendanceByStudent reason 필터+page.tsx 사유 select.
+- US-6 오늘의학교 DONE: middleware 세션1회 쿠키(shouldRedirectMobileToToday 순수함수+device.test 4케이스), /today NudgeBanner 상시, 행동특성 가중랜덤(countHomeroomBehaviorByStudent + nudge.behaviorNotes.suggestedStudentId/Name + nudge.test 2케이스), 넛지 딥링크 /homeroom/behavior?studentYearId=(behavior page 기존 preselect 활용).
+- US-1 수업계획실 DONE(executor+보정): 마이그 0041 exam_segment_plans(uq_exam_segment_plans(subject_id,exam_ordinal), 스키마 1:1), computeUnitOrdinalSum/computeRemainingToExam(lesson-plan.test 20), getRemainingToExam 쿼리 헬퍼(보정), session/page.tsx totalOrdinals+remaining 배선(보정), AuditEvent exam_segment_plan_save 추가(보정).
+- US-5 학생페이지 DONE: 영양 진단(코드체인 정상=stale캐시/함수버전, 아래 문서화), 열교체 메뉴/영양/칼로리, 마이그 0042 student_calendar_memos(인덱스, RLS) + 0043 get_public_page v6(studentMemos v_sy_id 스코프), dto allowlist+parser+test 갱신, student-write saveStudentMemo/deleteStudentMemo(토큰 스코프, (id,student_year_id) 횡적차단), p/[token]/actions wrapper, public-page-view CalendarSection 버튼화+DayDetailModal CRUD, AuditEvent student_memo_save/delete.
+- US-8 검증: build exit0, 단위테스트 276 passed/0 fail(baseline 264, +12), lint(확인중).
 
-# QC v1 세팅실 — Ralph 진행 로그
+## 영양 미표시 근본원인(US-5 AC-5.1 문서화)
+코드 체인 전 구간 정상·테스트 통과: NEIS NTR_INFO→neis.ts ntrInfo→calendar.ts payload.meals[].ntrInfo→get_public_page v4+ m->>'ntrInfo'→dto→Meals 렌더. "JSON 파싱 안 될 리 없다"는 직관이 맞음. 유력 원인=런타임 데이터: (1) prod meal_cache.payload가 ntrInfo 수집(0035) 이전 stale 캐시 → 재동기화 필요, 또는 (2) prod get_public_page 함수 버전이 v4(0036) 미만. 둘 다 파싱 버그 아님. 실행 시 prod 함수버전 확인+급식 재동기화로 복구(prod 적용은 사용자 승인 게이트).
 
-## 검증 게이트 (확정)
-- DB 도달 확인됨(Supabase pooler, public 37 tables). DATABASE_URL in .env.local.
-- itest 실행: `RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>`
-- migrate 실행: `node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs migrate` (generate: ./node_modules/drizzle-kit/bin.cjs generate)
-- 단위테스트: `npm test` (vitest, include lib/**/*.test.ts, server-only stub alias)
-
-## 코드베이스 패턴
-- 쿼리: lib/db/queries/*.ts, DB=PostgresJsDatabase<typeof schema>, ownerId 인자. index.ts 에서 export *.
-- 스키마: lib/db/schema/{enums,identity,classes,misc,records,attendance,_shared}.ts. _shared: pk()/ownerId()/timestamps(). casing snake_case.
-- itest 패턴: postgres(DATABASE_URL,{prepare:false,max:1}) + drizzle(sql,{schema,casing:'snake_case'}), owner=randomUUID(), afterAll 정리. describe.skipIf(!RUN).
-- teacherProfile 단일행(ownerId unique). setupState(owner,feature,completedAt) unique(owner,feature).
-- calendarEvents: 기존 source(neis/manual/personal/task)+ccaArea+title+date. (eventKind 등은 C3에서 추가)
-- studentYears: sid char(5), grade/classNo/number 컬럼 이미 존재. persons↔studentYears, yearLinks(linkStatus,candidatePersonId,resolvedAt).
-- subjects: jipilMid/FinalWeight numeric, examBoundaryDate date, performanceItems(name,weight). courseSections(label,examBoundaryDate), enrollments unique(section,studentYear).
-
-## 학습/주의
-- classRoles 테이블(records.ts) 이미 존재: studentYearId+roleName+roleDesc+serviceTimeFlag. C4 학급역할은 이걸 재사용(신규 homeroomRoles 불필요).
-- writeAudit 는 AuditEvent 유니온 타입. 새 이벤트는 lib/db/queries/audit.ts 에 추가 필요(세팅실용 13종 추가 완료).
-- ⚠ 마이그레이션 주의(C2 발견): drizzle 저널(meta/_journal.json)은 0000_init 만 추적. 0002~0009 는 **커스텀 SQL(저널 외)** — `drizzle-kit generate` 는 stale 0000 스냅샷과 diff 해 이미 존재하는 컬럼까지 재추가하는 잘못된 마이그레이션을 만든다(절대 migrate 하지 말 것). **올바른 절차: 손으로 `00NN_name.sql`(헤더 주석 + `add column/table if not exists`) 작성 → `node --env-file=.env.local scripts/apply-sql.mjs <file>` 로 DB 직접 적용.** C3(enums/calendarEvents 컬럼)·C5(subjects/신규테이블)도 동일.
-
-## 단계 상태
-- [x] S0 단계0 — 완료(school-year unit + setup-state itest + typecheck + build exit0 + unit 130 green). app/setting 셸+게이팅+홈카드.
-- [x] C1 — 완료(lifecycle.ts: listSchoolYears/deleteSchoolYear 참조보존. itest 5 green. year 페이지 레거시연도 조회+삭제 UI(year_delete audit). typecheck+build exit0).
-- [x] C2 — 완료. migration 0009_teacher_homeroom.sql(school_name/is_homeroom/homeroom_grade/homeroom_class_no, idempotent 직접적용). profile.ts(getTeacherSettings/upsertTeacherSettings, isHomeroom=false→담임null강제, neis/comcigan 부분upsert보존)+index 재노출. school-resolve.ts(resolveSchool: NEIS searchSchoolInfo+comcigan searchSchools 병렬 동시해석, matchStatus 0/1/다건). school-resolve.test.ts 7 green(파서 단일/다건/0건). profile.integration.test.ts 3 green. app/setting/profile 폼(이름/학교명/담임체크→담임반 조건부, 학교검색 picker, 숨김코드)+saveProfileAction/resolveSchoolAction(getOwnerId 가드+profile_upsert audit). typecheck+unit137+itest13+build exit0.
-- [x] C3 — 완료. migration 0010_calendar_event_kind.sql(event_kind enum DO블록 + calendarEvents event_kind/exam_semester/exam_ordinal). lib/domain/calendar-keywords.ts classifyEvent(시험→exam+학기/회차, 방학식→vacation_start, 개학식→vacation_end, 동아리→club, 수행평가 제외) + 단위 10 green. calendar.ts: syncSchoolCalendar insert 시 자동태깅, updateEventAttributes(보정, exam아님→학기/회차 null강제), getEventsWithAttrs. calendar.integration.test.ts 합성 schedule 블록(RUN_DB 게이트, NEIS키 불필요) 3 green(태깅/보정/재sync멱등). app/setting/calendar: 동기화 버튼(calendarSyncAction, sync_neis audit) + 인라인 보정표(updateEventAttrsAction, calendar_attr_update audit). typecheck+unit147+build exit0.
-- [x] C4 — 완료. **마이그레이션 없음**: AC 문구는 homeroomRoles 신규였으나 계획(line163)+메모리 결정대로 기존 class_roles(records.ts) 재사용. roster.ts 확장: linkYearStudents(유일=auto_linked 즉시상속+고아 person 제거, 다건=pending, 0건=new_person, 멱등), listPendingLinks(후보 과거학적), resolveInheritance(후보선택→personId 재지정+resolvedAt 기록=C1 보존술어 기준), getStudentYearHistory, addClassRole/listClassRoles/deleteClassRole, isHomeroomStudent(grade/classNo==homeroom 파생, sid파싱 금지), issuePublicPageForHomeroom(서버게이팅: 비담임 거부). roster.integration.test.ts 7 green. app/setting/students: 매칭실행+보류큐 해소+학급역할CRUD+담임반🏠+공개링크(담임만). 서버액션 audit(inheritance_resolve/homeroom_role_*/token_issue). typecheck+unit147+build exit0.
-- [x] C5 — 완료. migration 0011_course_eval.sql(subjects jipil_mid/final_enabled + subject_exams unique(subj,sem,ord) + section_performance_dates + section_roles). lib/domain/eval-weight.ts validateEvalWeights(Σ수행+지필1+지필2=100, 미시행0강제, 수행≤5) 단위 6 green. timetable.ts 확장: saveEvalSettings(100%검증 통과시만 저장, 실패 throw), bulkEnroll(grade/classNo 컬럼 필터+멱등), listEnrollments, set/listPerformanceDates, add/list/deleteSectionRole, materializeSubjectExams(C3 exam calendarEvents→subject_exams, ordinal1=mid/2=final enabled), deriveExamBoundaryDate(읽기시점 min enabled date≥today), listSubjectExams, listSubjectsWithSections. timetable.integration.test.ts C5 블록(RUN_DB, 합성) 4 green(평가통과/실패, 일괄등록필터+독립, 시험일파생+경계, 분반역할). app/setting/courses: 시험일반영+과목평가설정+분반 일괄등록+수강역할. 서버액션 audit(eval_weights_save/enrollment_bulk/subject_exam_materialize/section_role_*). typecheck+unit153+build exit0.
-
-## 전체 단계 완료 (S0·C1·C2·C3·C4·C5 모두 passes:true)
-- DB 일시 outage(ECONNREFUSED/ETIMEDOUT) 관측됨(2026-06-10 실행 중) — 코드결함 아님, 재시도로 그린 확인. itest 재실행 시 일시 실패하면 재시도.
-
-## 다음 세션 재개 지점
-- C2부터: teacherProfile 마이그레이션(isHomeroom/homeroomGrade/homeroomClassNo/schoolName) → profile.ts 쿼리 → neis/comcigan 동시 학교해석 → profile.integration.test.ts → app/setting/profile 폼.
-- 마이그레이션 적용 명령: node --env-file=.env.local ./node_modules/drizzle-kit/bin.cjs generate 후 ... migrate.
-
-═══════════════════════════════════════════════════════════
-# QC v1 LATENCY-FIX — ralph 진행 (2026-06-10~)
-═══════════════════════════════════════════════════════════
-계획: .omc/plans/qc-v1-latency-fix-plan.md (Architect+Critic 통과).
-실행 순서(사용자): P1+P4 적용·배포 → warm p50 측정/효과확인 → P3 적용·배포(통합테스트 그린) → P2 사용자 가이드.
-
-## 환경 사실
-- 배포 = git push origin main → Vercel Hobby 자동 프로덕션 배포. remote=github.com/sehunYang/edu-note
-- 로컬 DATABASE_URL 포트=5432(세션 풀러). itest는 실 Supabase(서울), owner=randomUUID 격리.
-- P3는 **마이그레이션 불필요**(신규 쿼리 함수 + 테스트 확장만). 위 마이그레이션 저널 경고는 P3에 무관.
-
-## 진행 로그
-- prd.json(latency) 작성. vercel.json {"regions":["icn1"]} 생성(P1). P4 편집 착수.
-- [x] P1P4 완료·배포: actions.ts 15곳 + import/timetable-actions 2곳 scoped revalidate, layout 유지 3곳(completeStage/reopenStage/deleteYear). typecheck 0err, build exit0, roster+timetable itest 14 green. commit 2df1fa7 → push origin main (Vercel 프로덕션 배포 트리거).
-- [진행] MEASURE: 프로덕션 인증 warm p50 측정은 사용자 권한 영역 → 레시피 제공 + P3 진행 결정(계획 Option A 전체적용·N+1 독립정당). P3 착수.
-- [x] P3 완료·배포: timetable.ts 배치3(listSubjectExamsForYear/listEnrollmentsForYear/listSectionRolesForEnrollments)+roster.ts listClassRolesForStudents(inArray 빈배열 가드). courses/students 페이지 루프 제거→배치+메모리조립. itest 동치 단언 추가(AC-P3) → roster+timetable 16 green, typecheck 0err, build exit0, 비-itest 153 green. commit 4481824 → push origin main.
-- [x] MEASURE+P2GUIDE: .omc/plans/qc-v1-latency-followup-guide.md 작성(warm p50 측정 레시피+x-vercel-id/Functions 리전확인+P2 :6543 단계별/안전성/스모크/롤백/로컬 권고).
-- 전 스토리 passes:true.
-- [x] architect 검증(opus) → APPROVED (8 AC 전부 확인, P3 ORDER BY 동치성 정밀 검토). 비차단 권고 2건(id 타이브레이커 옵션, 파일위치 메모) — 채택 보류(deslop 범위 외 하드닝).
-- [x] deslop(ai-slop-cleaner 표준) → 변경 surface 클린, 편집 0건. 단건 함수 4개는 dead 아님(AC-P3 동치 테스트 레퍼런스 + index.ts 공개 API). 인라인 그룹핑은 기존 컨벤션 일치.
-- [x] 7.6 회귀: deslop 편집 0 → 직전 green 상태 유지(typecheck 0err, build exit0, itest 16, unit 153).
-- 완료: P1·P4·P3 배포(2df1fa7, 4481824) + 측정/P2 가이드(.omc/plans/qc-v1-latency-followup-guide.md). cancel 실행 예정.
-
-═══════════════════════════════════════════════════════════
-# QC v2 계획 2-1 — 세팅실 재수정 (ralph, 2026-06-11~)
-═══════════════════════════════════════════════════════════
-계획: .omc/plans/qc-v2-2-1-setting-redo-plan.md (consensus+2차검토, 14개 개선 병합). 스펙: .omc/specs/deep-interview-qc-v2-setting-redo.md.
-순서: 단계0(마이그)→A(학기)→B(학사일정)→D(수업)→C(학생)→E(배포). 교실 2-2 deferred.
-
-## 핵심 결정/학습
-- **subjectExams.semester 유지(사용자 결정)**: 단일 공유 prod DB라 컬럼 drop+unique변경이 현 prod materialize를 깸 → 유지(subjects.semester로 채움, 기능 동치). 전 마이그레이션 additive·무중단.
-- apply-sql.mjs:14 = 파일 전체 sql.unsafe() 단일 simple-query(암묵 tx) 확인 → enum ADD VALUE(0013)와 remap(0014) 파일 분리.
-- 마이그 0012(subjects.semester default1+year_course_key) / 0013(event_kind ADD VALUE 5종) / 0014(remap vacation_start/end→vacation, none→self_activity + default) / 0015(needs_review) — 전부 적용·검증(200행 유실0).
-- activeSemester: 학년도-aware(1·2월=직전 2학기), 단일 8/15 경계 아님.
-- getOrCreateSubject/syncTeacherTimetable/getTeacherTimetable/listSubjectsWithSections/listSubjectExamsForYear/listEnrollmentsForYear 전부 semester 인자 추가. materializeSubjectExams는 e.semester===sub.semester 필터.
-- 시그니처 변경 영향: today/page.tsx도 getTeacherTimetable semester 인자 필요(수정함).
-
-## 단계 상태
-- [x] A-domain: activeSemester + 단위테스트 8 green, tc0.
-- [x] MIG0: 0012~0015 적용·검증, schema(classes/misc) additive 동기화, tc0.
-- [x] A-impl: 쿼리 semester화 + courses page 학기 토글(searchParams) + timetable itest 11 green(신규 학기모델 블록 AC-A3~A6 포함), tc0, build0.
-- [x] B-impl 완료: calendar.integration.test.ts context-aware B 블록(방학구간·휴업일자동·수능·미분류needsReview·일괄저장·수동재분류 라운드트립·재sync멱등) 7 green. (학습: 방학식~개학식 구간 내 비수업일=vacation 우선, 휴업일 테스트는 방학 밖 비수업일로 분리해야 함.)
-- [x] D-impl 완료: timetable.ts enrollOne/unenroll/listSubjectsForStudentYear(+배치)/getEvalSettings(+배치) + actions enrollStudentAction/unenrollAction + courses page eval prefill·개별등록(cross-class 학번/이름 검색)·수강삭제 + itest 15 green(D 4건: 개별등록 cross-class·수강파생·평가prefill).
-- [x] C-impl 완료: csv role 별칭+roles[] + importStudentRoster role→class_roles(create-only 중복방지) + roster.ts deleteStudentYear(tx+FK cascade+고아person)/updateStudentAttrs + students.ts listStudentRoster/listPriorSidsForStudents + actions deleteStudentAction/updateStudentAttrsAction + student-roster UI(전속성·필터·인라인수정·빨간X삭제·링크복사) + import-form CSV예시다운로드 + itest 12 green(C 4건: CSV역할재임포트·updateAttrs·삭제보존/고아·과거학번).
-- [x] E-deploy: 전체 typecheck 0err·build exit0·unit 158·itest 34(roster12/timetable15/calendar7) green. architect 검증 APPROVED. deslop 0편집(단건/배치 쌍은 P3 동치테스트 레퍼런스 컨벤션). → git push origin main 배포.
-- (구) B-impl 진행중 기록:
-    - calendar-keywords.ts 전면 재작성: EventKind 7종, classifyOne(mock_exam>isExam 우선), classifySchedule(date정렬→방학구간/휴업일(비수업일∧방학아님)/지필학기 8/15·제목우선/미분류 self_activity+needsReview). classifyEvent 하위호환 유지.
-    - enums.ts eventKind 7종(구3종은 DB만 잔존, TS 미나열 — Drizzle read 미검증). misc.ts default self_activity + needsReview 컬럼.
-    - EventKind ripple: actions.ts EVENT_KINDS 7종(런타임), calendar-attrs.tsx KIND_LABEL 7종.
-    - calendar.ts: syncSchoolCalendar classifySchedule+토요휴업일 필터+needsReview, getEventsWithAttrs+needsReview, updateEventAttributes needsReview해제, bulkUpdateEventAttrs(tx) 신규.
-    - actions.ts bulkSaveCalendarAction(JSON updates, audit calendar_bulk_save). audit.ts에 calendar_bulk_save/enrollment_add/remove/student_delete/update 추가.
-    - calendar-attrs.tsx 재작성: 7종 드롭다운+미검토 ⚠배지+일괄저장 버튼(client draft 누적→JSON).
-    - 검증: calendar-keywords 단위 12 green, 전체 단위 157 green, typecheck 0. build 확인중.
-    - **B 잔여(다음 세션)**: calendar.integration.test.ts 확장(방학구간·휴업일자동·수능·미분류needsReview·일괄저장·수동재분류 라운드트립) + RUN_DB_ITEST 그린 검증. 그 후 B-impl 완료 마킹.
-- [ ] D-impl / C-impl / E-deploy.
-
-═══════════════════════════════════════════════════════════
-# QC v2 후속 — 학사일정 방학 종료 + 기타(etc) (ralph, 2026-06-12)
-═══════════════════════════════════════════════════════════
-계획: .omc/plans/qc-v2-2-2-calendar-vacation-etc-plan.md (consensus: Architect SOUND-WITH-CHANGES + Critic ITERATE→전부 반영). 구현 검증 architect APPROVED.
-
-## 핵심 결정/학습
-- **classifySchedule cluster-local 2-phase 재작성**: Phase1 vacation[] while-loop. 방학 opener에서 분기 우선순위 **isReopen→isVac→base(positive) 고정**(load-bearing). 개학 → endIdx=breakIdx-1(개학당일 제외). positive 행(exam/club/career/mock/자율) → 클러스터 종료 endIdx=lastVac. 개학 없으면 클러스터 마지막 방학일까지(이후 비-방학=개학 간주). → 전역 lastVacIndex의 cross-term silent merge(전 학기 vacation, ⚠없음) 제거.
-- 기존 버그: 개학 없으면 방학식 이후 학년도 끝까지 vacation. 수정됨.
-- 알려진 한계(AC-8): 방학 중 '동아리' 등 키워드행이 클러스터 조기종료 → 교사 드롭다운 보정 전제.
-- **etc(기타) 수동 전용**: 마이그 0016(ADD VALUE만, 단독파일, 적용완료) + enums.ts(8종) + EventKind union + EVENT_KINDS 런타임 화이트리스트(typecheck 미포착, 수동동기화) + KIND_LABEL(exhaustive Record→typecheck 강제). classifyOne/classifySchedule는 etc 자동 미부여(fallback=self_activity 불변, AC-B8 유지). enum 비가역→롤백=잔존.
-
-## 단계 상태
-- [x] VAC1: classifySchedule cluster-local 재작성 + 단위테스트 AC-1~9. calendar-keywords 19 green(12→19), tc0.
-- [x] ETC2: 0016 적용 + etc ripple(enums/union/EVENT_KINDS/KIND_LABEL). calendar.integration etc 라운드트립 8 green. tc0, build0.
-- [x] DEPLOY3: 전체 tc0/build0/unit 165/calendar itest 8 green. architect APPROVED. deslop 0편집. → git push origin main.
-
-## 다음 세션 재개 지점 (QC v2)
-1. B 마무리: calendar.integration.test.ts에 합성 schedule로 syncSchoolCalendar→getEventsWithAttrs 검증 블록 추가(RUN_DB). 그 후 RUN_DB_ITEST=1 ...run calendar.integration.test.ts 그린 확인 → prd B-impl passes:true.
-2. D-impl: timetable.ts enrollOne/unenroll/listSubjectsForStudentYear/getEvalSettings + actions enrollStudentAction/unenrollAction + courses-manager UI(평가 prefill·개별등록·삭제) + itest.
-3. C-impl: csv role 별칭+import→class_roles(중복방지), roster.ts deleteStudentYear/updateStudentAttrs + actions + student-roster UI(속성/삭제/CSV예시/필터/링크복사) + page 수강중인수업 배치 + itest.
-4. E: 전체 typecheck/build/단위/itest 그린 → git push origin main 배포.
-- 검증 명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>. 단위: node ./node_modules/vitest/vitest.mjs run <file>.
-
-═══════════════════════════════════════════════════════════
-# QC v2 계획 2-2 — 교실(Classroom) 허브 (ralph, 2026-06-12~)
-═══════════════════════════════════════════════════════════
-계획: .omc/plans/qc-v2-2-2-classroom-hub-plan.md (consensus: Architect SOUND-WITH-CHANGES + Critic APPROVED-WITH-RESERVATIONS, 2 CRITICAL+6 MAJOR 병합). 스펙: .omc/specs/deep-interview-classroom-hub.md. 브랜치=feat/classroom-hub-2-2.
-순서: 0(마이그)→1(허브셸)→2(계획실)→3(진척도)→4(성적)→5(관찰+행특)→6(보고서)→7(세특)→8(배포).
-
-## US-0 — 마이그레이션+스키마+audit [DONE]
-- 0017_lesson_plans / 0018_session_records / 0019_jipil_scores (각 RLS owner_rw). DB 적용·relrowsecurity=true 3개 확인.
-- records.ts: lessonPlans/sessionRecords/jipilScores(+unique import). audit.ts: AuditEvent 9개 추가. typecheck 0.
-
-## 핵심 결정/학습(2-2)
-- 학기 파라미터 ?semester(layout 불가, page만). 차시 N=분반 최댓값. planOrdinal=날짜순위 자동+수동.
-- 세특 bulk: saveDraft 재사용 금지(차단 throw) → 자체 insert + 심각도 분할. 점수 명시 제외(기재요령).
-- 관찰 sectionId 앱레이어 필수(DB nullable 유지, onDelete set null). 행특→신규 /homeroom/behavior 이전.
-- 성적 원점수만 저장·읽기시점 환산. 수행 weight=(subjectId,name) 조인.
-
-## 단계 상태 (2-2)
-- [x] US-0 마이그/스키마/audit. [x] US-1 허브셸+semesterRange(unit 10). [x] US-2 계획실(itest 5). [x] US-3 진척도(itest 5, planOrdinal=날짜순위). [x] US-4 성적(unit 8+itest 3). [x] US-5 관찰격상+행특이전(itest 9). [x] US-6 보고서(unit 21+itest 4, AI없음). [x] US-7 세특bulk(unit 9+itest 8, 심각도분할·점수제외) — executor 과부하로 orchestrator 직접완성.
-- [x] US-8 회귀: typecheck 0, build exit0(9 라우트), unit 210, 교실 itest 34 전부 green.
-- 검증: architect APPROVED-WITH-RESERVATIONS(9 invariant PASS, 2 LOW). LOW#1(bulk import 수강검증) 반영함. deslop: weekdayOf dedup(progress→domain), download helper→lib/ui/download-csv.ts 공유. 재회귀 16 green.
-- 학습: performance_assessments는 (sy,subj,name) unique 없음 → 수동 upsert. setech 단건 흐름(app/setech/setech-form.tsx+actions)은 redirect 후 orphan(typecheck OK, 빌드 미포함).
-- [x] 배포: 커밋 9e334d6 → merge --no-ff f5b5d60 → push origin main(f53f107..f5b5d60). Vercel Hobby 자동배포. 프로덕션 root / = HTTP 200(icn1) 헬시. 마이그 0017~0019는 US-0에서 공유 DB 적용완료.
-- ⚠ 익명 스모크 한계: /classroom 등 보호 라우트는 미인증 시 404(=인증 게이트, 기존 /sessions도 동일 404로 확인됨) → 익명으로 신규 라우트 렌더 검증 불가. 인증 후 화면 확인은 사용자 영역(2-1 latency 때와 동일). 전 단계 US-0~US-8 passes:true.
-
-═══════════════════════════════════════════════════════════
-# QC v3 Part A — 교실 4개 컴포넌트 재수정 (ralph, 2026-06-14)
-═══════════════════════════════════════════════════════════
-계획: .omc/plans/qc-v3-classroom-homeroom-plan.md / 스펙: .omc/specs/deep-interview-qc-v3.md. 마이그레이션 0건(코드만). 보고서: qc-report-v3-part-a-status.md.
-
-## 단계 상태 (전 스토리 passes:true)
-- [x] US-1 도메인: pickRepresentativeSection/representativeDates/monthWeekLabel(lesson-plan) + resolveSemesterBoundary/semesterRangeWithBoundary(school-year). 단위 25 green.
-- [x] US-2 수업계획실: getPlanLength 재작성(분반 UNION 폐기→대표분반=주당슬롯 최대 분반, N 분반무관=물리 97차시 버그 해소) + getPlanView(월주차 monthWeekLabel + exam 마커 examOrdinal 1/2). plan page/editor UI. itest 8(다분반 동치+분반추가 불변).
-- [x] US-3 진척도: 공용 resolveSemesterRange(calendar.ts) — 여름(6~8월) vacation 최소일=경계 B, 미설정 8/15 fallback(=기존 8/14 동치). progress.ts generateSemesterSessions가 사용 → 방학 후 8월 수업일 2학기 분류. itest 7(여름경계+fallback 2종 신규 추가).
-- [x] US-4 성적: getGradeView 요소분해(jipilMid/jipilFinal 각 환산 활성회차만 + performanceByItem, 합산필드 하위호환) + getStoredGradeTables(원자료) + /grades/view 신규 라우트 + uploader 분해미리보기(미시행 지필열 숨김). itest 3.
-- [x] US-5 세특: bulkResultCsvExample 예시CSV + 과목별 수강생필터(enrollmentBySubject) + 추가입력 CRUD(list/update/delete 쿼리+액션+audit extra_note_*). itest 10.
-
-## 검증·배포
-- typecheck 0 / build exit0 / 단위 220 pass·125 skip / Part A itest 28 green(lesson-plan8·setech10·progress7·grades3).
-- architect(THOROUGH/Opus) VERDICT: APPROVED. 블로커 0, MINOR 2(시험마커 동일ordinal 덮어쓰기·hasAny zero-total 표시) 비차단 채택보류.
-- deslop: grades.ts 수강생 조회 중복 1건 → listSubjectStudents 헬퍼 consolidation(~40줄 제거). 회귀 재검증 green(typecheck0·build0·grades itest3).
-- 학습: progress.integration.test에 calendarEvents vacation 시드+afterAll cleanup 추가. weekdayOf=getUTCDay(0=일). resolveSemesterBoundary는 y===year ∧ month 6~8 필터(겨울방학 무시).
-- 배포: 커밋 → push origin main(Vercel Hobby 자동). Part B(US-0b~13 담임교실 허브+학생안내, 마이그 동반)는 별도 승인 게이트.
-
-═══════════════════════════════════════════════════════════
-# QC v3 Part B — 담임 교실 허브 (ralph, 2026-06-14~)
-═══════════════════════════════════════════════════════════
-계획: .omc/plans/qc-v3-classroom-homeroom-plan.md / 스펙: deep-interview-qc-v3.md. 브랜치 feat/qc-v3-part-b(main에서 분기). 사용자 승인: 공개페이지 출결 2D표 reason 노출 OK.
-
-## 핵심 결정/학습 (Part B)
-- **0025·0026 불필요 확정**: (0025) special_note_drafts.type enum에 이미 autonomy/career/behavior 존재 → 생기부 3영역 기존테이블 재사용, 신규테이블·enum변경 없음. (0026) reportTier(normal/warning/critical) 값 유지, submissionTier 의미만 잔여수업일 기준 재정의(US-B7 코드).
-- get_public_page 변경(다중노트·2D출결·상담슬롯·시간표)은 **전부 US-B13으로 이연**(원자적 브랜치 머지) → 0022는 순수 additive(부분적용 윈도우 회피).
-- 할일/공지 = calendar_events(source=manual). 교사한마디 = teacher_profile.public_notice(단일). → 0022에서 teacher_notes 다중테이블+이행, calendar_events.content 추가.
-- 담임 멤버십 단일출처 = homeroom_classes/homeroom_members(classes.ts). listHomeroomStudents(observations.ts:392). isHomeroomStudent(roster.ts)는 profile 파생.
-
-## 단계 상태 (Part B)
-- [x] US-B0: 마이그 0020(periods)/0021(counsel_slots+reservations)/0022(teacher_notes+이행+calendar_events.content)/0023(fixed_class_settings)/0024(student_elective_mappings)/0027(homeroom 백필) 손작성·apply-sql 적용. 스키마(attendance/misc) additive 동기화 + audit 13종. **prod 검증**: 신규컬럼2·RLS5테이블 true·teacher_notes 1행 이행·homeroom_members 32 백필(=AC-8.1 실제버그 해소). typecheck 0.
-- [x] US-B6 허브셸: app/homeroom/{layout,page} 6카드+담임게이팅 + attendance/counsel/notice → /homeroom/* git mv + 구경로 redirect + 홈카드 단일화 + today/nudge 링크 갱신. build0.
-- [x] US-B7 출결: lib/domain/attendance.ts absentPeriods(지각=조회~pivot/조퇴=pivot~끝/결과=다중/결석=전체)+submissionTier(잔여 ≥3/<3/<0). escalation 체험 5→10(nthSchoolDayAfter+상수). periods 저장+attendance_period_record. 월별/학생별/미제출 뷰. itest9.
-- [x] US-B8 행특: 0027 백필로 listHomeroomStudents 동작. observations itest 백필=profile술어 동일집합. (10 green)
-- [x] US-B9 상담: updateCounselingLog + 슬롯/예약(openSlot/reserve/cancel, FOR UPDATE 정원직렬화+unique중복+선착순) + 코워크CSV→studentExtraNotes(subjectId null). itest5.
-- [x] US-B10 공지: teacher_notes 다중CRUD+sortOrder, updateNoticeEvent(content), fixed-class.ts(컴시간 학년파싱 listGradeClasses+saveFixedClassSetting, 파싱실패 graceful). itest6.
-- [x] US-B11 자율진로: app/homeroom/activities self_activity 로드+복수학생 일괄저장(studentActivityEntries)+자유탐구 공통/개별+자율진로 토글+CRUD. itest8.
-- [x] US-B12 생기부: homeroom-record.ts collectRecordSources(자율←activities autonomy/진로←career/행발←behavior+counselCSV+class_roles)+saveHomeroomRecordDraft(special_note_drafts type=area, byteLimit=byte-count.ts 재사용). itest2.
-- [x] US-B13 학생안내: 0028 homeroom_timetable_slots + 0029 get_public_page v3(studentName·notices배열·월간창-31..+93·시간표 고정/선택매핑·당일급식·출결2D 성격×사유·상담슬롯, 전 NULL-safe). dto.ts allowlist 확장. elective.ts. 토큰스코프 write(student-write.ts: saveElectiveMapping/reserveCounsel, public_pages 토큰해석+revoked/expired거부). p/[token] UI 전면개편(이름헤더·월간캘린더·시간표그리드·2D출결·성적제거·상담신청). 컴시간 담임반 동기화. setting/students 토큰 재조회(listPublicPages). prod 검증: get_public_page ok·11키·no throw.
-- [x] US-B14 회귀: typecheck0/build0/unit235/Part B itest 전부 green. architect 검증: 1차 REJECT(meal payload->>'menu' 버그+예약 race) → 둘 다 수정(meal 배열평탄화 재적용·검증, reserve FOR UPDATE) → 재검증.
-- ⚠ 학습: meal_cache.payload={meals:[{mealType,menu:text[],calInfo}]} — get_public_page는 jsonb_array_elements+string_agg로 평탄화해야 함(스칼라 ->>'menu' 아님). 0029 create or replace라 재적용 안전.
-- 검증명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>. 마이그 apply: node --env-file=.env.local scripts/apply-sql.mjs <file>(사용자 승인 게이트). 마이그 0020~0024,0027,0028,0029 prod 적용완료.
-
-═══════════════════════════════════════════════════════════
-# QC v4 — 9개 컴포넌트 (ralph, 2026-06-15~)
-═══════════════════════════════════════════════════════════
-계획: .omc/plans/qc-v4-plan.md (Architect SOUND-WITH-CHANGES + Critic APPROVED-WITH-NITS 반영). 스펙: .omc/specs/deep-interview-qc-v4.md(모호도4.7%). 브랜치 feat/qc-v4(main 분기).
-순서: US-1 Phase0공유 → US-2 수업계획실2단계 → US-3 진척도 → US-4 출결 → US-5 공지실 → US-6 학생페이지+get_public_page_v4 → US-7 오늘의학교 넛지 → US-8 담임허브+페이지네이션잔여 → US-9 회귀+배포.
-
-## 마이그레이션 규율(재확인, 필수)
-- drizzle journal은 0000만 추적 → **손작성 00NN_name.sql(add column/table if not exists) + node --env-file=.env.local scripts/apply-sql.mjs <file>**. drizzle-kit generate/migrate 절대 금지(stale 스냅샷 오작동).
-- 최신 prod 마이그=0029. v4 신규는 0030+. get_public_page_v4 최후 순번.
-- prod 마이그 적용 = **사용자 승인 게이트**. 코드/스키마는 먼저, 적용은 승인 후.
-- apply-sql.mjs는 파일 전체 단일 simple-query(암묵 tx). enum ADD VALUE는 단독파일 분리.
-
-## 단계 상태 (v4)
-- [x] US-1 Phase0: lib/device.ts(isMobileUserAgent)+test, lib/db/pagination.ts(toLimitOffset/pageCount/paginate)+test, lib/ui/paginator.tsx(번호식 …축약), middleware.ts(인증후 루트+모바일→/today, location헤더로 리다이렉트판별). 단위10 green, typecheck0, build exit0.
-- [x] US-2 수업계획실 2단계(코드완료): 마이그 0030_lesson_units.sql(lesson_units 대/중/소단원+6자리코드+keywords+minOrdinals, exam_targets from/to code, lesson_plans.unit_id, RLS owner_rw) + schema records.ts 동기화 [orchestrator 직접]. 나머지 opus executor: lib/domain/lesson-unit.ts(sixDigitCode/parseSixDigit/sortUnitsByCode/validateMinOrdinals)+test6, lesson-plan.ts 쿼리확장(listLessonUnits/upsert/delete/lookupUnitByCode/listExamTargets/upsertExamTarget/countOrdinalsPerUnit/isSemesterPlanComplete/assignLessonPlanUnit), actions(saveLessonUnit/deleteLessonUnit/saveExamTarget/saveSessionPlanBulk: 무효코드차단AC-1.6+초과시 exceededUnits/confirmMinOrdinals AC-1.8), audit 3종, 라우트 분리(plan/semester+plan/session, isSemesterPlanComplete 게이팅), UI(semester-editor 단원트리+시험목표 토글, session-editor 6자리자동채움+확인모달+10페이지네이션). typecheck0+build0+단위16 green. ⚠ itest는 작성됐으나 마이그 미적용으로 미실행(최종배치).
-- [x] US-3 진척도(코드완료): lib/domain/progress.ts(computeProgressRates 둘다 차시기준+progressColor 계획−실제>=2 빨강)+test4. progress.ts getSectionProgressStats(분반별: plannedToToday date<=today, actualDone status=done, examTargetTotal=lessonPlans중 unit 6자리코드 ∈ exam_targets 범위, 미설정시 분반total 폴백). progress-board: StatsHeader(분반별 목표/실제% 초록빨강)+SectionBlock 20페이지네이션+DoneForm 마운트시 계획 자동prefill(AC-2.2). page.tsx stats 페치. itest 2블록(범위필터·폴백, 자체 owner2/cleanup) 작성·게이트. typecheck0+build0+단위4 green. ⚠ itest 미실행(0030 미적용).
-- [x] US-4 출결(코드완료): [orchestrator] attendance-rules.ts 반전(질병결석/생리통만)+test6. [opus executor] 마이그 0031_attendance_ranges(field_trip start/end+trip_date 미러 NOT NULL 유지)·0032_attendance_report_backfill(report_required 재계산+고아 report_tracking 정리+recompute)·0033_pg_cron_trip_range(coalesce ar.date,ft.end_date,ft.trip_date). schema attendance.ts(fieldTripReports start/end). escalation.ts(end_date 셀렉트+base=attDate??tripEndDate??tripDate). attendance.ts(addFieldTrip 수업일 자동 인정결석+addAbsenceRange 수업일 결석+updateAttendanceRecord 수정+페이지네이션). pagination.ts applyPaging($dynamic). audit field_trip_add/attendance_update. UI(attendance-tables-client 인라인수정+10페이지네이션, field-trip-client start/end, period-client 결석 range). itest 19(범위 수업일필터·당일·수정·백필·end_date 마감) 작성·게이트. typecheck0+build0+단위256 green.
-  ⚠ 배치 적용 순서: 0030→0031→0033→0032(0032가 갱신된 recompute_report_tracking 호출).
-- [x] US-5 공지실(코드완료, opus executor): 마이그 0034_teacher_note_target(teacher_notes.target_scope 'all'/'individual' + teacher_note_targets 매핑테이블 RLS owner_rw; calendar_events.content는 0022서 이미 존재). notice.ts(targetScope/targetStudentYearIds, create/update 대상 매핑 delete-then-insert, moveTeacherNote 순서). notes-manager 재작성(전체/특정학생 토글+멀티픽커+↑↓순서+10페이지네이션). events-manager 10페이지네이션(content는 0022서 이미 지원). 시간표동기화 이전: HomeroomTimetableSync → app/setting/courses/homeroom-timetable-sync.tsx(컴시간 동기화 하위), homeroom/page.tsx·homeroom-timetable-sync.tsx 제거. audit teacher_note_reorder. itest(개별대상 멀티학생 라운드트립·순서·매핑교체) 게이트. typecheck0+build0+단위256 green.
-- [x] US-6 학생페이지+get_public_page v4(코드완료, opus executor): 마이그 0035_meal_nutrition(counsel_reservations.cancel_requested; 영양은 meal_cache.payload.meals[].ntrInfo jsonb=DDL 없음)·0036_get_public_page_v4(최후 마이그: 예약상담 캘린더 union, 급식 menu/calInfo/ntrInfo 분리, 개별공지 teacher_note_targets 병렬, NULL-safe). DTO triple lockstep(PublicMeal calInfo/ntrInfo + PublicCounselSlot cancelRequested + individualNotices + parseMeal/build/parse allowlist + dto.test 16). neis.ts NTR_INFO 파싱+test15. calendar.ts 영양 upsert. 상담취소: counseling.ts requestCancelReservation/approveCancelReservation(승인=삭제=정원복구), student-write requestCounselCancel, homeroom/counsel 승인 UI, audit 2종. public-page-view: KST 날짜경계 오늘강조·시간표 오늘열강조·선택과목 상시수정·급식표·취소요청버튼·개별공지섹션. itest get-public-page-v4(예약반영·영양분리·개별공지 대상유무·NULL-safe·취소승인 정원복구) 게이트. typecheck0+build0+dto16+neis15 green.
-  ⚠ get_public_page는 create or replace(재적용 안전). 마이그 배치 끝=0036(0034·0035 이후).
-- [x] US-7 오늘의학교 넛지(코드완료, opus executor): nudge.ts shape 변경(unrecordedObservation 단일→unrecordedObservations 리스트 {sectionKey,sectionLabel,suggestedStudentId,suggestedStudentName,candidateCount}[], 분반 수업당 1개+기록시 해결, 16시 게이트 제거=종일)+test13. nudge.ts collectTodaySectionObservations(오늘 KST 요일 분반, 관찰완료 제외). 소비자 둘다 갱신: app/page.tsx(EMPTY_NUDGES 신shape+listStudents 제거)+app/today/page.tsx(리스트 순회). nudge-banner 리스트화+딥링크. counseling.ts listHomeroomUpcomingReservations(담임전체 예약 집계 신규 AC-7.9). 모달 app/today/nudge-modal.tsx(sessionStorage dismiss). events-calendar.tsx(학사+전체상담 오버레이). notice-widget.tsx(한마디 캐러셀+할일·공지). 사전선택 딥링크: observations/behavior page+client(studentYearId/sectionId 파라미터 옵셔널), 미제출→/homeroom/attendance?view=unsubmitted. 오늘시간표 색상+시간, 급식표. typecheck0+build0+nudge13 green. 마이그 없음.
-- [x] US-8 담임허브+페이지네이션 잔여(코드완료, opus executor): app/homeroom/layout.tsx 신규(classroom 패턴 탭바 6탭+담임 게이트 layout으로 이동), page.tsx 묶음만, 하위 6페이지 ←홈 제거. 페이지네이션 8개: 교과관찰(observations-client)·세특 초안+추가입력(setech-bulk-client)·자율진로(activities-client)·상담기록+상담슬롯(counsel-lists-client 신규)·행동특성(behavior-client) 각 10, 학사일정(calendar-attrs)·학생명단(student-roster) 각 20. ⚠ observations/behavior 서버 limit:30 캡 제거(전체 페이지네이션 위해). typecheck0+build0. 마이그 없음.
-- [x] US-9 회귀+배포 완료(2026-06-15): 마이그 0030→0031→0033→0032→0034→0035→0036 prod 일괄적용(apply-sql.mjs, NOTICE=멱등가드 정상). 통합테스트 1차 9 fail(3파일)→근본수정:
-    - **0037_fix_lesson_unit_unique.sql(교정 마이그, prod 적용)**: 0030 이 lesson_units/exam_targets unique 키에 owner_id 포함 생성 → 스키마(records.ts uq_lesson_units 4컬럼/uq_exam_targets 2컬럼)+onConflict 코드와 불일치("no unique constraint matching"). subject_id 가 owner 종속이라 owner_id 제거 키로 동치·정정(빈 신규 테이블, drop if exists→add 멱등). ⚠ DB리셋 시 0030 직후 0037 적용 필요(런북).
-    - escalation itest: 캘린더 시드 -40..0 → -40..+30(체험 마감=end_date 이후 10번째 수업일=미래일 수 있음). 테스트 픽스처 수정(제품 정상).
-    - get_public_page v4 itest: 급식=학교(owner)단위 → 무데이터 학생도 owner 당일급식 노출. meals=[] 단언 → Array.isArray 정정(제품 정상).
-  - 재검증: typecheck0/build0/단위258/RUN_DB_ITEST 통합 **429 green(54파일)**. architect THOROUGH **APPROVED**(0037 owner-scoping 동치 증명·테스트수정 정당성·0036 NULL-safe 확인, 블로커0, nit2=0037런북·CI스키마드리프트가드). deslop 0편집(변경 3파일 클린). 7.6 회귀=deslop무편집→green유지.
-  - 배포: feat/qc-v4 push → main merge --no-ff(1780658) → push origin main(9373757..1780658) → Vercel Hobby 자동배포. prod root HTTP 200(icn1). 마이그 0030~0037 prod 적용완료.
-  - 커밋: 1ed6cb2(US-9 회귀수정) + 머지 1780658.
-  - ⚠ v4 학습: 손작성 마이그 unique 키는 Drizzle 스키마 unique 정의(컬럼 집합·이름)와 정확히 일치시킬 것. onConflict 추론은 DB 제약과 컬럼 집합이 정확히 같아야 매칭(owner_id 1컬럼 차이도 실패). build/typecheck은 미포착, itest만 포착.
-
-## 📍 QC v4 현재 상태 (2026-06-15 세션 종료 시점)
-- 코드 8/9 스토리 완료·커밋(feat/qc-v4): US-1~US-8. 전부 typecheck0/build0/단위테스트 green.
-- 미적용 마이그 7개: 0030(lesson_units/exam_targets)·0031(attendance ranges)·0032(report 백필)·0033(pg_cron end_date)·0034(teacher_note_target)·0035(meal nutrition/counsel cancel)·0036(get_public_page v4). **배치 적용 순서: 0030→0031→0033→0032→0034→0035→0036.**
-- 다음 세션 US-9: (1) 마이그 일괄 apply(scripts/apply-sql.mjs, 사용자 승인), (2) RUN_DB_ITEST=1 통합테스트 green 확인, (3) architect 검증+deslop, (4) git push→main 머지→Vercel 배포.
-- 커밋: fa8b753(US1+2)·b04901c(US3)·a913b54(US4규칙)·436e808(US4)·33fc7cd(US5)·0f093b3(US6)·88b758e(US7)·[US8 커밋예정].
-
-## ⚠ 마이그레이션/통합테스트 배치 전략(중요)
-- 마이그(0030+)는 코드와 함께 손작성하되 **prod 미적용**. 모든 스토리 코드완료 후 **최종 배치로 일괄 적용→통합테스트 실행→배포**(플랜 마이그레이션 레인 + prod 노출 최소화). get_public_page_v4 최후.
-- 각 스토리는 typecheck0/build0/단위테스트로 검증, itest는 배치까지 작성만.
-
-## v4 학습
-- vitest include=lib/**/*.test.ts(node). 컴포넌트 단위테스트 불가 → 순수로직 lib/ 아래.
-- 공유 UI=lib/ui/. components/ 없음.
-- meal_cache.payload={meals:[{mealType,menu:text[],calInfo}]}. get_public_page는 jsonb_array_elements+string_agg 평탄화. v4 급식표는 calInfo/ntrInfo 분리노출 필요(NEIS NTR_INFO 파싱 추가).
-- attendance reason enum=illness|accepted|unaccepted|etc. kind=late|early_leave|absent_period|absent. report_required=영속 파생컬럼(백필 필요). trip_date 소비=escalation.ts(46/60/121/134/180/197/206/212)+0005 pg_cron.
-- NudgeResult.unrecordedObservation=단일객체(73-76)→리스트 shape변경. 소비자 app/page.tsx+app/today/page.tsx.
+## 마이그 적용(prod) — 사용자 승인 게이트(US-9에서 안내)
+0041 exam_segment_plans, 0042 student_calendar_memos, 0043 get_public_page_v6. apply-sql.mjs로 적용.

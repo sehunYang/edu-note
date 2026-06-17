@@ -65,6 +65,13 @@ export interface PublicAttendance2D {
   absent: PublicAttendanceReasonCounts; // 결석
 }
 
+/** 학생 개인 메모/일정(QC v6 ⑤). 본인 토큰 스코프 — 모달 CRUD용. id 는 본인 메모 식별자. */
+export interface PublicStudentMemo {
+  id: string;
+  date: string; // YYYY-MM-DD
+  body: string;
+}
+
 /** 상담 신청 가능 슬롯(잔여>0 또는 본인 예약분). 학생이 신청/확인하는 최소 정보만. */
 export interface PublicCounselSlot {
   date: string; // YYYY-MM-DD
@@ -87,6 +94,7 @@ export interface PublicPagePayload {
   attendanceSummary: PublicAttendanceSummary; // 1D(하위호환)
   attendance2D: PublicAttendance2D; // 성격×사유 매트릭스
   counselSlots: PublicCounselSlot[]; // 상담 신청
+  studentMemos: PublicStudentMemo[]; // 학생 개인 메모/일정(본인 토큰 스코프). QC v6 ⑤.
   grades: PublicGradeStatus;
   personalMessage: string | null; // 교사 개별 메시지
 }
@@ -175,6 +183,7 @@ export interface RawPublicPageInput {
     reserved: boolean;
     cancelRequested?: boolean;
   }[];
+  studentMemos?: { id: string; date: string; body: string }[];
   // 성적
   gradesMock: boolean;
   grades: { subjectName: string; rank: number | null; grade5: number | null; achievement: string | null }[];
@@ -224,6 +233,11 @@ export function buildPublicPagePayload(
       remaining: c.remaining,
       reserved: c.reserved,
       cancelRequested: c.cancelRequested ?? false,
+    })),
+    studentMemos: (input.studentMemos ?? []).map((m) => ({
+      id: m.id,
+      date: m.date,
+      body: m.body,
     })),
     grades: input.gradesMock
       ? { status: "preparing" }
@@ -351,6 +365,14 @@ function parseCounselSlot(v: unknown): PublicCounselSlot | null {
     cancelRequested: o.cancelRequested === true,
   };
 }
+function parseStudentMemo(v: unknown): PublicStudentMemo | null {
+  const o = rec(v);
+  const id = asString(o.id);
+  const date = asString(o.date);
+  const body = asString(o.body);
+  if (id === null || date === null || body === null) return null;
+  return { id, date, body };
+}
 
 /**
  * 임의의 입력(SQL jsonb 등)에서 **허용 키만** 골라 DTO 를 만든다.
@@ -369,6 +391,7 @@ export function parsePublicPagePayload(raw: unknown): PublicPagePayload {
     attendanceSummary: parseAttendance(o.attendanceSummary),
     attendance2D: parseAttendance2D(o.attendance2D),
     counselSlots: asArray(o.counselSlots).map(parseCounselSlot).filter((x): x is PublicCounselSlot => x !== null),
+    studentMemos: asArray(o.studentMemos).map(parseStudentMemo).filter((x): x is PublicStudentMemo => x !== null),
     grades: parseGrades(o.grades),
     personalMessage: asString(o.personalMessage),
   };

@@ -17,3 +17,20 @@ export function isMobileUserAgent(userAgent: string | null | undefined): boolean
   if (!userAgent) return false;
   return MOBILE_UA_PATTERN.test(userAgent);
 }
+
+/**
+ * 루트(/) 진입 시 모바일을 /today 로 보낼지 결정한다(QC v6 ⑥ AC-6.2).
+ * "세션당 1회": today_seen 쿠키가 있으면(=이미 한 번 봤으면) 리다이렉트하지 않아
+ * 메인에 머물 수 있다. 순수 함수 — 미들웨어에서 분기에 사용하고 단위 테스트한다.
+ */
+export function shouldRedirectMobileToToday(params: {
+  pathname: string;
+  userAgent: string | null | undefined;
+  hasTodaySeenCookie: boolean;
+}): boolean {
+  return (
+    params.pathname === "/" &&
+    isMobileUserAgent(params.userAgent) &&
+    !params.hasTodaySeenCookie
+  );
+}

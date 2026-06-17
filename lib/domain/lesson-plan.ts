@@ -80,6 +80,126 @@ export function monthWeekLabel(date: string): { month: number; weekOfMonth: numb
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+ * QC v6 US-1 — 시험 구간(1=중간 전 / 2=기말 전) 차시 도메인. 순수 함수(DB·네트워크 없음).
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** 세부단원 최소차시 합산용 입력(minOrdinals 만 사용). */
+export interface UnitOrdinal {
+  minOrdinals: number;
+}
+
+/**
+ * AC-1.2 — 세부단원 최소차시(minOrdinals) 합 = 차시계획 총 차시 수(결정·표시용).
+ * 음수/비정수는 0 으로 무시(방어). 빈 입력은 0.
+ */
+export function computeUnitOrdinalSum(units: UnitOrdinal[]): number {
+  let sum = 0;
+  for (const u of units) {
+    const n = u.minOrdinals;
+    if (Number.isFinite(n) && n > 0) sum += Math.floor(n);
+  }
+  return sum;
+}
+
+/** 시험 구간 1개(차수별 진행/여유 차시 + 시험일). examDate 출처=calendarEvents. */
+export interface ExamSegment {
+  ordinal: 1 | 2;
+  /** 시험일(YYYY-MM-DD). 미지정(미등록)이면 null. */
+  examDate: string | null;
+  plannedPeriods: number;
+  slackPeriods: number;
+}
+
+/** computeRemainingToExam 입력. today 와 대표분반 수업일 목록은 호출 측이 결정한다. */
+export interface RemainingToExamInput {
+  /** 오늘 날짜(YYYY-MM-DD). */
+  today: string;
+  /** 대표분반 수업일(차시) 날짜 오름차순 — representativeDates() 결과. */
+  representativeDates: string[];
+  /** 학교 수업일 목록(오름차순). 남은 수업일(a) 산출용. */
+  schoolDays: { date: string }[];
+  /** 대표분반 슬롯 요일 집합 — pickRepresentativeSection() 결과. */
+  representativeWeekdays: Set<number>;
+  /** 시험 구간(1/2). examDate 가 있는 구간만 활성 후보. */
+  segments: ExamSegment[];
+}
+
+export interface RemainingToExamView {
+  /** 활성 구간 차수(1|2). 활성 구간이 없으면 null. */
+  activeOrdinal: 1 | 2 | null;
+  /** 활성 구간 시험일(없으면 null). */
+  examDate: string | null;
+  /** (a) 남은 수업일 = (today, examDate] 중 대표분반 요일 수. clamp ≥ 0. */
+  remainingSchoolDays: number;
+  /** (b) 남은 차시 = (planned + slack) − 소비 ordinal 수. clamp ≥ 0. */
+  remainingPeriods: number;
+}
+
+/**
+ * AC-1.3 — "시험까지 남은 차시" 카운터(둘 다). 결정론·타임존 무관(문자열 비교).
+ *
+ * 활성 구간 선택: today > segment1.examDate 이면 2회로 전환(구간 리셋). 그 외엔 examDate
+ * 가 있는 가장 이른 미경과(today ≤ examDate) 구간. 둘 다 경과면 2회(있으면)를 활성으로 둔다.
+ *
+ * (a) 남은 수업일 = schoolDays 중 (today, examDate] ∩ 대표분반 요일 수.
+ * (b) 남은 차시 = (active.plannedPeriods + active.slackPeriods) − 소비 ordinal 수.
+ *     소비 ordinal = representativeDates 중 날짜 ≤ today 인 차시 수.
+ *     구간 리셋 시 이전 구간 여유차시는 active 구간 값만 쓰므로 자동 제외된다.
+ * 둘 다 clamp ≥ 0.
+ */
+export function computeRemainingToExam(
+  input: RemainingToExamInput,
+): RemainingToExamView {
+  const { today, representativeDates, schoolDays, representativeWeekdays } =
+    input;
+  const seg1 = input.segments.find((s) => s.ordinal === 1) ?? null;
+  const seg2 = input.segments.find((s) => s.ordinal === 2) ?? null;
+
+  // 활성 구간 선택(구간 리셋 포함).
+  let active: ExamSegment | null = null;
+  if (seg1 && seg1.examDate && today <= seg1.examDate) {
+    active = seg1; // 1회 미경과 → 1회 활성.
+  } else if (seg2 && seg2.examDate) {
+    active = seg2; // 1회 경과(또는 1회 미등록) → 2회 활성.
+  } else if (seg1 && seg1.examDate) {
+    active = seg1; // 2회 미등록 + 1회 경과 → 1회로 표시(경과지만 fallback).
+  }
+
+  if (!active || !active.examDate) {
+    return {
+      activeOrdinal: active?.ordinal ?? null,
+      examDate: active?.examDate ?? null,
+      remainingSchoolDays: 0,
+      remainingPeriods: 0,
+    };
+  }
+  const examDate = active.examDate;
+
+  // (a) 남은 수업일 = (today, examDate] 중 대표분반 요일 수.
+  let remainingSchoolDays = 0;
+  for (const { date } of schoolDays) {
+    if (date > today && date <= examDate && representativeWeekdays.has(weekdayOf(date))) {
+      remainingSchoolDays += 1;
+    }
+  }
+
+  // (b) 남은 차시 = (planned + slack) − 소비 ordinal(대표분반 날짜 ≤ today).
+  let consumed = 0;
+  for (const d of representativeDates) {
+    if (d <= today) consumed += 1;
+  }
+  const capacity = active.plannedPeriods + active.slackPeriods;
+  const remainingPeriods = Math.max(0, capacity - consumed);
+
+  return {
+    activeOrdinal: active.ordinal,
+    examDate,
+    remainingSchoolDays: Math.max(0, remainingSchoolDays),
+    remainingPeriods,
+  };
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
  * QC v5 c1/c2 — 여유차시(slack) 시프트 도메인. 순수 함수(DB·네트워크 없음).
  *
  * 여유차시 = 내용 없는 빈 차시. ordinal 은 보존하되 unitId/content 가 모두 null 인

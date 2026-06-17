@@ -22,7 +22,10 @@ import {
 } from "@/lib/domain/nudge";
 import type { ReportTier } from "@/lib/domain/types";
 import { activeSemester } from "@/lib/domain/school-year";
-import { studentsWithoutBehaviorNoteToday } from "./observations";
+import {
+  studentsWithoutBehaviorNoteToday,
+  countHomeroomBehaviorByStudent,
+} from "./observations";
 import { listPendingCounselLogReservations } from "./counseling";
 
 /**
@@ -194,20 +197,33 @@ export async function collectNudges(
   const [
     sectionObservations,
     behaviorPendingStudentIds,
+    behaviorCounts,
     pendingReportTiers,
     pendingCounselLogs,
   ] = await Promise.all([
     collectTodaySectionObservations(db, ownerId, schoolYear, now),
     studentsWithoutBehaviorNoteToday(db, ownerId, schoolYear, today),
+    // QC v6 ⑥: 담임반 학생별 행동특성 누적 기록수(가중랜덤 추천 입력).
+    countHomeroomBehaviorByStudent(db, ownerId, schoolYear),
     listPendingReportTiers(db, ownerId),
     // c8: 슬롯 날짜가 경과(< 오늘 KST)했으나 상담일지 미작성인 예약.
     listPendingCounselLogReservations(db, ownerId, schoolYear, today),
   ]);
 
+  const behaviorStudentNames: Record<string, string> = {};
+  for (const b of behaviorCounts) {
+    behaviorStudentNames[b.id] = `${b.sid} ${b.name}`;
+  }
+
   return assembleNudges(
     {
       sectionObservations,
       behaviorPendingStudentIds,
+      behaviorStudentCounts: behaviorCounts.map((b) => ({
+        id: b.id,
+        recordCount: b.recordCount,
+      })),
+      behaviorStudentNames,
       pendingReportTiers,
       pendingCounselLogs,
     },

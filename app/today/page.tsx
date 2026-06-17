@@ -15,6 +15,7 @@ import {
   listNoticeEvents,
 } from "@/lib/db/queries";
 import { TodayNudgeModal } from "./nudge-modal";
+import { NudgeBanner } from "../nudge-banner";
 import { EventsCalendar } from "./events-calendar";
 import { NoticeWidget } from "./notice-widget";
 
@@ -157,6 +158,10 @@ export default async function TodayPage() {
         </Link>
       </div>
       <p className="mt-1 text-xs text-neutral-400">{date}</p>
+
+      {/* QC v6 ⑥(AC-6.3): 메인처럼 페이지 최상단에 '오늘 해야 할 일'을 상시 표시
+          (기존 모달과 별개로 유지 — 모달을 닫아도 배너는 남는다). */}
+      <NudgeBanner nudges={nudges} />
 
       <div className="mt-6 grid gap-6 md:grid-cols-2">
         {/* 오늘 시간표 — 수업마다 색상 + 시간(AC-7.7) */}

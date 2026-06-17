@@ -89,6 +89,13 @@ export interface NudgeInput {
   sectionObservations: SectionObservationInput[];
   /** 오늘 행특 미작성 학생 id. */
   behaviorPendingStudentIds: readonly string[];
+  /**
+   * 담임반 학생별 행동특성 누적 기록수(가중랜덤 입력, QC v6 ⑥). 기록이 적은 학생일수록
+   * 가중치 ↑ → 누적되면 골고루 기록. 미전달 시 추천 학생 없이 pendingCount만 노출.
+   */
+  behaviorStudentCounts?: readonly RecordCountItem[];
+  /** id→표시명(학번 이름). 추천 학생명 표기용(선택). */
+  behaviorStudentNames?: Record<string, string>;
   /** 미제출 신고서 각각의 현재 티어. */
   pendingReportTiers: readonly ReportTier[];
   /** 시각 경과 + 상담일지 미작성 예약(c8). 미전달 시 빈 배열로 취급. */
@@ -115,7 +122,15 @@ export interface PendingCounselLogNudge {
 export interface NudgeResult {
   /** 오늘 분반 수업당 1개의 교과 관찰 넛지(AC-7.2). 빈 배열이면 없음. */
   unrecordedObservations: UnrecordedObservationNudge[];
-  behaviorNotes: { pendingCount: number } | null;
+  /**
+   * 행동특성 넛지(QC v6 ⑥). pendingCount=오늘 미작성 학생 수. suggestedStudentId=
+   * 누적 기록 적은 학생 우선 가중랜덤 1명(딥링크 사전선택용, 입력 없으면 null).
+   */
+  behaviorNotes: {
+    pendingCount: number;
+    suggestedStudentId: string | null;
+    suggestedStudentName?: string;
+  } | null;
   pendingReports: {
     total: number;
     warning: number;
@@ -153,10 +168,21 @@ export function assembleNudges(
     });
   }
 
-  // ② 행특 미작성 — 종일 표시(16시 게이트 제거, AC-7.5).
+  // ② 행특 미작성 — 종일 표시(16시 게이트 제거, AC-7.5). QC v6 ⑥: 누적 기록 적은
+  //    담임반 학생 1명을 가중랜덤으로 추천(관찰 넛지와 동일 메커니즘, 별도 카운트).
+  const behaviorPick =
+    input.behaviorPendingStudentIds.length > 0
+      ? weightedPickLeastRecorded([...(input.behaviorStudentCounts ?? [])], rng)
+      : null;
   const behaviorNotes =
     input.behaviorPendingStudentIds.length > 0
-      ? { pendingCount: input.behaviorPendingStudentIds.length }
+      ? {
+          pendingCount: input.behaviorPendingStudentIds.length,
+          suggestedStudentId: behaviorPick,
+          suggestedStudentName: behaviorPick
+            ? input.behaviorStudentNames?.[behaviorPick]
+            : undefined,
+        }
       : null;
 
   // ④ 미제출 신고서 티어별 집계

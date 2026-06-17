@@ -157,6 +157,7 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
         "meals",
         "notices",
         "personalMessage",
+        "studentMemos",
         "studentName",
         "timetable",
         "weekTodos",

@@ -15,8 +15,18 @@ import {
   UnsubmittedTable,
 } from "./attendance-tables-client";
 import { FieldTripSection } from "./field-trip-client";
+import type { AttendanceReason } from "@/lib/domain/types";
 
 export const dynamic = "force-dynamic";
+
+/** 사유 필터(전체 + 4종). QC v6 ③ — 월별/학생별 검색에서 사유 기준 검색. */
+const REASON_OPTIONS: { value: AttendanceReason; label: string }[] = [
+  { value: "accepted", label: "인정" },
+  { value: "illness", label: "질병" },
+  { value: "unaccepted", label: "미인정" },
+  { value: "etc", label: "기타" },
+];
+const REASON_VALUES = REASON_OPTIONS.map((o) => o.value) as string[];
 
 function todayStr(): string {
   return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -49,6 +59,7 @@ export default async function AttendancePage({
     view?: string;
     month?: string;
     studentYearId?: string;
+    reason?: string;
   }>;
 }) {
   const ownerId = await getOwnerId();
@@ -61,6 +72,10 @@ export default async function AttendancePage({
     : "today";
   const month = sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : thisMonthStr();
   const selectedStudentId = sp.studentYearId ?? "";
+  const reasonFilter: AttendanceReason | undefined =
+    sp.reason && REASON_VALUES.includes(sp.reason)
+      ? (sp.reason as AttendanceReason)
+      : undefined;
 
   // 담임반 학생만 (listHomeroomStudents). 항상 필요.
   const students = await listHomeroomStudents(db, ownerId, year);
@@ -69,9 +84,9 @@ export default async function AttendancePage({
   const [records, monthRows, studentRows, unsubmitted, fieldTrips] =
     await Promise.all([
       view === "today" ? listAttendanceByDate(db, ownerId, date) : Promise.resolve([]),
-      view === "month" ? listAttendanceByMonth(db, ownerId, year, month) : Promise.resolve([]),
+      view === "month" ? listAttendanceByMonth(db, ownerId, year, month, reasonFilter) : Promise.resolve([]),
       view === "student" && selectedStudentId
-        ? searchAttendanceByStudent(db, ownerId, year, selectedStudentId)
+        ? searchAttendanceByStudent(db, ownerId, year, selectedStudentId, reasonFilter)
         : Promise.resolve([]),
       view === "unsubmitted"
         ? listUnsubmittedAttendance(db, ownerId, year)
@@ -168,7 +183,7 @@ export default async function AttendancePage({
 
       {view === "month" && (
         <section className="mt-6">
-          <form method="get" className="flex items-center gap-2 text-sm">
+          <form method="get" className="flex flex-wrap items-center gap-2 text-sm">
             <input type="hidden" name="view" value="month" />
             <label className="text-neutral-500">월</label>
             <input
@@ -177,6 +192,19 @@ export default async function AttendancePage({
               defaultValue={month}
               className="rounded border border-neutral-300 px-2 py-1"
             />
+            <label className="text-neutral-500">사유</label>
+            <select
+              name="reason"
+              defaultValue={reasonFilter ?? ""}
+              className="rounded border border-neutral-300 px-2 py-1 text-sm"
+            >
+              <option value="">전체</option>
+              {REASON_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
             <button className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
               조회
             </button>
@@ -190,7 +218,7 @@ export default async function AttendancePage({
 
       {view === "student" && (
         <section className="mt-6">
-          <form method="get" className="flex items-center gap-2 text-sm">
+          <form method="get" className="flex flex-wrap items-center gap-2 text-sm">
             <input type="hidden" name="view" value="student" />
             <label className="text-neutral-500">학생</label>
             <select
@@ -202,6 +230,19 @@ export default async function AttendancePage({
               {students.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.sid} {s.name}
+                </option>
+              ))}
+            </select>
+            <label className="text-neutral-500">사유</label>
+            <select
+              name="reason"
+              defaultValue={reasonFilter ?? ""}
+              className="rounded border border-neutral-300 px-2 py-1 text-sm"
+            >
+              <option value="">전체</option>
+              {REASON_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
                 </option>
               ))}
             </select>

@@ -189,6 +189,24 @@ export const examTargets = pgTable(
   (t) => [unique("uq_exam_targets").on(t.subjectId, t.examOrdinal)],
 );
 
+// 시험 구간 계획 (QC v6 US-1). 구간(1=중간 전 / 2=기말 전)별 진행차시·여유차시 영속.
+// subjectId 가 이미 학기-스코프이므로 unique 키는 (subjectId, examOrdinal) — uq_exam_targets 동형.
+export const examSegmentPlans = pgTable(
+  "exam_segment_plans",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    examOrdinal: integer("exam_ordinal").notNull(),
+    plannedPeriods: integer("planned_periods").notNull().default(0),
+    slackPeriods: integer("slack_periods").notNull().default(0),
+    ...timestamps(),
+  },
+  (t) => [unique("uq_exam_segment_plans").on(t.subjectId, t.examOrdinal)],
+);
+
 // 수업 계획 (교실 2-2 수업계획실). 과목단위 차시 1..N. 핵심개념=keywords 해시태그.
 // QC v4: unitId 로 차시→소단원 연결(nullable, 점진).
 export const lessonPlans = pgTable(

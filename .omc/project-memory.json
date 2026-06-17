@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1781531896956,
+  "lastScanned": 1781653783886,
   "projectRoot": "C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note",
   "techStack": {
     "languages": [
@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | sed -E 's/\\x1b\\[[0-9;]*m//g' | grep -E \"Compiled|Failed|error|✓|Error\" | head -15; echo \"BUILD_EXIT=${PIPESTATUS[0]}\"",
-    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run 2>&1 | sed -E 's/\\x1b\\[[0-9;]*m//g' > .omc/itest-v5-run1.log; echo \"done exit=$?\"; grep -E \"^ FAIL |Test Files|^      Tests \" .omc/itest-v5-run1.log | tail -20",
+    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g' | grep -iE \"compiled|failed|error|✓ Compiled\" | head; echo \"BUILD-EXIT:$?\"",
+    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && node ./node_modules/vitest/vitest.mjs run 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g' | tail -6",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -80,7 +80,10 @@
       "lib",
       "scripts"
     ],
-    "gitBranches": null
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
   },
   "customNotes": [],
   "directoryMap": {
@@ -88,7 +91,7 @@
       "path": "app",
       "purpose": "Application code",
       "fileCount": 4,
-      "lastAccessed": 1781531896843,
+      "lastAccessed": 1781653783772,
       "keyFiles": [
         "globals.css",
         "layout.tsx",
@@ -100,7 +103,7 @@
       "path": "content",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1781531896881,
+      "lastAccessed": 1781653783773,
       "keyFiles": [
         "세특 작성 지침.md"
       ]
@@ -109,7 +112,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 3,
-      "lastAccessed": 1781531896882,
+      "lastAccessed": 1781653783801,
       "keyFiles": [
         "DEPLOY_MANUAL.md",
         "GOOGLE_OAUTH_SETUP.md",
@@ -120,17 +123,30 @@
       "path": "lib",
       "purpose": "Library code",
       "fileCount": 2,
-      "lastAccessed": 1781531896883,
+      "lastAccessed": 1781653783803,
       "keyFiles": [
         "device.test.ts",
         "device.ts"
+      ]
+    },
+    "report": {
+      "path": "report",
+      "purpose": null,
+      "fileCount": 7,
+      "lastAccessed": 1781653783805,
+      "keyFiles": [
+        "qc-report-v1.md",
+        "qc-report-v2.md",
+        "qc-report-v3-part-a-status.md",
+        "qc-report-v3.md",
+        "qc-report-v4.md"
       ]
     },
     "scripts": {
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 3,
-      "lastAccessed": 1781531896884,
+      "lastAccessed": 1781653783808,
       "keyFiles": [
         "apply-sql.mjs",
         "comcigan-probe.mjs",
@@ -141,14 +157,14 @@
       "path": "app\\api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1781531896886,
+      "lastAccessed": 1781653783812,
       "keyFiles": []
     },
     "lib\\public": {
       "path": "lib\\public",
       "purpose": "Public files",
       "fileCount": 6,
-      "lastAccessed": 1781531896888,
+      "lastAccessed": 1781653783818,
       "keyFiles": [
         "dto.test.ts",
         "dto.ts",
@@ -159,44 +175,44 @@
   "hotPaths": [
     {
       "path": "lib\\db\\queries\\index.ts",
-      "accessCount": 75,
-      "lastAccessed": 1781602071277,
+      "accessCount": 76,
+      "lastAccessed": 1781669355120,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\misc.ts",
-      "accessCount": 68,
-      "lastAccessed": 1781602071402,
+      "accessCount": 74,
+      "lastAccessed": 1781672676675,
       "type": "file"
     },
     {
       "path": "lib\\db\\queries\\audit.ts",
-      "accessCount": 54,
-      "lastAccessed": 1781602121829,
+      "accessCount": 59,
+      "lastAccessed": 1781671995847,
       "type": "file"
     },
     {
       "path": "app\\page.tsx",
-      "accessCount": 46,
-      "lastAccessed": 1781602107472,
+      "accessCount": 51,
+      "lastAccessed": 1781672703846,
       "type": "file"
     },
     {
       "path": "lib\\db\\schema\\records.ts",
-      "accessCount": 40,
-      "lastAccessed": 1781601370211,
-      "type": "file"
-    },
-    {
-      "path": "lib\\db\\schema\\classes.ts",
-      "accessCount": 37,
-      "lastAccessed": 1781582969003,
+      "accessCount": 47,
+      "lastAccessed": 1781672675601,
       "type": "file"
     },
     {
       "path": "lib\\public\\dto.ts",
-      "accessCount": 34,
-      "lastAccessed": 1781582436052,
+      "accessCount": 43,
+      "lastAccessed": 1781672661161,
+      "type": "file"
+    },
+    {
+      "path": "lib\\db\\schema\\classes.ts",
+      "accessCount": 38,
+      "lastAccessed": 1781667986442,
       "type": "file"
     },
     {
@@ -224,21 +240,27 @@
       "type": "file"
     },
     {
+      "path": "lib\\public\\get-public-page.ts",
+      "accessCount": 14,
+      "lastAccessed": 1781667898502,
+      "type": "file"
+    },
+    {
       "path": "lib\\csv\\student-roster.ts",
       "accessCount": 13,
       "lastAccessed": 1781247779282,
       "type": "file"
     },
     {
-      "path": "lib\\public\\get-public-page.ts",
-      "accessCount": 12,
-      "lastAccessed": 1781510451955,
-      "type": "file"
-    },
-    {
       "path": "lib\\domain\\byte-count.ts",
       "accessCount": 12,
       "lastAccessed": 1781601721062,
+      "type": "file"
+    },
+    {
+      "path": "app\\p\\[token]\\page.tsx",
+      "accessCount": 12,
+      "lastAccessed": 1781654820963,
       "type": "file"
     },
     {
@@ -251,12 +273,6 @@
       "path": "lib\\db\\index.ts",
       "accessCount": 11,
       "lastAccessed": 1781469725407,
-      "type": "file"
-    },
-    {
-      "path": "app\\p\\[token]\\page.tsx",
-      "accessCount": 11,
-      "lastAccessed": 1781510469556,
       "type": "file"
     },
     {
@@ -279,8 +295,8 @@
     },
     {
       "path": "lib\\db\\schema\\_shared.ts",
-      "accessCount": 9,
-      "lastAccessed": 1781582020372,
+      "accessCount": 10,
+      "lastAccessed": 1781669376293,
       "type": "file"
     },
     {
@@ -321,8 +337,8 @@
     },
     {
       "path": "vitest.config.ts",
-      "accessCount": 5,
-      "lastAccessed": 1780878015681,
+      "accessCount": 6,
+      "lastAccessed": 1781673003562,
       "type": "file"
     },
     {

@@ -9,6 +9,7 @@ import {
   jsonb,
   timestamp,
   unique,
+  index,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { pk, ownerId, timestamps } from "./_shared";
@@ -74,6 +75,24 @@ export const todayCalendarMemos = pgTable("today_calendar_memos", {
   content: text("content").notNull(),
   ...timestamps(),
 });
+
+// 학생 안내 페이지 전용 개인 메모/일정. QC v6 ⑤ (0042). 토큰(학생) 스코프 — 해당 학생만
+// 자신의 메모를 조회·CRUD하고 교사/타학생에게는 절대 비노출(get_public_page v6가 v_sy_id
+// 스코프로만 노출). 일자별 다건 허용(today_calendar_memos 패턴) → (student_year_id, date)
+// unique 두지 않고 보조 인덱스만.
+export const studentCalendarMemos = pgTable(
+  "student_calendar_memos",
+  {
+    id: pk(),
+    studentYearId: uuid("student_year_id")
+      .notNull()
+      .references(() => studentYears.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    body: text("body").notNull(),
+    ...timestamps(),
+  },
+  (t) => [index("idx_student_calendar_memos_student_date").on(t.studentYearId, t.date)],
+);
 
 // 상담일지 (AI분석 컬럼은 추후 — 목업 UI)
 export const counselingLogs = pgTable("counseling_logs", {

@@ -5,6 +5,7 @@ import {
   getPlanView,
   listLessonUnits,
   listExamTargets,
+  listExamSegmentPlans,
 } from "@/lib/db/queries";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { PlanStageNav } from "../plan-stage-nav";
@@ -34,10 +35,11 @@ export default async function SemesterPlanPage({
 
   const views: SubjectSemesterView[] = await Promise.all(
     subjects.map(async (s) => {
-      const [planView, units, targets] = await Promise.all([
+      const [planView, units, targets, segmentPlans] = await Promise.all([
         getPlanView(db, ownerId, s.subjectId, year, sem),
         listLessonUnits(db, ownerId, s.subjectId),
         listExamTargets(db, ownerId, s.subjectId),
+        listExamSegmentPlans(db, ownerId, s.subjectId),
       ]);
       // 세팅실에서 체크된 시험 차수(1/2). examLabel 마커가 있으면 해당 차수 존재.
       const examSet = new Set<number>();
@@ -50,6 +52,7 @@ export default async function SemesterPlanPage({
         subjectId: s.subjectId,
         subjectName: s.subjectName,
         examOrdinals,
+        repLength: planView.length,
         units: units.map((u) => ({
           id: u.id,
           majorNo: u.majorNo,
@@ -65,6 +68,11 @@ export default async function SemesterPlanPage({
           examOrdinal: t.examOrdinal,
           fromCode: t.unitFromCode,
           toCode: t.unitToCode,
+        })),
+        segmentPlans: segmentPlans.map((p) => ({
+          examOrdinal: p.examOrdinal,
+          plannedPeriods: p.plannedPeriods,
+          slackPeriods: p.slackPeriods,
         })),
       };
     }),

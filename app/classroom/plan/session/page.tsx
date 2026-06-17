@@ -4,10 +4,12 @@ import { getDb } from "@/lib/db";
 import {
   listSubjectsWithSections,
   getPlanView,
+  getRemainingToExam,
   listLessonPlan,
   listLessonUnits,
   isSemesterPlanComplete,
 } from "@/lib/db/queries";
+import { computeUnitOrdinalSum } from "@/lib/domain/lesson-plan";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { PlanStageNav } from "../plan-stage-nav";
 import { SessionEditor, type SubjectSessionView } from "./session-editor";
@@ -34,20 +36,27 @@ export default async function SessionPlanPage({
     sp.semester === "1" ? 1 : sp.semester === "2" ? 2 : activeSem;
 
   const subjects = await listSubjectsWithSections(db, ownerId, year, sem);
+  // KST 오늘(시험까지 남은 차시 카운터 기준).
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   const views: SubjectSessionView[] = await Promise.all(
     subjects.map(async (s) => {
-      const [planView, entries, units, complete] = await Promise.all([
+      const [planView, entries, units, complete, remaining] = await Promise.all([
         getPlanView(db, ownerId, s.subjectId, year, sem),
         listLessonPlan(db, ownerId, s.subjectId),
         listLessonUnits(db, ownerId, s.subjectId),
         isSemesterPlanComplete(db, ownerId, s.subjectId),
+        getRemainingToExam(db, ownerId, s.subjectId, year, sem, today),
       ]);
       return {
         subjectId: s.subjectId,
         subjectName: s.subjectName,
         semesterComplete: complete,
         planLength: planView.length,
+        // QC v6 ① — 세부단원 최소차시 합 = 총 차시 수(AC-1.2).
+        totalOrdinals: computeUnitOrdinalSum(units),
+        // QC v6 ① — 시험까지 남은 차시(AC-1.3). 대표분반 없으면 null.
+        remaining,
         ordinals: planView.ordinals.map((o) => ({
           ordinal: o.ordinal,
           month: o.month,

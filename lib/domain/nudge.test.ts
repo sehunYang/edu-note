@@ -136,8 +136,48 @@ describe("assembleNudges", () => {
   it("행특 넛지는 종일 표시(16시 게이트 제거)", () => {
     const before = assembleNudges(base, { now: at(9), rng: () => 0 });
     const after = assembleNudges(base, { now: at(16), rng: () => 0 });
-    expect(before.behaviorNotes).toEqual({ pendingCount: 2 });
-    expect(after.behaviorNotes).toEqual({ pendingCount: 2 });
+    // QC v6 ⑥: behaviorStudentCounts 미전달이면 추천 학생 없음(null).
+    expect(before.behaviorNotes).toEqual({
+      pendingCount: 2,
+      suggestedStudentId: null,
+      suggestedStudentName: undefined,
+    });
+    expect(after.behaviorNotes).toEqual({
+      pendingCount: 2,
+      suggestedStudentId: null,
+      suggestedStudentName: undefined,
+    });
+  });
+
+  it("행특 넛지(QC v6 ⑥): 누적 기록 적은 담임반 학생을 가중랜덤 추천(rng=0→최소기록)", () => {
+    const r = assembleNudges(
+      {
+        ...base,
+        behaviorStudentCounts: [
+          { id: "x", recordCount: 0 },
+          { id: "y", recordCount: 3 },
+        ],
+        behaviorStudentNames: { x: "10101 김가", y: "10102 이나" },
+      },
+      { now: at(10), rng: () => 0 },
+    );
+    expect(r.behaviorNotes).toEqual({
+      pendingCount: 2,
+      suggestedStudentId: "x",
+      suggestedStudentName: "10101 김가",
+    });
+  });
+
+  it("행특 넛지: 미작성 학생이 없으면 null(behaviorStudentCounts 있어도)", () => {
+    const r = assembleNudges(
+      {
+        ...base,
+        behaviorPendingStudentIds: [],
+        behaviorStudentCounts: [{ id: "x", recordCount: 0 }],
+      },
+      { now: at(10), rng: () => 0 },
+    );
+    expect(r.behaviorNotes).toBeNull();
   });
 
   it("미제출 신고서 티어별 집계", () => {
