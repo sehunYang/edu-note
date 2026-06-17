@@ -111,7 +111,7 @@
       "id": "US-9",
       "title": "배포: 커밋 + main 머지 + Vercel",
       "priority": 7,
-      "passes": false,
+      "passes": true,
       "acceptanceCriteria": [
         "원자적 커밋(논리단위) 생성",
         "feat/qc-v6 → main 머지 + origin push로 Vercel 자동배포 트리거",

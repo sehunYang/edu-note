@@ -23,5 +23,9 @@
 ## 영양 미표시 근본원인(US-5 AC-5.1 문서화)
 코드 체인 전 구간 정상·테스트 통과: NEIS NTR_INFO→neis.ts ntrInfo→calendar.ts payload.meals[].ntrInfo→get_public_page v4+ m->>'ntrInfo'→dto→Meals 렌더. "JSON 파싱 안 될 리 없다"는 직관이 맞음. 유력 원인=런타임 데이터: (1) prod meal_cache.payload가 ntrInfo 수집(0035) 이전 stale 캐시 → 재동기화 필요, 또는 (2) prod get_public_page 함수 버전이 v4(0036) 미만. 둘 다 파싱 버그 아님. 실행 시 prod 함수버전 확인+급식 재동기화로 복구(prod 적용은 사용자 승인 게이트).
 
-## 마이그 적용(prod) — 사용자 승인 게이트(US-9에서 안내)
-0041 exam_segment_plans, 0042 student_calendar_memos, 0043 get_public_page_v6. apply-sql.mjs로 적용.
+## 배포 완료 (US-9 DONE)
+- deslop: nudge.ts behaviorNotes 사후변이 1건 정리(단일표현식), 나머지 churn 없음. 회귀 재검증 build✓+276 pass.
+- 커밋(feat/qc-v6) → main --no-ff 머지 → origin push(6ce3d39) = Vercel 자동배포.
+- prod 마이그 0041/0042/0043 적용+검증: 테이블 2개 생성, uq_exam_segment_plans 존재, get_public_page v6 동작(studentMemos 포함, 더미토큰 not_found).
+- architect APPROVED-WITH-NITS, 권고 통합테스트(student-write.integration) 작성 완료(DB 게이트 skip).
+- 잔여(사용자 액션): ⑤ 영양 표시 복구 위해 세팅실에서 급식 재동기화 필요(stale meal_cache payload에 ntrInfo 채우기). 코드/함수는 정상.
