@@ -91,44 +91,8 @@ export function ProgressBoard({
         </form>
       </section>
 
-      {/* 팝업: 금주∪연체 */}
-      <section>
-        <h3 className="border-b border-neutral-200 pb-2 font-semibold text-neutral-800">
-          이번주 · 연체 예정 차시 ({popup.length})
-        </h3>
-        {popup.length === 0 ? (
-          <p className="mt-3 text-sm text-neutral-400">
-            이번주·연체된 예정 차시가 없습니다.
-          </p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {popup.map((p) => (
-              <li
-                key={p.sessionId}
-                className="rounded-lg border border-neutral-200 p-4"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className="w-24 text-neutral-500">{p.date}</span>
-                    <span className="font-medium">{p.subjectName}</span>
-                    <span className="text-neutral-400">{p.sectionLabel}</span>
-                    {p.overdue && (
-                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
-                        연체
-                      </span>
-                    )}
-                  </span>
-                  <StatusButtons
-                    sessionId={p.sessionId}
-                    current="planned"
-                    statusLabel={statusLabel}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* 팝업: 금주∪연체 (QC v6 ② — 다른 컴포넌트처럼 페이지네이션) */}
+      <PopupSection popup={popup} statusLabel={statusLabel} />
 
       {/* 분반별 전체 차시 */}
       <section>
@@ -158,6 +122,72 @@ export function ProgressBoard({
 /** 6자리 코드 표기(대2+중2+소2). */
 function fmtCode(code: number): string {
   return String(code).padStart(6, "0");
+}
+
+/**
+ * 금주∪연체 예정 차시 섹션 (QC v6 ② — AC: 분반별 차시(SectionBlock)와 동일하게
+ * paginate()+<Paginator>로 페이지네이션, page size 20).
+ */
+function PopupSection({
+  popup,
+  statusLabel,
+}: {
+  popup: PopupView[];
+  statusLabel: Record<string, string>;
+}) {
+  const [page, setPage] = useState(1);
+  const { pageItems, totalPages, currentPage } = paginate(
+    popup,
+    page,
+    SECTION_PAGE_SIZE,
+  );
+  return (
+    <section>
+      <h3 className="border-b border-neutral-200 pb-2 font-semibold text-neutral-800">
+        이번주 · 연체 예정 차시 ({popup.length})
+      </h3>
+      {popup.length === 0 ? (
+        <p className="mt-3 text-sm text-neutral-400">
+          이번주·연체된 예정 차시가 없습니다.
+        </p>
+      ) : (
+        <>
+          <ul className="mt-3 space-y-2">
+            {pageItems.map((p) => (
+              <li
+                key={p.sessionId}
+                className="rounded-lg border border-neutral-200 p-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="flex items-center gap-2 text-sm">
+                    <span className="w-24 text-neutral-500">{p.date}</span>
+                    <span className="font-medium">{p.subjectName}</span>
+                    <span className="text-neutral-400">{p.sectionLabel}</span>
+                    {p.overdue && (
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
+                        연체
+                      </span>
+                    )}
+                  </span>
+                  <StatusButtons
+                    sessionId={p.sessionId}
+                    current="planned"
+                    statusLabel={statusLabel}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Paginator
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            className="mt-3"
+          />
+        </>
+      )}
+    </section>
+  );
 }
 
 /**

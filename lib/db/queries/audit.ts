@@ -115,7 +115,11 @@ export type AuditEvent =
   | "club_plan_update"
   | "club_entry_common_save"
   | "club_entry_override_save"
-  | "club_record_save";
+  | "club_record_save"
+  // QC v6 수업계획실 시험구간 계획 (US-1) + 학생 캘린더 메모 (US-5)
+  | "exam_segment_plan_save"
+  | "student_memo_save"
+  | "student_memo_delete";
 
 export async function writeAudit(
   db: DB,

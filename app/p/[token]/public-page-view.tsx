@@ -9,7 +9,10 @@ import {
   saveElectiveAction,
   reserveCounselAction,
   requestCounselCancelAction,
+  saveStudentMemoAction,
+  deleteStudentMemoAction,
 } from "./actions";
+import type { PublicStudentMemo } from "@/lib/public";
 
 /** KST(UTC+9) 기준 오늘 날짜(YYYY-MM-DD). 12시간 고정이 아닌 날짜 경계로 산출. */
 function kstToday(now: Date = new Date()): string {
@@ -49,7 +52,11 @@ export function PublicPageView({
 
       <Notices notices={payload.notices} commonNotice={payload.commonNotice} />
       <IndividualNotices notices={payload.individualNotices} />
-      <CalendarSection todos={payload.weekTodos} />
+      <CalendarSection
+        token={token}
+        todos={payload.weekTodos}
+        memos={payload.studentMemos}
+      />
       <Timetable token={token} slots={payload.timetable} />
       <Meals meals={payload.meals} />
       <Attendance2DTable matrix={payload.attendance2D} />
@@ -120,19 +127,38 @@ function Notices({
   );
 }
 
-// ── 개별 공지(이 학생 대상 — 전체 공지와 병렬) ──────────────────────────────
+// ── 개별 공지(이 학생 대상 — 전체 공지처럼 한 건씩 스와이프 분리, QC v6 ④) ────
 function IndividualNotices({ notices }: { notices: string[] }) {
+  const [idx, setIdx] = useState(0);
   if (notices.length === 0) return null;
+  const cur = Math.min(idx, notices.length - 1);
   return (
     <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-      <h2 className="text-sm font-semibold text-amber-600">개별 공지</h2>
-      <ul className="mt-2 space-y-2 text-sm">
-        {notices.map((n, i) => (
-          <li key={i} className="whitespace-pre-line">
-            {n}
-          </li>
-        ))}
-      </ul>
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-amber-600">개별 공지</h2>
+        {notices.length > 1 && (
+          <div className="flex items-center gap-2 text-xs text-amber-500">
+            <button
+              type="button"
+              onClick={() => setIdx((cur - 1 + notices.length) % notices.length)}
+              className="rounded border border-amber-300 px-2 py-0.5 hover:bg-white"
+            >
+              ‹
+            </button>
+            <span>
+              {cur + 1}/{notices.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => setIdx((cur + 1) % notices.length)}
+              className="rounded border border-amber-300 px-2 py-0.5 hover:bg-white"
+            >
+              ›
+            </button>
+          </div>
+        )}
+      </div>
+      <p className="mt-2 whitespace-pre-line text-sm">{notices[cur]}</p>
     </section>
   );
 }
@@ -146,9 +172,13 @@ function ymd(d: Date): string {
 }
 
 function CalendarSection({
+  token,
   todos,
+  memos,
 }: {
+  token: string;
   todos: PublicPagePayload["weekTodos"];
+  memos: PublicStudentMemo[];
 }) {
   // 오늘 강조는 KST 날짜 경계 기준(12시간 고정 아님 — 날짜가 바뀌면 자동 갱신).
   const todayStr = useMemo(() => kstToday(), []);
@@ -160,6 +190,8 @@ function CalendarSection({
     year: ty,
     month: tm,
   }));
+  // QC v6 ⑤: 날짜 클릭 → 모달(그날 학사일정·개인 메모 CRUD).
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // 날짜(YYYY-MM-DD) → 제목 목록.
   const byDate = useMemo(() => {
@@ -172,6 +204,17 @@ function CalendarSection({
     }
     return map;
   }, [todos]);
+
+  // 날짜 → 개인 메모 목록(본인 토큰 스코프).
+  const memosByDate = useMemo(() => {
+    const map = new Map<string, PublicStudentMemo[]>();
+    for (const m of memos) {
+      const arr = map.get(m.date) ?? [];
+      arr.push(m);
+      map.set(m.date, arr);
+    }
+    return map;
+  }, [memos]);
 
   const first = new Date(month.year, month.month, 1);
   const startWeekday = first.getDay(); // 0=일
@@ -223,17 +266,25 @@ function CalendarSection({
           if (d === null) return <div key={`e${i}`} />;
           const dateStr = ymd(new Date(month.year, month.month, d));
           const events = byDate.get(dateStr) ?? [];
+          const dayMemos = memosByDate.get(dateStr) ?? [];
           const isToday = dateStr === todayStr;
           return (
-            <div
+            <button
               key={dateStr}
-              className={`min-h-[3.25rem] rounded border p-1 text-left ${
+              type="button"
+              onClick={() => setSelectedDate(dateStr)}
+              className={`min-h-[3.25rem] rounded border p-1 text-left transition hover:border-blue-400 ${
                 isToday
                   ? "border-blue-400 bg-blue-50 font-semibold"
                   : "border-neutral-100"
               }`}
             >
-              <div className="text-[11px] text-neutral-500">{d}</div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-neutral-500">{d}</span>
+                {dayMemos.length > 0 && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                )}
+              </div>
               {events.map((title, j) => (
                 <div
                   key={j}
@@ -243,11 +294,197 @@ function CalendarSection({
                   {title}
                 </div>
               ))}
-            </div>
+            </button>
           );
         })}
       </div>
+      {selectedDate && (
+        <DayDetailModal
+          token={token}
+          date={selectedDate}
+          events={byDate.get(selectedDate) ?? []}
+          memos={memosByDate.get(selectedDate) ?? []}
+          onClose={() => setSelectedDate(null)}
+        />
+      )}
     </Card>
+  );
+}
+
+/**
+ * 학생 캘린더 날짜 상세 모달 (QC v6 ⑤). 그날 학사일정(읽기) + 개인 메모/일정 CRUD.
+ * 교사 오늘의학교 DayDetailModal 과 동일 UX. 개인 메모는 본인 토큰 스코프 서버액션으로만
+ * 쓰며, 타학생·교사에게 절대 보이지 않는다.
+ */
+function DayDetailModal({
+  token,
+  date,
+  events,
+  memos,
+  onClose,
+}: {
+  token: string;
+  date: string;
+  events: string[];
+  memos: PublicStudentMemo[];
+  onClose: () => void;
+}) {
+  const [body, setBody] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editBody, setEditBody] = useState("");
+  const [pending, start] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+
+  function add() {
+    const text = body.trim();
+    if (!text) return;
+    setErr(null);
+    start(async () => {
+      const res = await saveStudentMemoAction(token, date, text);
+      if (res.ok) setBody("");
+      else setErr(res.message);
+    });
+  }
+
+  function saveEdit(id: string) {
+    const text = editBody.trim();
+    if (!text) return;
+    setErr(null);
+    start(async () => {
+      const res = await saveStudentMemoAction(token, date, text, id);
+      if (res.ok) setEditingId(null);
+      else setErr(res.message);
+    });
+  }
+
+  function remove(id: string) {
+    setErr(null);
+    start(async () => {
+      const res = await deleteStudentMemoAction(token, id);
+      if (!res.ok) setErr(res.message);
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-neutral-800">{date}</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded p-1 text-neutral-400 hover:bg-neutral-100"
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+        </div>
+
+        {events.length > 0 && (
+          <div className="mt-3">
+            <h4 className="text-xs font-semibold text-neutral-500">학사일정</h4>
+            <ul className="mt-1 space-y-1 text-sm">
+              {events.map((e, i) => (
+                <li key={i} className="rounded bg-neutral-100 px-2 py-1 text-neutral-700">
+                  {e}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="mt-3">
+          <h4 className="text-xs font-semibold text-neutral-500">내 메모/일정</h4>
+          <ul className="mt-1 space-y-1.5">
+            {memos.length === 0 && (
+              <li className="text-xs text-neutral-400">등록한 메모가 없습니다.</li>
+            )}
+            {memos.map((m) => (
+              <li key={m.id} className="rounded border border-neutral-200 px-2 py-1.5 text-sm">
+                {editingId === m.id ? (
+                  <div className="space-y-1">
+                    <textarea
+                      value={editBody}
+                      onChange={(e) => setEditBody(e.target.value)}
+                      rows={2}
+                      className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => saveEdit(m.id)}
+                        className="rounded bg-neutral-900 px-2 py-0.5 text-xs text-white disabled:opacity-50"
+                      >
+                        저장
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="rounded border border-neutral-300 px-2 py-0.5 text-xs"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="whitespace-pre-line">{m.body}</p>
+                    <span className="flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingId(m.id);
+                          setEditBody(m.body);
+                        }}
+                        className="text-xs text-neutral-500 hover:underline"
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => remove(m.id)}
+                        className="text-xs text-red-500 hover:underline disabled:opacity-50"
+                      >
+                        삭제
+                      </button>
+                    </span>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="mt-3 space-y-1">
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={2}
+            placeholder="메모/일정 추가"
+            className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
+          />
+          {err && <p className="text-xs text-red-600">{err}</p>}
+          <button
+            type="button"
+            disabled={pending || !body.trim()}
+            onClick={add}
+            className="w-full rounded bg-neutral-900 py-1.5 text-sm text-white disabled:opacity-50"
+          >
+            {pending ? "저장…" : "일정 추가하기"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -398,7 +635,7 @@ function TimetableCell({
   );
 }
 
-// ── 급식(당일) — 메뉴/칼로리/영양 표 (AC-6.6) ───────────────────────────────
+// ── 급식(당일) — 메뉴/영양/칼로리 표 (QC v6 ⑤: 영양 중앙·칼로리 마지막 열) ────
 function Meals({ meals }: { meals: PublicPagePayload["meals"] }) {
   return (
     <Card title="오늘 급식">
@@ -411,11 +648,11 @@ function Meals({ meals }: { meals: PublicPagePayload["meals"] }) {
               <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
                 메뉴
               </th>
-              <th className="w-20 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
-                칼로리
-              </th>
               <th className="w-40 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
                 영양
+              </th>
+              <th className="w-20 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+                칼로리
               </th>
             </tr>
           </thead>
@@ -425,11 +662,11 @@ function Meals({ meals }: { meals: PublicPagePayload["meals"] }) {
                 <td className="border border-neutral-200 px-2 py-1 align-top whitespace-pre-line">
                   {m.menu}
                 </td>
-                <td className="border border-neutral-200 px-2 py-1 align-top text-neutral-600">
-                  {m.calInfo ?? "-"}
-                </td>
                 <td className="border border-neutral-200 px-2 py-1 align-top whitespace-pre-line text-xs text-neutral-600">
                   {m.ntrInfo ?? "-"}
+                </td>
+                <td className="border border-neutral-200 px-2 py-1 align-top text-neutral-600">
+                  {m.calInfo ?? "-"}
                 </td>
               </tr>
             ))}

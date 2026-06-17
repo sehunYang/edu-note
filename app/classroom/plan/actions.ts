@@ -7,6 +7,7 @@ import {
   upsertLessonUnit,
   deleteLessonUnit,
   upsertExamTarget,
+  upsertExamSegmentPlan,
   lookupUnitByCode,
   countOrdinalsPerUnit,
   listLessonUnits,
@@ -133,6 +134,34 @@ export async function saveExamTargetAction(
     examOrdinal,
     fromCode,
     toCode,
+  });
+  revalidatePath("/classroom/plan/semester");
+  return OK;
+}
+
+/** 시험 구간(1=중간 전 / 2=기말 전)별 진행 차시 + 여유 차시 저장 (QC v6 US-1, AC-1.1). */
+export async function saveExamSegmentPlanAction(
+  _prev: PlanActionState,
+  formData: FormData,
+): Promise<PlanActionState> {
+  const ownerId = await getOwnerId();
+  const subjectId = String(formData.get("subjectId") ?? "").trim();
+  const examOrdinal = Number(formData.get("examOrdinal"));
+  const planned = Number(formData.get("plannedPeriods")) || 0;
+  const slack = Number(formData.get("slackPeriods")) || 0;
+  if (!subjectId || (examOrdinal !== 1 && examOrdinal !== 2)) {
+    return { ok: false, error: "시험 차수가 올바르지 않습니다." };
+  }
+  if (planned < 0 || slack < 0) {
+    return { ok: false, error: "차시 수는 0 이상이어야 합니다." };
+  }
+
+  const db = getDb();
+  await upsertExamSegmentPlan(db, ownerId, subjectId, examOrdinal, planned, slack);
+  await writeAudit(db, ownerId, "exam_segment_plan_save", subjectId, {
+    examOrdinal,
+    planned,
+    slack,
   });
   revalidatePath("/classroom/plan/semester");
   return OK;

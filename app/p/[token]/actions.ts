@@ -4,6 +4,8 @@ import {
   saveElectiveMapping,
   reserveCounsel,
   requestCounselCancel,
+  saveStudentMemo,
+  deleteStudentMemo,
   type StudentWriteResult,
 } from "@/lib/public/student-write";
 
@@ -40,6 +42,28 @@ export async function requestCounselCancelAction(
   date: string,
 ): Promise<StudentWriteResult> {
   const res = await requestCounselCancel(token, date);
+  if (res.ok) revalidatePath(`/p/${token}`);
+  return res;
+}
+
+/** 학생 개인 메모 저장(신규/수정). QC v6 ⑤. id 미지정=신규. */
+export async function saveStudentMemoAction(
+  token: string,
+  date: string,
+  body: string,
+  id?: string | null,
+): Promise<StudentWriteResult> {
+  const res = await saveStudentMemo(token, date, body, id);
+  if (res.ok) revalidatePath(`/p/${token}`);
+  return res;
+}
+
+/** 학생 개인 메모 삭제. QC v6 ⑤. */
+export async function deleteStudentMemoAction(
+  token: string,
+  id: string,
+): Promise<StudentWriteResult> {
+  const res = await deleteStudentMemo(token, id);
   if (res.ok) revalidatePath(`/p/${token}`);
   return res;
 }

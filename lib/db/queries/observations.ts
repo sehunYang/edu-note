@@ -290,6 +290,54 @@ export async function countSubjectObservationsByStudent(
   return rows.map((r) => ({ id: r.id, recordCount: Number(r.recordCount) }));
 }
 
+/** 담임반 학생별 행동특성 누적 기록수 + 표시명(가중랜덤 입력 행, QC v6 ⑥). */
+export interface HomeroomBehaviorCountRow extends RecordCountItem {
+  sid: string;
+  name: string;
+}
+
+/**
+ * 담임반 학생별 행동특성 누적 기록수 집계(넛지 가중랜덤 입력, QC v6 ⑥). 해당 학년도
+ * 담임반 학생 전체를 0건 포함해 반환하므로, 행특 기록이 적은 학생일수록 가중치가 높아져
+ * 누적되면 골고루 기록된다. 관찰기록 카운트와는 별개(행동특성 기록만 집계).
+ */
+export async function countHomeroomBehaviorByStudent(
+  db: DB,
+  ownerId: string,
+  schoolYear: number,
+): Promise<HomeroomBehaviorCountRow[]> {
+  const rows = await db
+    .select({
+      id: studentYears.id,
+      sid: studentYears.sid,
+      name: studentYears.name,
+      recordCount: sql<number>`count(${homeroomBehaviorNotes.id})::int`,
+    })
+    .from(homeroomMembers)
+    .innerJoin(
+      homeroomClasses,
+      eq(homeroomClasses.id, homeroomMembers.homeroomId),
+    )
+    .innerJoin(studentYears, eq(studentYears.id, homeroomMembers.studentYearId))
+    .leftJoin(
+      homeroomBehaviorNotes,
+      eq(homeroomBehaviorNotes.studentYearId, studentYears.id),
+    )
+    .where(
+      and(
+        eq(homeroomMembers.ownerId, ownerId),
+        eq(homeroomClasses.schoolYear, schoolYear),
+      ),
+    )
+    .groupBy(studentYears.id, studentYears.sid, studentYears.name);
+  return rows.map((r) => ({
+    id: r.id,
+    sid: r.sid,
+    name: r.name,
+    recordCount: Number(r.recordCount),
+  }));
+}
+
 /** 오늘 행특을 기록하지 않은 학생 id 집합(16시 후 넛지용). */
 export async function studentsWithoutBehaviorNoteToday(
   db: DB,

@@ -4,9 +4,11 @@ import {
   saveLessonUnitAction,
   deleteLessonUnitAction,
   saveExamTargetAction,
+  saveExamSegmentPlanAction,
   type PlanActionState,
 } from "../actions";
 import { sixDigitCode } from "@/lib/domain/lesson-unit";
+import { computeUnitOrdinalSum } from "@/lib/domain/lesson-plan";
 
 /**
  * 학기 계획 클라이언트 에디터 (QC v4 US-2). 과목 선택 → 세부단원 트리 편집 +
@@ -31,13 +33,22 @@ export interface SemesterExamTarget {
   toCode: number | null;
 }
 
+export interface SemesterSegmentPlan {
+  examOrdinal: number;
+  plannedPeriods: number;
+  slackPeriods: number;
+}
+
 export interface SubjectSemesterView {
   subjectId: string;
   subjectName: string;
   /** 세팅실에서 체크된 시험 차수(1/2). */
   examOrdinals: number[];
+  /** 대표분반 차시 수(주당 시수 최대 분반 기준). 구간 차시 계획 참고용. */
+  repLength: number;
   units: SemesterUnit[];
   examTargets: SemesterExamTarget[];
+  segmentPlans: SemesterSegmentPlan[];
 }
 
 const INIT: PlanActionState = { ok: true };
@@ -57,6 +68,12 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
     );
   }, [selected]);
 
+  // AC-1.2 — 세부단원 최소차시 합 = 차시계획 총 차시 수.
+  const totalOrdinals = useMemo(
+    () => computeUnitOrdinalSum(sortedUnits),
+    [sortedUnits],
+  );
+
   if (!selected) return null;
 
   return (
@@ -75,7 +92,13 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
           ))}
         </select>
         <span className="text-xs text-neutral-400">단원 {sortedUnits.length}개</span>
+        <span className="ml-auto rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+          총 차시 수 = <span className="font-semibold">{totalOrdinals}</span>
+          <span className="ml-1 text-neutral-400">(세부단원 최소차시 합)</span>
+        </span>
       </div>
+
+      <ExamSegmentSection subject={selected} />
 
       <section>
         <h3 className="text-sm font-semibold text-neutral-700">세부 단원</h3>
@@ -98,6 +121,94 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
 
       <ExamTargetsSection subject={selected} units={sortedUnits} />
     </div>
+  );
+}
+
+function ExamSegmentSection({ subject }: { subject: SubjectSemesterView }) {
+  if (subject.examOrdinals.length === 0) {
+    return (
+      <section>
+        <h3 className="text-sm font-semibold text-neutral-700">
+          시험 구간 차시 계획
+        </h3>
+        <p className="mt-1 text-xs text-neutral-400">
+          세팅실 학사일정에 등록된 시험(1차/2차)이 없습니다. 시험을 등록하면 구간별
+          진행 차시·여유 차시를 계획할 수 있습니다.
+        </p>
+      </section>
+    );
+  }
+  return (
+    <section>
+      <h3 className="text-sm font-semibold text-neutral-700">
+        시험 구간 차시 계획
+      </h3>
+      <p className="mt-1 text-xs text-neutral-400">
+        시험 구간(1회=중간 전 / 2회=기말 전)별로 진행할 차시 수와 여유 차시 수를
+        입력합니다. 대표분반 차시{" "}
+        <span className="font-semibold text-neutral-600">{subject.repLength}</span>개를
+        참고하세요.
+      </p>
+      <ul className="mt-3 space-y-3">
+        {subject.examOrdinals.map((ord) => (
+          <ExamSegmentRow
+            key={ord}
+            subjectId={subject.subjectId}
+            examOrdinal={ord}
+            existing={subject.segmentPlans.find((p) => p.examOrdinal === ord)}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ExamSegmentRow({
+  subjectId,
+  examOrdinal,
+  existing,
+}: {
+  subjectId: string;
+  examOrdinal: number;
+  existing?: SemesterSegmentPlan;
+}) {
+  const [state, action] = useActionState(saveExamSegmentPlanAction, INIT);
+  return (
+    <li className="rounded-lg border border-neutral-200 p-4">
+      <form action={action} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="subjectId" value={subjectId} />
+        <input type="hidden" name="examOrdinal" value={examOrdinal} />
+        <span className="rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+          {examOrdinal === 1 ? "중간 전(1회)" : "기말 전(2회)"}
+        </span>
+        <label className="flex items-center gap-1 text-xs text-neutral-500">
+          진행 차시
+          <input
+            type="number"
+            name="plannedPeriods"
+            min={0}
+            defaultValue={existing?.plannedPeriods ?? 0}
+            className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
+          />
+        </label>
+        <label className="flex items-center gap-1 text-xs text-neutral-500">
+          여유 차시
+          <input
+            type="number"
+            name="slackPeriods"
+            min={0}
+            defaultValue={existing?.slackPeriods ?? 0}
+            className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
+          />
+        </label>
+        <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
+          저장
+        </button>
+        {!state.ok && state.error && (
+          <p className="w-full text-xs text-red-600">{state.error}</p>
+        )}
+      </form>
+    </li>
   );
 }
 
@@ -365,6 +476,17 @@ function ExamTargetRow({
   units: SemesterUnit[];
 }) {
   const [state, action] = useActionState(saveExamTargetAction, INIT);
+  // AC-1.4 — 저장된 범위를 상시 표시하는 배지(저장 상태 시각 인지). existing 은
+  // 저장 후 revalidate 로 갱신되므로 서버 저장값을 그대로 반영한다.
+  const codeLabel = (code: number | null): string | null => {
+    if (code == null) return null;
+    const u = units.find((x) => sixDigitCode(x) === code);
+    return u ? `${code6(u)} ${u.minorName}` : String(code).padStart(6, "0");
+  };
+  const fromLabel = codeLabel(existing?.fromCode ?? null);
+  const toLabel = codeLabel(existing?.toCode ?? null);
+  const hasSaved = fromLabel != null || toLabel != null;
+
   return (
     <li className="rounded-lg border border-neutral-200 p-4">
       <form action={action} className="flex flex-wrap items-center gap-2">
@@ -393,6 +515,15 @@ function ExamTargetRow({
           <p className="w-full text-xs text-red-600">{state.error}</p>
         )}
       </form>
+      <div className="mt-2 text-xs">
+        {hasSaved ? (
+          <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
+            저장됨: {fromLabel ?? "(미지정)"} ~ {toLabel ?? "(미지정)"}
+          </span>
+        ) : (
+          <span className="text-neutral-400">아직 저장된 목표 진도가 없습니다.</span>
+        )}
+      </div>
     </li>
   );
 }

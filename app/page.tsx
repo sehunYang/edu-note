@@ -54,6 +54,8 @@ export default async function Home() {
 
       <NudgeBanner nudges={nudges} />
 
+      {/* QC v6 ⑦ — 대표 8개 컴포넌트만 지정 순서로 배치(이모지 부여). 그 외 기능은
+          각 대표 컴포넌트 하위로 접근. */}
       <section className="mt-10 grid gap-3">
         <DashCard
           href="/setting"
@@ -61,44 +63,14 @@ export default async function Home() {
           desc="학년도·교사·학사일정·학생·수업을 순서대로 설정합니다(기초 환경)."
         />
         <DashCard
-          href="/classroom"
-          title="🏫 교실"
-          desc="수업 계획·진척도·성적·교과 관찰·학생 보고서·세특을 한곳에서 관리합니다."
-        />
-        <DashCard
           href="/today"
-          title="오늘의 학교"
+          title="🗓️ 오늘의 학교"
           desc="오늘 시간표·급식·학사일정과 해야 할 일(넛지)을 한눈에 봅니다."
         />
         <DashCard
-          href="/setting/students"
-          title="학생 명단"
-          desc="CSV로 학생 명단을 올리고, 학생별 공개 링크를 발급합니다."
-        />
-        <DashCard
-          href="/setting/courses"
-          title="시간표 · 수업"
-          desc="컴시간알리미에서 본인 시간표를 동기화하고 수업을 관리합니다."
-        />
-        <DashCard
-          href="/sessions"
-          title="시수 관리"
-          desc="시험 날짜를 정하고 과목별 남은 차시를 계산·관리합니다."
-        />
-        <DashCard
-          href="/setting/calendar"
-          title="학사일정 · 급식"
-          desc="NEIS에서 학사일정(수업일)과 급식을 동기화합니다."
-        />
-        <DashCard
-          href="/activities"
-          title="활동 기입"
-          desc="학생별 자율·진로 활동을 기입합니다(자율+진로는 한 곳으로 자동 배치)."
-        />
-        <DashCard
-          href="/classroom/observations"
-          title="교과 관찰 기록"
-          desc="교과 관찰기록을 분반·날짜와 함께 남깁니다(교실로 이동)."
+          href="/classroom"
+          title="🏫 교실"
+          desc="수업 계획·진척도·성적·교과 관찰·학생 보고서·세특을 한곳에서 관리합니다."
         />
         <DashCard
           href="/homeroom"
@@ -106,23 +78,23 @@ export default async function Home() {
           desc="담임반 학생의 자율·진로활동·출결·행특·상담·공지·생기부를 한곳에서 관리합니다."
         />
         <DashCard
+          href="/staffroom"
+          title="🗂️ 교무실"
+          desc="업무 to-do(진척)와 영역별 예산·집행률을 관리합니다."
+        />
+        <DashCard
           href="/clubroom"
           title="🎬 동아리실"
           desc="동아리 개설·부원 배정·활동 계획·활동 입력·생기부 작성을 한곳에서 관리합니다."
         />
         <DashCard
-          href="/staffroom"
-          title="교무실"
-          desc="업무 to-do(진척)와 영역별 예산·집행률을 관리합니다."
-        />
-        <DashCard
           href="/stats"
-          title="통계실"
+          title="📊 통계실"
           desc="기록 현황을 한눈에 집계합니다(성적 통계는 준비중)."
         />
         <DashCard
           href="/print"
-          title="인쇄실"
+          title="🖨️ 인쇄실"
           desc="학생 명렬표를 인쇄하거나 PDF로 저장합니다."
         />
       </section>

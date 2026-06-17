@@ -66,7 +66,10 @@
       "Bash(npm view *)",
       "Bash(RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run lib/db/queries/lifecycle.integration.test.ts)",
       "Bash(find . -path ./node_modules -prune -o -name \"*integration.test.ts\" -print)",
-      "Bash(ls vercel.json)"
+      "Bash(ls vercel.json)",
+      "Bash(find .omc/state/sessions -name \"prd.json\")",
+      "Bash(ls -la prd.json .omc/prd.json)",
+      "Bash(ls -la progress.txt .omc/progress.txt)"
     ]
   }
 }

@@ -2,7 +2,12 @@ import { and, asc, eq, gte, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import { courseSections, timetableSlots } from "../schema/classes";
-import { lessonPlans, lessonUnits, examTargets } from "../schema/records";
+import {
+  lessonPlans,
+  lessonUnits,
+  examTargets,
+  examSegmentPlans,
+} from "../schema/records";
 import { schoolDayCalendar, calendarEvents } from "../schema/misc";
 import { sixDigitCode } from "@/lib/domain/lesson-unit";
 import {
@@ -13,8 +18,11 @@ import {
   isSlackCell,
   shiftSlackCell,
   unshiftSlackCell,
+  computeRemainingToExam,
   type SectionSlots,
   type PlanSlot,
+  type ExamSegment,
+  type RemainingToExamView,
 } from "@/lib/domain/lesson-plan";
 import { resolveSemesterRange } from "./calendar";
 
@@ -160,6 +168,70 @@ export async function getPlanView(
     };
   });
   return { length, ordinals };
+}
+
+/**
+ * QC v6 ① AC-1.3 — "시험까지 남은 차시" 카운터 조립. getPlanView 와 동일 내부 자료
+ * (대표분반·수업일·시험일)에 시험구간 계획(planned/slack)을 더해 순수 computeRemainingToExam
+ * 으로 산출한다. 대표분반이 없으면 null. examDate 출처는 calendarEvents(단일 진실원).
+ */
+export async function getRemainingToExam(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  year: number,
+  sem: 1 | 2,
+  today: string,
+): Promise<RemainingToExamView | null> {
+  const { start, end } = await resolveSemesterRange(db, ownerId, year, sem);
+  const sections = await listSectionSlots(db, ownerId, subjectId);
+  const repWeekdays = pickRepresentativeSection(sections);
+  if (repWeekdays.size === 0) return null;
+
+  const schoolDays = await listSchoolDays(db, ownerId, start, end);
+  const dates = representativeDates(schoolDays, repWeekdays);
+
+  // 시험일(차수별) — calendarEvents 단일 진실원(getPlanView 와 동일 필터).
+  const exams = await db
+    .select({ date: calendarEvents.date, examOrdinal: calendarEvents.examOrdinal })
+    .from(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.ownerId, ownerId),
+        eq(calendarEvents.eventKind, "exam"),
+        eq(calendarEvents.examSemester, sem),
+        gte(calendarEvents.date, start),
+        lte(calendarEvents.date, end),
+      ),
+    );
+  const examDateByOrdinal = new Map<number, string>();
+  for (const ex of exams) {
+    if (ex.examOrdinal === 1 || ex.examOrdinal === 2) {
+      examDateByOrdinal.set(ex.examOrdinal, ex.date);
+    }
+  }
+
+  const plans = await listExamSegmentPlans(db, ownerId, subjectId);
+  const planByOrdinal = new Map<number, ExamSegmentPlanRow>();
+  for (const p of plans) planByOrdinal.set(p.examOrdinal, p);
+
+  const segments: ExamSegment[] = [1, 2].map((ord) => {
+    const plan = planByOrdinal.get(ord);
+    return {
+      ordinal: ord as 1 | 2,
+      examDate: examDateByOrdinal.get(ord) ?? null,
+      plannedPeriods: plan?.plannedPeriods ?? 0,
+      slackPeriods: plan?.slackPeriods ?? 0,
+    };
+  });
+
+  return computeRemainingToExam({
+    today,
+    representativeDates: dates,
+    schoolDays,
+    representativeWeekdays: repWeekdays,
+    segments,
+  });
 }
 
 /**
@@ -490,6 +562,111 @@ export async function upsertExamTarget(
         updatedAt: new Date(),
       },
     });
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * 시험 구간 계획(exam_segment_plans) — 구간별 진행/여유 차시 (QC v6 US-1, AC-1.1)
+ * subjectId 가 이미 학기-스코프이므로 upsert 충돌 키 (subjectId, examOrdinal).
+ * ──────────────────────────────────────────────────────────────────────── */
+
+export interface ExamSegmentPlanRow {
+  id: string;
+  subjectId: string;
+  examOrdinal: number;
+  plannedPeriods: number;
+  slackPeriods: number;
+}
+
+/** 과목 시험 구간 계획 목록(examOrdinal 오름차순). */
+export async function listExamSegmentPlans(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+): Promise<ExamSegmentPlanRow[]> {
+  return db
+    .select({
+      id: examSegmentPlans.id,
+      subjectId: examSegmentPlans.subjectId,
+      examOrdinal: examSegmentPlans.examOrdinal,
+      plannedPeriods: examSegmentPlans.plannedPeriods,
+      slackPeriods: examSegmentPlans.slackPeriods,
+    })
+    .from(examSegmentPlans)
+    .where(
+      and(
+        eq(examSegmentPlans.ownerId, ownerId),
+        eq(examSegmentPlans.subjectId, subjectId),
+      ),
+    )
+    .orderBy(asc(examSegmentPlans.examOrdinal));
+}
+
+/** 시험 구간 계획 upsert. 충돌 키 (subjectId, examOrdinal) → 진행/여유 차시 갱신. */
+export async function upsertExamSegmentPlan(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  examOrdinal: number,
+  plannedPeriods: number,
+  slackPeriods: number,
+): Promise<void> {
+  const planned = Number.isFinite(plannedPeriods) && plannedPeriods > 0
+    ? Math.floor(plannedPeriods)
+    : 0;
+  const slack = Number.isFinite(slackPeriods) && slackPeriods > 0
+    ? Math.floor(slackPeriods)
+    : 0;
+  await db
+    .insert(examSegmentPlans)
+    .values({
+      ownerId,
+      subjectId,
+      examOrdinal,
+      plannedPeriods: planned,
+      slackPeriods: slack,
+    })
+    .onConflictDoUpdate({
+      target: [examSegmentPlans.subjectId, examSegmentPlans.examOrdinal],
+      set: {
+        plannedPeriods: planned,
+        slackPeriods: slack,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+/**
+ * 시험 구간별 시험일(calendarEvents, exam, examSemester=sem). getPlanView 와 동일 소스.
+ * 반환: Map<examOrdinal(1|2), date(YYYY-MM-DD)>. AC-1.3 남은차시 카운터 입력.
+ */
+export async function getExamDatesByOrdinal(
+  db: DB,
+  ownerId: string,
+  year: number,
+  sem: 1 | 2,
+): Promise<Map<number, string>> {
+  const { start, end } = await resolveSemesterRange(db, ownerId, year, sem);
+  const exams = await db
+    .select({ date: calendarEvents.date, examOrdinal: calendarEvents.examOrdinal })
+    .from(calendarEvents)
+    .where(
+      and(
+        eq(calendarEvents.ownerId, ownerId),
+        eq(calendarEvents.eventKind, "exam"),
+        eq(calendarEvents.examSemester, sem),
+        gte(calendarEvents.date, start),
+        lte(calendarEvents.date, end),
+      ),
+    );
+  const map = new Map<number, string>();
+  for (const ex of exams) {
+    if (ex.examOrdinal === 1 || ex.examOrdinal === 2) {
+      // 동일 차수 복수면 가장 이른 날짜를 채택(결정론).
+      const prev = map.get(ex.examOrdinal);
+      if (prev == null || ex.date < prev) map.set(ex.examOrdinal, ex.date);
+    }
+  }
+  return map;
 }
 
 /**

@@ -71,9 +71,18 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
 
           {nudges.behaviorNotes && (
             <li className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
-              <span>행동특성 미작성 {nudges.behaviorNotes.pendingCount}명</span>
+              <span>
+                행동특성 기록 추천:{" "}
+                <strong>{nudges.behaviorNotes.suggestedStudentName ?? "학생"}</strong>
+                {nudges.behaviorNotes.pendingCount > 1 &&
+                  ` (미작성 ${nudges.behaviorNotes.pendingCount}명)`}
+              </span>
               <Link
-                href="/homeroom/behavior"
+                href={
+                  nudges.behaviorNotes.suggestedStudentId
+                    ? `/homeroom/behavior?studentYearId=${nudges.behaviorNotes.suggestedStudentId}`
+                    : "/homeroom/behavior"
+                }
                 onClick={close}
                 className="shrink-0 rounded bg-neutral-800 px-2 py-1 text-xs text-white hover:bg-neutral-700"
               >

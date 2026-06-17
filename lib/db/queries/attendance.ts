@@ -263,7 +263,7 @@ export async function addFieldTrip(
     startDate,
     end,
     "accepted",
-    null,
+    "체험학습", // QC v6 ③ — 비고란에 '체험학습' 자동 기입(정리 용이). reason='accepted' 유지.
   );
 
   await writeAudit(db, ownerId, "field_trip_add", trip.id, {
@@ -516,6 +516,7 @@ export async function listAttendanceByMonth(
   ownerId: string,
   year: number,
   month: string,
+  reason?: AttendanceReason,
   opts?: PageOpts,
 ): Promise<AttendanceStudentRow[]> {
   const start = `${month}-01`;
@@ -534,6 +535,8 @@ export async function listAttendanceByMonth(
         eq(attendanceRecords.ownerId, ownerId),
         gte(attendanceRecords.date, start),
         lt(attendanceRecords.date, nextMonth),
+        // QC v6 ③ — 사유 기준 검색(미지정이면 전체).
+        reason ? eq(attendanceRecords.reason, reason) : undefined,
       ),
     )
     .orderBy(asc(attendanceRecords.date), asc(studentYears.sid));
@@ -541,12 +544,13 @@ export async function listAttendanceByMonth(
   return slicePage(filtered, opts);
 }
 
-/** (b) 학생별 검색 — 담임 학생 1명의 출결 기록(최신순). */
+/** (b) 학생별 검색 — 담임 학생 1명의 출결 기록(최신순). QC v6 ③: 사유 필터 옵션. */
 export async function searchAttendanceByStudent(
   db: DB,
   ownerId: string,
   year: number,
   studentYearId: string,
+  reason?: AttendanceReason,
   opts?: PageOpts,
 ): Promise<AttendanceStudentRow[]> {
   const ids = await homeroomStudentIds(db, ownerId, year);
@@ -559,6 +563,7 @@ export async function searchAttendanceByStudent(
       and(
         eq(attendanceRecords.ownerId, ownerId),
         eq(attendanceRecords.studentYearId, studentYearId),
+        reason ? eq(attendanceRecords.reason, reason) : undefined,
       ),
     )
     .orderBy(desc(attendanceRecords.date))

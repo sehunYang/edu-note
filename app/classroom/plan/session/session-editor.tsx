@@ -35,11 +35,23 @@ export interface SessionEntry {
   unitId: string | null;
 }
 
+/** AC-1.3 — 시험까지 남은 차시 카운터(서버 computeRemainingToExam 결과). */
+export interface RemainingToExam {
+  activeOrdinal: 1 | 2 | null;
+  examDate: string | null;
+  remainingSchoolDays: number;
+  remainingPeriods: number;
+}
+
 export interface SubjectSessionView {
   subjectId: string;
   subjectName: string;
   semesterComplete: boolean;
   planLength: number;
+  /** AC-1.2 — 세부단원 최소차시 합(차시계획 총 차시 수). */
+  totalOrdinals: number;
+  /** AC-1.3 — 시험까지 남은 차시(없으면 null). */
+  remaining: RemainingToExam | null;
   ordinals: {
     ordinal: number;
     month: number;

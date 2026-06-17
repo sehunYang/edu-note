@@ -35,8 +35,20 @@ export function NudgeBanner({ nudges }: { nudges: NudgeResult }) {
         ))}
         {nudges.behaviorNotes && (
           <li className="flex items-center justify-between gap-2">
-            <span>오늘 행동특성 미작성 {nudges.behaviorNotes.pendingCount}명</span>
-            <Link href="/homeroom/behavior" className="shrink-0 underline">
+            <span>
+              행동특성 기록 추천:{" "}
+              <strong>{nudges.behaviorNotes.suggestedStudentName ?? "학생"}</strong>
+              {nudges.behaviorNotes.pendingCount > 1 &&
+                ` (미작성 ${nudges.behaviorNotes.pendingCount}명)`}
+            </span>
+            <Link
+              href={
+                nudges.behaviorNotes.suggestedStudentId
+                  ? `/homeroom/behavior?studentYearId=${nudges.behaviorNotes.suggestedStudentId}`
+                  : "/homeroom/behavior"
+              }
+              className="shrink-0 underline"
+            >
               행특 쓰기 →
             </Link>
           </li>
