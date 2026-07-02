@@ -133,7 +133,7 @@ export function AttendancePeriodClient({
         />
         <button
           disabled={pending}
-          className="rounded bg-neutral-800 px-3 py-1 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+          className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-sm text-white hover:bg-white/10 disabled:opacity-50"
         >
           기록
         </button>

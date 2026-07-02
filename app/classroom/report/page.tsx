@@ -59,7 +59,7 @@ export default async function ReportPage({
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-neutral-800">
+      <h2 className="text-lg font-normal text-neutral-800">
         학생 분석 보고서 · {sem}학기
         {sem !== activeSem && (
           <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>
@@ -105,7 +105,7 @@ function ReportView({
     <div className="mt-6 space-y-5">
       {/* 인적사항 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-semibold text-neutral-700">인적사항</h3>
+        <h3 className="text-sm font-normal text-neutral-700">인적사항</h3>
         <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm md:grid-cols-4">
           <Field label="학번" value={profile.sid} />
           <Field label="이름" value={profile.name} />
@@ -120,16 +120,16 @@ function ReportView({
 
       {/* 플래그 배지 4종 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-semibold text-neutral-700">진단 플래그</h3>
+        <h3 className="text-sm font-normal text-neutral-700">진단 플래그</h3>
         <div className="mt-2 flex flex-wrap gap-2">
           <TrendBadge trend={flags.jipilTrend} />
           {flags.observationShortage && (
-            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-normal text-amber-700">
               ⚠ 관찰 부족 ({observationCount}건)
             </span>
           )}
           {flags.performanceMissing.length > 0 && (
-            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700">
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-normal text-amber-700">
               ⚠ 수행 미입력: {flags.performanceMissing.join(", ")}
             </span>
           )}
@@ -139,7 +139,7 @@ function ReportView({
 
       {/* 성적 종합 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-semibold text-neutral-700">성적 종합</h3>
+        <h3 className="text-sm font-normal text-neutral-700">성적 종합</h3>
         <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm md:grid-cols-4">
           <Field
             label="지필 중간(환산)"
@@ -154,7 +154,7 @@ function ReportView({
           <Field label="총점" value={round2(grades.total)} />
         </dl>
         <div className="mt-3">
-          <p className="text-xs font-semibold text-neutral-500">수행항목 입력 현황</p>
+          <p className="text-xs font-normal text-neutral-500">수행항목 입력 현황</p>
           {grades.performanceItems.length === 0 ? (
             <p className="mt-1 text-xs text-neutral-400">설정된 수행항목이 없습니다.</p>
           ) : (
@@ -196,7 +196,7 @@ function round2(n: number): string {
 function TrendBadge({ trend }: { trend: JipilTrend }) {
   if (trend === null) {
     return (
-      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-500">
+      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-normal text-neutral-500">
         지필 추이 — 데이터 부족
       </span>
     );
@@ -208,7 +208,7 @@ function TrendBadge({ trend }: { trend: JipilTrend }) {
   };
   const m = map[trend];
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${m.cls}`}>
+    <span className={`rounded-full px-2.5 py-1 text-xs font-normal ${m.cls}`}>
       {m.label}
     </span>
   );
@@ -218,7 +218,7 @@ function TrendBadge({ trend }: { trend: JipilTrend }) {
 function RankBadge({ rank }: { rank: SectionRank }) {
   if (rank === null) {
     return (
-      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-500">
+      <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs font-normal text-neutral-500">
         분반 순위 — 산출 불가
       </span>
     );
@@ -230,7 +230,7 @@ function RankBadge({ rank }: { rank: SectionRank }) {
   };
   const m = map[rank];
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${m.cls}`}>
+    <span className={`rounded-full px-2.5 py-1 text-xs font-normal ${m.cls}`}>
       {m.label}
     </span>
   );

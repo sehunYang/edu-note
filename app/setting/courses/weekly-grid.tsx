@@ -25,9 +25,9 @@ export function WeeklyGrid({ slots }: { slots: TimetableViewSlot[] }) {
     <table className="mt-4 w-full border-collapse text-center text-sm">
       <thead>
         <tr className="text-neutral-400">
-          <th className="border border-neutral-200 px-2 py-1 font-medium">교시</th>
+          <th className="border border-neutral-200 px-2 py-1 font-normal">교시</th>
           {WEEKDAYS.map((w) => (
-            <th key={w} className="border border-neutral-200 px-2 py-1 font-medium">
+            <th key={w} className="border border-neutral-200 px-2 py-1 font-normal">
               {w}
             </th>
           ))}
@@ -45,7 +45,7 @@ export function WeeklyGrid({ slots }: { slots: TimetableViewSlot[] }) {
                 <td key={wi} className="border border-neutral-200 px-2 py-2">
                   {c ? (
                     <span>
-                      <span className="font-medium">{c.subjectName}</span>
+                      <span className="font-normal">{c.subjectName}</span>
                       <br />
                       <span className="text-xs text-neutral-400">{c.label}</span>
                     </span>

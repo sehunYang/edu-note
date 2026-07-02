@@ -69,7 +69,7 @@ export function CounselSlotList({
               className="rounded-lg border border-neutral-200 p-3 text-sm"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="font-medium">{slot.date}</span>
+                <span className="font-normal">{slot.date}</span>
                 <span className="text-xs text-neutral-500">
                   정원 {slot.capacity} · 예약 {slot.reservedCount} · 잔여{" "}
                   {slot.remaining}
@@ -147,7 +147,7 @@ export function CounselSlotList({
                       </option>
                     ))}
                   </select>
-                  <button className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
+                  <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
                     예약 등록
                   </button>
                 </form>
@@ -202,7 +202,7 @@ export function CounselLogList({
               className="rounded-lg border border-neutral-200 p-3 text-sm"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="font-medium">
+                <span className="font-normal">
                   {st ? `${st.sid} ${st.name}` : "(이전 연도 학생)"}
                 </span>
                 <span className="flex items-center gap-2 text-xs text-neutral-400">
@@ -254,7 +254,7 @@ export function CounselLogList({
                     rows={3}
                     className="w-full rounded border border-neutral-300 px-3 py-2 text-xs"
                   />
-                  <button className="rounded bg-neutral-700 px-2 py-1 text-xs text-white hover:bg-neutral-600">
+                  <button className="rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10">
                     저장
                   </button>
                 </form>

@@ -89,7 +89,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
       <section className="rounded-lg border border-neutral-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-neutral-700">NEIS 동기화</h3>
+            <h3 className="text-sm font-normal text-neutral-700">NEIS 동기화</h3>
             <p className="mt-1 text-xs text-neutral-400">
               활성 학년도 범위의 학사일정·급식을 가져오고 키워드를 자동 분류합니다.
             </p>
@@ -98,7 +98,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
             <button
               type="submit"
               disabled={syncing}
-              className="rounded-md border border-neutral-800 bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-40"
+              className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
             >
               {syncing ? "동기화 중…" : "동기화"}
             </button>
@@ -118,7 +118,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
 
       <section>
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-neutral-700">
+          <h3 className="text-sm font-normal text-neutral-700">
             자동 분류 결과 보정 ({events.length}건)
             {reviewCount > 0 && (
               <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
@@ -131,7 +131,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
             <button
               type="submit"
               disabled={saving || events.length === 0}
-              className="rounded-md border border-neutral-800 bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-40"
+              className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
             >
               {saving ? "저장 중…" : "일괄 저장"}
             </button>

@@ -258,11 +258,11 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
       <div className="rounded-lg border border-neutral-200 p-4">
         <div className="flex flex-wrap items-center gap-4 text-sm">
           <span className="text-neutral-600">
-            저장된 총 차시 <span className="font-semibold">{rowCount}</span>개
+            저장된 총 차시 <span className="font-normal">{rowCount}</span>개
           </span>
           <span className="text-neutral-600">
             대표분반 차시{" "}
-            <span className="font-semibold">{repLength}</span>개
+            <span className="font-normal">{repLength}</span>개
           </span>
           <label className="flex items-center gap-1 text-neutral-600">
             여유 차시
@@ -292,7 +292,7 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
           type="button"
           onClick={() => save(false)}
           disabled={pending}
-          className="rounded bg-neutral-800 px-4 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+          className="rounded-full border border-white/25 bg-transparent px-4 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
         >
           {pending ? "저장 중…" : "일괄 저장"}
         </button>
@@ -369,7 +369,7 @@ function SessionRow({
       }`}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-semibold text-neutral-700">
+        <span className="text-sm font-normal text-neutral-700">
           {row.ordinal}차시
         </span>
         {meta && (
@@ -378,12 +378,12 @@ function SessionRow({
           </span>
         )}
         {meta?.examLabel && (
-          <span className="rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-600">
+          <span className="rounded bg-red-50 px-1.5 py-0.5 text-xs font-normal text-red-600">
             {meta.examLabel} 시험
           </span>
         )}
         {isSlack && (
-          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-normal text-amber-700">
             여유차시
           </span>
         )}
@@ -391,7 +391,7 @@ function SessionRow({
           type="button"
           onClick={() => onToggleSlack(!isSlack)}
           disabled={slackPending}
-          className="ml-auto rounded border border-neutral-300 px-2 py-0.5 text-xs hover:bg-neutral-50 disabled:opacity-50"
+          className="ml-auto rounded-full border border-white/25 px-2 py-0.5 text-xs hover:bg-white/10 disabled:opacity-50"
           title={
             isSlack
               ? "여유차시를 해제하고 이후 내용을 앞으로 당깁니다."
@@ -455,8 +455,8 @@ function ExceedModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-lg">
-        <h3 className="text-base font-semibold text-neutral-800">
+      <div className="w-full max-w-md rounded-lg bg-card p-5 border border-neutral-200">
+        <h3 className="text-base font-normal text-neutral-800">
           학기 계획을 변경하시겠습니까?
         </h3>
         <p className="mt-2 text-sm text-neutral-600">
@@ -475,7 +475,7 @@ function ExceedModal({
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="rounded border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+            className="rounded-full border border-white/25 px-3 py-1.5 text-sm text-neutral-600 hover:bg-white/10 disabled:opacity-50"
           >
             취소
           </button>
@@ -483,7 +483,7 @@ function ExceedModal({
             type="button"
             onClick={onConfirm}
             disabled={pending}
-            className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+            className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
           >
             네
           </button>

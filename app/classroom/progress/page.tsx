@@ -76,7 +76,7 @@ export default async function ProgressPage({
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-neutral-800">
+      <h2 className="text-lg font-normal text-neutral-800">
         진척도 · {sem}학기
         {sem !== activeSem && (
           <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>

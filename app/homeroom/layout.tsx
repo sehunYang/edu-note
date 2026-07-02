@@ -33,7 +33,7 @@ export default async function HomeroomLayout({
     <div className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">🏠 담임 교실</h1>
+          <h1 className="text-2xl font-normal tracking-tight">🏠 담임 교실</h1>
           <p className="mt-1 text-sm text-neutral-500">
             담임반 학생의 자율·진로활동·출결·행특·상담·공지·생기부를 한곳에서 관리합니다.
           </p>
@@ -66,7 +66,7 @@ export default async function HomeroomLayout({
               <Link
                 key={t.href}
                 href={t.href}
-                className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:border-neutral-500 hover:bg-neutral-50"
+                className="rounded-full border border-white/25 px-3 py-2 text-sm text-neutral-700 hover:border-neutral-500 hover:bg-white/10"
               >
                 {t.label}
               </Link>

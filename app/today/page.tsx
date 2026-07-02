@@ -152,7 +152,7 @@ export default async function TodayPage() {
       <TodayNudgeModal nudges={nudges} />
 
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">오늘의 학교</h1>
+        <h1 className="text-2xl font-normal tracking-tight">오늘의 학교</h1>
         <Link href="/" className="text-sm text-neutral-500 hover:underline">
           ← 홈
         </Link>
@@ -166,7 +166,7 @@ export default async function TodayPage() {
       <div className="mt-6 grid gap-6 md:grid-cols-2">
         {/* 오늘 시간표 — 수업마다 색상 + 시간(AC-7.7) */}
         <section className="rounded-lg border border-neutral-200 p-4">
-          <h2 className="text-sm font-semibold text-neutral-700">오늘 시간표</h2>
+          <h2 className="text-sm font-normal text-neutral-700">오늘 시간표</h2>
           {todaySlots.length === 0 ? (
             <p className="mt-2 text-sm text-neutral-400">오늘 수업이 없거나 시간표 미동기화.</p>
           ) : (
@@ -184,7 +184,7 @@ export default async function TodayPage() {
                       <span className="ml-1">{PERIOD_TIMES[s.period]}</span>
                     )}
                   </span>
-                  <span className="font-medium">
+                  <span className="font-normal">
                     {s.subjectName}{" "}
                     <span className="opacity-70">{s.label}</span>
                   </span>
@@ -196,20 +196,20 @@ export default async function TodayPage() {
 
         {/* 오늘 급식 — 표(메뉴/칼로리/영양) (AC-7.8) */}
         <section className="rounded-lg border border-neutral-200 p-4">
-          <h2 className="text-sm font-semibold text-neutral-700">오늘 급식</h2>
+          <h2 className="text-sm font-normal text-neutral-700">오늘 급식</h2>
           {todayMeals.length === 0 ? (
             <p className="mt-2 text-sm text-neutral-400">급식 정보가 없습니다.</p>
           ) : (
             <table className="mt-2 w-full table-fixed border-collapse text-left text-sm">
               <thead>
                 <tr>
-                  <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+                  <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal">
                     메뉴
                   </th>
-                  <th className="w-16 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+                  <th className="w-16 border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal">
                     칼로리
                   </th>
-                  <th className="w-32 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+                  <th className="w-32 border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal">
                     영양
                   </th>
                 </tr>
@@ -248,14 +248,14 @@ export default async function TodayPage() {
 
         {/* 신고서 / 잔여차시 요약 */}
         <section className="rounded-lg border border-neutral-200 p-4 md:col-span-2">
-          <h2 className="text-sm font-semibold text-neutral-700">신고서 · 차시 요약</h2>
+          <h2 className="text-sm font-normal text-neutral-700">신고서 · 차시 요약</h2>
           <dl className="mt-2 space-y-1 text-sm">
             <div className="flex justify-between">
               <dt className="text-neutral-500">미제출 신고서</dt>
               <dd>
                 {tierCount.total}건
                 {tierCount.critical > 0 && (
-                  <span className="ml-1 font-semibold text-red-600">심각 {tierCount.critical}</span>
+                  <span className="ml-1 font-normal text-red-600">심각 {tierCount.critical}</span>
                 )}
                 {tierCount.warning > 0 && (
                   <span className="ml-1 text-orange-600">위험 {tierCount.warning}</span>

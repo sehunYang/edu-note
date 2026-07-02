@@ -33,15 +33,15 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
       onClick={close}
     >
       <div
-        className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+        className="w-full max-w-md rounded-xl bg-card p-6 border border-neutral-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-neutral-800">오늘 해야 할 일</h2>
+          <h2 className="text-lg font-normal text-neutral-800">오늘 해야 할 일</h2>
           <button
             type="button"
             onClick={close}
-            className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+            className="rounded p-1 text-neutral-400 hover:bg-white/10 hover:text-neutral-600"
             aria-label="닫기"
           >
             ✕
@@ -62,7 +62,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
               <Link
                 href={`/classroom/observations?studentYearId=${o.suggestedStudentId}&sectionId=${o.sectionKey}`}
                 onClick={close}
-                className="shrink-0 rounded bg-neutral-800 px-2 py-1 text-xs text-white hover:bg-neutral-700"
+                className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10"
               >
                 기록
               </Link>
@@ -84,7 +84,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
                     : "/homeroom/behavior"
                 }
                 onClick={close}
-                className="shrink-0 rounded bg-neutral-800 px-2 py-1 text-xs text-white hover:bg-neutral-700"
+                className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10"
               >
                 기록
               </Link>
@@ -103,7 +103,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
               <Link
                 href={`/homeroom/counsel?studentYearId=${c.studentYearId}`}
                 onClick={close}
-                className="shrink-0 rounded bg-neutral-800 px-2 py-1 text-xs text-white hover:bg-neutral-700"
+                className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10"
               >
                 작성
               </Link>
@@ -115,7 +115,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
               <span>
                 미제출 신고서 {nudges.pendingReports.total}건
                 {nudges.pendingReports.critical > 0 && (
-                  <span className="ml-1 font-semibold text-red-600">
+                  <span className="ml-1 font-normal text-red-600">
                     심각 {nudges.pendingReports.critical}
                   </span>
                 )}
@@ -123,7 +123,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
               <Link
                 href="/homeroom/attendance?view=unsubmitted"
                 onClick={close}
-                className="shrink-0 rounded bg-neutral-800 px-2 py-1 text-xs text-white hover:bg-neutral-700"
+                className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10"
               >
                 확인하기
               </Link>
@@ -134,7 +134,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
         <button
           type="button"
           onClick={close}
-          className="mt-5 w-full rounded-lg border border-neutral-300 py-2 text-sm text-neutral-600 hover:bg-neutral-50"
+          className="mt-5 w-full rounded-full border border-white/25 py-2 text-sm text-neutral-600 hover:bg-white/10"
         >
           다음에 하기
         </button>

@@ -33,7 +33,7 @@ export function EventsManager({
 
   return (
     <section className="mt-8">
-      <h2 className="text-sm font-semibold text-neutral-700">할 일 / 공지</h2>
+      <h2 className="text-sm font-normal text-neutral-700">할 일 / 공지</h2>
       <p className="mt-1 text-xs text-neutral-400">
         공개 페이지에는 오늘부터 7일 이내 항목이 “이번 주 할 일”로 표시됩니다.
       </p>
@@ -52,7 +52,7 @@ export function EventsManager({
             placeholder="공지/할 일 제목"
             className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
           />
-          <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
+          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
             추가
           </button>
         </div>

@@ -27,7 +27,7 @@ export function FixedClassPanel({
 
   return (
     <section className="mt-8 rounded-lg border border-neutral-200 p-5">
-      <h2 className="text-sm font-semibold text-neutral-700">
+      <h2 className="text-sm font-normal text-neutral-700">
         고정반 설정 {grade ? `(${grade}학년)` : ""}
       </h2>
       <p className="mt-1 text-xs text-neutral-400">
@@ -66,7 +66,7 @@ export function FixedClassPanel({
           </ul>
           <button
             disabled={saving}
-            className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+            className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
           >
             {saving ? "저장 중…" : "고정반 저장"}
           </button>

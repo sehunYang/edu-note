@@ -150,7 +150,7 @@ export function ObservationsClient({
         <div className="grid gap-3 md:grid-cols-2">
           {/* 학생 선택 */}
           <div>
-            <label className="text-xs font-semibold text-neutral-600">학생</label>
+            <label className="text-xs font-normal text-neutral-600">학생</label>
             <select
               value={studentId}
               onChange={(e) => onPickStudent(e.target.value)}
@@ -168,7 +168,7 @@ export function ObservationsClient({
 
           {/* 분반 선택 */}
           <div>
-            <label className="text-xs font-semibold text-neutral-600">
+            <label className="text-xs font-normal text-neutral-600">
               분반 (필수)
             </label>
             <select
@@ -201,8 +201,8 @@ export function ObservationsClient({
                   onClick={() => setSectionId(s.sectionId)}
                   className={`rounded px-2 py-1 text-xs ${
                     sectionId === s.sectionId
-                      ? "bg-neutral-800 text-white"
-                      : "border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
+                      ? "border border-white/25 bg-transparent text-white"
+                      : "border border-white/25 bg-transparent text-neutral-700 hover:bg-white/10"
                   }`}
                 >
                   {s.subjectName} {s.label}
@@ -213,7 +213,7 @@ export function ObservationsClient({
         )}
 
         <div>
-          <label className="text-xs font-semibold text-neutral-600">관찰일</label>
+          <label className="text-xs font-normal text-neutral-600">관찰일</label>
           <input
             type="date"
             value={observedOn}
@@ -239,7 +239,7 @@ export function ObservationsClient({
         <button
           type="submit"
           disabled={pending || !studentId || !sectionId || !body.trim()}
-          className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+          className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
         >
           {pending ? "저장 중…" : "관찰 저장"}
         </button>
@@ -247,7 +247,7 @@ export function ObservationsClient({
 
       {/* 최근 관찰 */}
       <section>
-        <h3 className="text-xs font-semibold text-neutral-500">
+        <h3 className="text-xs font-normal text-neutral-500">
           최근 관찰 {recent.length}
         </h3>
         <ul className="mt-2 space-y-2">
@@ -321,14 +321,14 @@ function ObservationRow({ obs }: { obs: RecentObservation }) {
             type="button"
             onClick={onSave}
             disabled={pending}
-            className="rounded bg-neutral-800 px-3 py-1 text-xs text-white hover:bg-neutral-700 disabled:opacity-50"
+            className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10 disabled:opacity-50"
           >
             저장
           </button>
           <button
             type="button"
             onClick={() => setEditing(false)}
-            className="rounded border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-50"
+            className="rounded-full border border-white/25 px-3 py-1 text-xs hover:bg-white/10"
           >
             취소
           </button>

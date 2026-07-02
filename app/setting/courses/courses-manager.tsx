@@ -53,7 +53,7 @@ export function CoursesManager({
       <section className="rounded-lg border border-neutral-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-neutral-700">시험일 파생</h3>
+            <h3 className="text-sm font-normal text-neutral-700">시험일 파생</h3>
             <p className="mt-1 text-xs text-neutral-400">
               학사일정(C3)에서 태깅한 시험 일정을 과목별 시험일로 반영합니다.
             </p>
@@ -62,7 +62,7 @@ export function CoursesManager({
             <button
               type="submit"
               disabled={materializing}
-              className="rounded-md border border-neutral-800 bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-40"
+              className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
             >
               {materializing ? "반영 중…" : "시험일 반영"}
             </button>
@@ -111,7 +111,7 @@ function SubjectCard({
 
   return (
     <section className="rounded-lg border border-neutral-200 p-4">
-      <h3 className="text-sm font-semibold text-neutral-800">
+      <h3 className="text-sm font-normal text-neutral-800">
         {subject.subjectName}
       </h3>
 
@@ -136,7 +136,7 @@ function SubjectCard({
         className="mt-3 space-y-2 rounded border border-neutral-100 p-3"
       >
         <input type="hidden" name="subjectId" value={subject.subjectId} />
-        <label className="block text-xs font-medium text-neutral-600">
+        <label className="block text-xs font-normal text-neutral-600">
           수행평가 (한 줄에 "이름:비율")
           <textarea
             name="performance"
@@ -178,7 +178,7 @@ function SubjectCard({
           <button
             type="submit"
             disabled={saving}
-            className="rounded border border-green-600 bg-green-600 px-3 py-1 text-white hover:bg-green-700 disabled:opacity-40"
+            className="rounded border border-green-600 bg-green-600 px-3 py-1 text-white hover:bg-green-500 disabled:opacity-40"
           >
             {saving ? "저장…" : "평가설정 저장"}
           </button>
@@ -237,7 +237,7 @@ function SectionBlock({
 
   return (
     <div className="rounded border border-neutral-200 p-3">
-      <div className="text-xs font-semibold text-neutral-700">분반 {section.label}</div>
+      <div className="text-xs font-normal text-neutral-700">분반 {section.label}</div>
 
       <form action={enroll} className="mt-2 flex flex-wrap items-center gap-2 text-xs">
         <input type="hidden" name="sectionId" value={section.id} />
@@ -256,7 +256,7 @@ function SectionBlock({
         <button
           type="submit"
           disabled={enrolling}
-          className="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50 disabled:opacity-40"
+          className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10 disabled:opacity-40"
         >
           {enrolling ? "등록…" : "일괄 등록"}
         </button>
@@ -291,7 +291,7 @@ function SectionBlock({
                 <button
                   type="submit"
                   disabled={enrollingOne}
-                  className="rounded border border-neutral-300 px-1.5 py-0.5 hover:bg-neutral-50 disabled:opacity-40"
+                  className="rounded-full border border-white/25 px-1.5 py-0.5 hover:bg-white/10 disabled:opacity-40"
                 >
                   + {s.name} ({s.sid})
                 </button>
@@ -324,7 +324,7 @@ function SectionBlock({
                 placeholder="역할"
                 className="w-20 rounded border border-neutral-200 px-1 py-0.5"
               />
-              <button className="rounded border border-neutral-300 px-1 py-0.5 hover:bg-neutral-50">
+              <button className="rounded-full border border-white/25 px-1 py-0.5 hover:bg-white/10">
                 +
               </button>
             </form>

@@ -73,8 +73,8 @@ export function RecordClient({
             onClick={() => selectStudent(s.studentYearId)}
             className={`rounded border px-3 py-1.5 text-sm ${
               s.studentYearId === selectedId
-                ? "border-neutral-800 bg-neutral-800 text-white"
-                : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+                ? "border-neutral-800 border border-white/25 bg-transparent text-white"
+                : "border-white/25 text-neutral-700 hover:bg-white/10"
             }`}
           >
             {s.label}
@@ -84,7 +84,7 @@ export function RecordClient({
 
       {current && (
         <section className="rounded-lg border border-neutral-200 p-4">
-          <h3 className="text-sm font-semibold text-neutral-700">
+          <h3 className="text-sm font-normal text-neutral-700">
             원천자료 — {current.label}
           </h3>
           {current.club.length === 0 ? (
@@ -103,7 +103,7 @@ export function RecordClient({
 
       <section className="rounded-lg border border-neutral-200 p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-neutral-700">생기부 본문</h3>
+          <h3 className="text-sm font-normal text-neutral-700">생기부 본문</h3>
           <span
             className={`text-xs ${over ? "text-red-500" : "text-neutral-400"}`}
           >
@@ -120,7 +120,7 @@ export function RecordClient({
         <button
           onClick={onSave}
           disabled={pending || over || !content.trim()}
-          className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+          className="mt-2 rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
         >
           초안 저장
         </button>
@@ -128,7 +128,7 @@ export function RecordClient({
       </section>
 
       <section>
-        <h3 className="text-sm font-semibold text-neutral-700">
+        <h3 className="text-sm font-normal text-neutral-700">
           저장된 초안 {drafts.length}
         </h3>
         {drafts.length === 0 ? (

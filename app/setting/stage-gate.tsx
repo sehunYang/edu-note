@@ -24,7 +24,7 @@ export function StageGate({
       {completed ? (
         <form action={reopenStageAction}>
           <input type="hidden" name="stage" value={stage} />
-          <button className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-600 hover:bg-neutral-50">
+          <button className="rounded-full border border-white/25 px-3 py-1.5 text-xs text-neutral-600 hover:bg-white/10">
             다시 열기
           </button>
         </form>
@@ -33,7 +33,7 @@ export function StageGate({
           <input type="hidden" name="stage" value={stage} />
           <button
             disabled={disabled}
-            className="rounded-md border border-green-600 bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-green-600 bg-green-600 px-3 py-1.5 text-xs font-normal text-white hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             이 단계 완료 →
           </button>

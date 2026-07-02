@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1781653783886,
+  "lastScanned": 1782986284411,
   "projectRoot": "C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note",
   "techStack": {
     "languages": [
@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g' | grep -iE \"compiled|failed|error|✓ Compiled\" | head; echo \"BUILD-EXIT:$?\"",
-    "testCommand": "cd \"C:/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && node ./node_modules/vitest/vitest.mjs run 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g' | tail -6",
+    "buildCommand": "cd \"/c/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && tail -5 \"C:\\Users\\Sehun\\AppData\\Local\\Temp\\claude\\C--Users-Sehun-Desktop-Private-Files-Dev-Edu-Note\\6b9daba7-8ffa-4b89-89fc-d97c730c04d8\\tasks\\b8g6u7tu3.output\" && npm run build > /dev/null 2>&1; echo \"exit=$?\"",
+    "testCommand": "npm test",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -91,7 +91,7 @@
       "path": "app",
       "purpose": "Application code",
       "fileCount": 4,
-      "lastAccessed": 1781653783772,
+      "lastAccessed": 1782986284327,
       "keyFiles": [
         "globals.css",
         "layout.tsx",
@@ -103,7 +103,7 @@
       "path": "content",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1781653783773,
+      "lastAccessed": 1782986284347,
       "keyFiles": [
         "세특 작성 지침.md"
       ]
@@ -112,7 +112,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 3,
-      "lastAccessed": 1781653783801,
+      "lastAccessed": 1782986284348,
       "keyFiles": [
         "DEPLOY_MANUAL.md",
         "GOOGLE_OAUTH_SETUP.md",
@@ -123,7 +123,7 @@
       "path": "lib",
       "purpose": "Library code",
       "fileCount": 2,
-      "lastAccessed": 1781653783803,
+      "lastAccessed": 1782986284349,
       "keyFiles": [
         "device.test.ts",
         "device.ts"
@@ -133,7 +133,7 @@
       "path": "report",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1781653783805,
+      "lastAccessed": 1782986284350,
       "keyFiles": [
         "qc-report-v1.md",
         "qc-report-v2.md",
@@ -146,7 +146,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 3,
-      "lastAccessed": 1781653783808,
+      "lastAccessed": 1782986284351,
       "keyFiles": [
         "apply-sql.mjs",
         "comcigan-probe.mjs",
@@ -157,14 +157,14 @@
       "path": "app\\api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1781653783812,
+      "lastAccessed": 1782986284353,
       "keyFiles": []
     },
     "lib\\public": {
       "path": "lib\\public",
       "purpose": "Public files",
-      "fileCount": 6,
-      "lastAccessed": 1781653783818,
+      "fileCount": 7,
+      "lastAccessed": 1782986284355,
       "keyFiles": [
         "dto.test.ts",
         "dto.ts",

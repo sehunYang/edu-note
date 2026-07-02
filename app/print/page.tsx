@@ -19,7 +19,7 @@ export default async function PrintPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center justify-between print:hidden">
-        <h1 className="text-2xl font-bold tracking-tight">인쇄실 ({year})</h1>
+        <h1 className="text-2xl font-normal tracking-tight">인쇄실 ({year})</h1>
         <div className="flex items-center gap-4">
           <PrintButton />
           <Link href="/" className="text-sm text-neutral-500 hover:underline">
@@ -33,7 +33,7 @@ export default async function PrintPage() {
       </p>
 
       <section className="mt-6">
-        <h2 className="mb-3 text-lg font-semibold">학생 명렬표 ({year})</h2>
+        <h2 className="mb-3 text-lg font-normal">학생 명렬표 ({year})</h2>
         {students.length === 0 ? (
           <p className="text-sm text-neutral-400">
             등록된 학생이 없습니다.{" "}
@@ -46,11 +46,11 @@ export default async function PrintPage() {
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b-2 border-neutral-300 text-left">
-                <th className="py-1.5 pr-3 font-semibold">번호</th>
-                <th className="py-1.5 pr-3 font-semibold">학번</th>
-                <th className="py-1.5 pr-3 font-semibold">학년</th>
-                <th className="py-1.5 pr-3 font-semibold">반</th>
-                <th className="py-1.5 pr-3 font-semibold">이름</th>
+                <th className="py-1.5 pr-3 font-normal">번호</th>
+                <th className="py-1.5 pr-3 font-normal">학번</th>
+                <th className="py-1.5 pr-3 font-normal">학년</th>
+                <th className="py-1.5 pr-3 font-normal">반</th>
+                <th className="py-1.5 pr-3 font-normal">이름</th>
               </tr>
             </thead>
             <tbody>

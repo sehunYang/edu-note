@@ -35,7 +35,7 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
             className="w-24 rounded border border-neutral-300 px-2 py-1"
           />
         </div>
-        <label className="cursor-pointer rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-50">
+        <label className="cursor-pointer rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm hover:bg-white/10">
           📄 CSV 파일 선택
           <input
             ref={fileRef}
@@ -49,7 +49,7 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
         <button
           type="button"
           onClick={downloadCsvExample}
-          className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm hover:bg-neutral-50"
+          className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm hover:bg-white/10"
         >
           ⬇ CSV 예시 다운로드
         </button>
@@ -67,7 +67,7 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-60"
+        className="rounded-full border border-white/25 bg-transparent px-4 py-2 text-sm font-normal text-white hover:bg-white/10 disabled:opacity-60"
       >
         {pending ? "임포트 중…" : "명단 임포트"}
       </button>

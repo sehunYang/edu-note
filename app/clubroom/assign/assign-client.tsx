@@ -54,7 +54,7 @@ export function AssignClient({
       <ul className="grid grid-cols-2 gap-1 sm:grid-cols-3">
         {candidates.map((c) => (
           <li key={c.id}>
-            <label className="flex cursor-pointer items-center gap-2 rounded border border-neutral-200 px-2 py-1 text-sm hover:bg-neutral-50">
+            <label className="flex cursor-pointer items-center gap-2 rounded border border-neutral-200 px-2 py-1 text-sm hover:bg-white/5">
               <input
                 type="checkbox"
                 checked={selected.has(c.id)}
@@ -68,7 +68,7 @@ export function AssignClient({
       <button
         type="submit"
         disabled={selected.size === 0}
-        className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+        className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
       >
         선택 {selected.size}명 배정
       </button>

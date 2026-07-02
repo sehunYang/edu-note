@@ -37,7 +37,7 @@ export default async function StatsPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">통계실 ({year})</h1>
+        <h1 className="text-2xl font-normal tracking-tight">통계실 ({year})</h1>
         <div className="flex items-center gap-4">
           <Link
             href="/print"
@@ -58,7 +58,7 @@ export default async function StatsPage() {
             className="rounded-lg border border-neutral-200 p-4"
           >
             <p className="text-xs text-neutral-500">{c.label}</p>
-            <p className="mt-1 text-2xl font-bold tabular-nums">{c.value}</p>
+            <p className="mt-1 text-2xl font-normal tabular-nums">{c.value}</p>
             {c.sub && (
               <p className="mt-0.5 text-xs text-neutral-400">{c.sub}</p>
             )}
@@ -67,7 +67,7 @@ export default async function StatsPage() {
       </section>
 
       <section className="mt-6 rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4">
-        <h2 className="text-sm font-semibold text-neutral-500">
+        <h2 className="text-sm font-normal text-neutral-500">
           성적 통계 <span className="text-xs font-normal">(준비중)</span>
         </h2>
         <p className="mt-1 text-xs text-neutral-400">

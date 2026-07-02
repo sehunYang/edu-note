@@ -46,7 +46,7 @@ export default async function SessionsPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">시수 관리 ({year})</h1>
+        <h1 className="text-2xl font-normal tracking-tight">시수 관리 ({year})</h1>
         <Link href="/" className="text-sm text-neutral-500 hover:underline">
           ← 홈
         </Link>
@@ -77,7 +77,7 @@ export default async function SessionsPage() {
             return (
               <section key={subject.subjectId}>
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 pb-2">
-                  <h2 className="font-semibold">{subject.subjectName}</h2>
+                  <h2 className="font-normal">{subject.subjectName}</h2>
                   <form
                     action={setBoundaryAction}
                     className="flex items-center gap-2 text-sm"
@@ -90,7 +90,7 @@ export default async function SessionsPage() {
                       defaultValue={subject.boundary ?? ""}
                       className="rounded border border-neutral-300 px-2 py-1"
                     />
-                    <button className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
+                    <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
                       저장
                     </button>
                   </form>
@@ -124,10 +124,10 @@ function SectionBlock({
   return (
     <div className="rounded-lg border border-neutral-200 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="font-medium">{sec.label}</span>
+        <span className="font-normal">{sec.label}</span>
         <span className="text-sm">
           <span className="text-neutral-400">잔여</span>{" "}
-          <span className="font-semibold">{sec.plannedUpToBoundary}</span>차시
+          <span className="font-normal">{sec.plannedUpToBoundary}</span>차시
           <span className="ml-3 text-neutral-400">완료</span> {sec.done}
           <span className="ml-3 text-neutral-400">미진행</span> {sec.notHeld}
           {sec.boundary === null && (
@@ -156,8 +156,8 @@ function SectionBlock({
                       <button
                         className={`rounded border px-2 py-0.5 text-xs ${
                           s.status === st
-                            ? "border-neutral-800 bg-neutral-800 text-white"
-                            : "border-neutral-300 hover:bg-neutral-50"
+                            ? "border-neutral-800 border border-white/25 bg-transparent text-white"
+                            : "border-white/25 hover:bg-white/10"
                         }`}
                       >
                         {STATUS_LABEL[st]}

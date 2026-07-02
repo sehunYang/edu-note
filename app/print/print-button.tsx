@@ -8,7 +8,7 @@ export function PrintButton() {
   return (
     <button
       onClick={() => window.print()}
-      className="rounded-md bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 print:hidden"
+      className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 print:hidden"
     >
       인쇄 / PDF 저장
     </button>

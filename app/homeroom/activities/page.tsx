@@ -69,7 +69,7 @@ export default async function HomeroomActivitiesPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-neutral-800">
+      <h2 className="text-lg font-normal text-neutral-800">
         자율·진로활동 ({year})
       </h2>
       <p className="mt-1 text-sm text-neutral-500">

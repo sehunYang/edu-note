@@ -13,7 +13,7 @@ export function NudgeBanner({ nudges }: { nudges: NudgeResult }) {
 
   return (
     <section className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
-      <h2 className="text-sm font-semibold text-amber-800">오늘의 할 일 알림</h2>
+      <h2 className="text-sm font-normal text-amber-800">오늘의 할 일 알림</h2>
       <ul className="mt-2 space-y-1.5 text-sm text-amber-900">
         {nudges.unrecordedObservations.map((o) => (
           <li
@@ -75,7 +75,7 @@ export function NudgeBanner({ nudges }: { nudges: NudgeResult }) {
             <span>
               미제출 신고서 {nudges.pendingReports.total}건
               {nudges.pendingReports.critical > 0 && (
-                <span className="ml-1 font-semibold text-red-600">
+                <span className="ml-1 font-normal text-red-600">
                   (심각 {nudges.pendingReports.critical})
                 </span>
               )}

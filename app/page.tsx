@@ -36,13 +36,13 @@ export default async function Home() {
     <main className="mx-auto max-w-2xl px-6 py-12">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">📆 Edu_Note</h1>
+          <h1 className="text-3xl font-normal tracking-tight">📆 Edu_Note</h1>
           <p className="mt-1 text-sm text-neutral-500">
             교수–수업–평가–기록 일체화 플랫폼
           </p>
         </div>
         <form action="/auth/signout" method="post">
-          <button className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-600 hover:bg-neutral-50">
+          <button className="rounded-full border border-white/25 px-3 py-1.5 text-xs text-neutral-600 hover:bg-white/10">
             로그아웃
           </button>
         </form>
@@ -106,7 +106,7 @@ export default async function Home() {
         <a
           href="/api/backup"
           download
-          className="shrink-0 rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-600 hover:bg-neutral-50"
+          className="shrink-0 rounded-full border border-white/25 px-3 py-1.5 text-xs text-neutral-600 hover:bg-white/10"
         >
           백업 내보내기(JSON)
         </a>
@@ -127,9 +127,9 @@ function DashCard({
   return (
     <Link
       href={href}
-      className="rounded-lg border border-neutral-200 p-5 transition hover:border-neutral-400 hover:shadow-sm"
+      className="rounded-lg border border-neutral-200 p-5 transition hover:border-neutral-400 "
     >
-      <h2 className="font-semibold">{title}</h2>
+      <h2 className="font-normal">{title}</h2>
       <p className="mt-1 text-sm text-neutral-500">{desc}</p>
     </Link>
   );

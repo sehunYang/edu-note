@@ -21,7 +21,7 @@ export default async function ClubroomPlanPage() {
   if (!club) {
     return (
       <div>
-        <h2 className="text-lg font-semibold text-neutral-800">활동 계획</h2>
+        <h2 className="text-lg font-normal text-neutral-800">활동 계획</h2>
         <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           아직 개설된 동아리가 없습니다. <strong>동아리 개설</strong> 탭에서 먼저
           동아리를 만드세요.
@@ -36,11 +36,11 @@ export default async function ClubroomPlanPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-neutral-800">
+        <h2 className="text-lg font-normal text-neutral-800">
           활동 계획 — {club.name}
         </h2>
         <form action={reconcileAction} className="inline">
-          <button className="rounded border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50">
+          <button className="rounded-full border border-white/25 px-3 py-1.5 text-sm text-neutral-700 hover:bg-white/10">
             차시 동기화
           </button>
         </form>
@@ -76,7 +76,7 @@ export default async function ClubroomPlanPage() {
                   placeholder="예정 활동"
                   className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
                 />
-                <button className="rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+                <button className="rounded-full border border-white/25 px-3 py-1.5 text-sm hover:bg-white/10">
                   저장
                 </button>
               </form>

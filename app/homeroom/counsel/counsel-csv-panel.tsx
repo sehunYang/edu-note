@@ -39,7 +39,7 @@ export function CounselCsvPanel({ year, getCsvAction }: Props) {
 
   return (
     <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-      <h2 className="mb-3 text-sm font-semibold text-neutral-700">
+      <h2 className="mb-3 text-sm font-normal text-neutral-700">
         코워크 CSV
       </h2>
       <div className="flex flex-wrap gap-3">
@@ -47,7 +47,7 @@ export function CounselCsvPanel({ year, getCsvAction }: Props) {
         <button
           onClick={handleExport}
           disabled={isPending}
-          className="rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50 disabled:opacity-50"
+          className="rounded-full border border-white/25 px-3 py-1.5 text-sm hover:bg-white/10 disabled:opacity-50"
         >
           원천자료 내보내기
         </button>
@@ -65,7 +65,7 @@ export function CounselCsvPanel({ year, getCsvAction }: Props) {
           <button
             type="submit"
             disabled={isPending}
-            className="rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50 disabled:opacity-50"
+            className="rounded-full border border-white/25 px-3 py-1.5 text-sm hover:bg-white/10 disabled:opacity-50"
           >
             결과 CSV 업로드
           </button>

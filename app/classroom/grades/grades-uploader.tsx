@@ -76,7 +76,7 @@ export function GradesUploader({ subjects }: { subjects: SubjectGradeView[] }) {
 
       {/* 수행평가 항목별 업로드 */}
       <section>
-        <h3 className="text-sm font-semibold text-neutral-700">수행평가</h3>
+        <h3 className="text-sm font-normal text-neutral-700">수행평가</h3>
         {selected.performanceItems.length === 0 ? (
           <p className="mt-1 text-xs text-neutral-400">
             이 과목에 등록된 수행평가 항목이 없습니다. 세팅실에서 평가설정을
@@ -97,7 +97,7 @@ export function GradesUploader({ subjects }: { subjects: SubjectGradeView[] }) {
 
       {/* 지필 활성회차 업로드 */}
       <section>
-        <h3 className="text-sm font-semibold text-neutral-700">지필평가</h3>
+        <h3 className="text-sm font-normal text-neutral-700">지필평가</h3>
         {!selected.jipilMidEnabled && !selected.jipilFinalEnabled ? (
           <p className="mt-1 text-xs text-neutral-400">
             이 과목은 지필평가를 시행하지 않습니다.
@@ -158,13 +158,13 @@ function PerformanceBox({
   return (
     <li className="rounded-lg border border-neutral-200 p-4">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-neutral-700">{itemName}</span>
+        <span className="text-sm font-normal text-neutral-700">{itemName}</span>
         <button
           type="button"
           onClick={() =>
             downloadCsv(performanceCsvExample(), `수행_${itemName}_예시.csv`)
           }
-          className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50"
+          className="rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs hover:bg-white/10"
         >
           ⬇ 예시 다운로드
         </button>
@@ -174,7 +174,7 @@ function PerformanceBox({
         <input type="hidden" name="itemName" value={itemName} />
         <input type="hidden" name="csv" value={csv} />
         <div className="flex items-center gap-2">
-          <label className="cursor-pointer rounded border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50">
+          <label className="cursor-pointer rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs hover:bg-white/10">
             📄 CSV 파일
             <input
               type="file"
@@ -189,7 +189,7 @@ function PerformanceBox({
           <button
             type="submit"
             disabled={pending || !csv}
-            className="rounded bg-neutral-800 px-3 py-1 text-xs text-white hover:bg-neutral-700 disabled:opacity-50"
+            className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10 disabled:opacity-50"
           >
             {pending ? "업로드 중…" : "업로드"}
           </button>
@@ -227,11 +227,11 @@ function JipilBox({
   return (
     <li className="rounded-lg border border-neutral-200 p-4">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-neutral-700">{label}</span>
+        <span className="text-sm font-normal text-neutral-700">{label}</span>
         <button
           type="button"
           onClick={() => downloadCsv(jipilCsvExample(), `지필_${label}_예시.csv`)}
-          className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50"
+          className="rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs hover:bg-white/10"
         >
           ⬇ 예시 다운로드
         </button>
@@ -241,7 +241,7 @@ function JipilBox({
         <input type="hidden" name="ordinal" value={ordinal} />
         <input type="hidden" name="csv" value={csv} />
         <div className="flex items-center gap-2">
-          <label className="cursor-pointer rounded border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50">
+          <label className="cursor-pointer rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs hover:bg-white/10">
             📄 CSV 파일
             <input
               type="file"
@@ -256,7 +256,7 @@ function JipilBox({
           <button
             type="submit"
             disabled={pending || !csv}
-            className="rounded bg-neutral-800 px-3 py-1 text-xs text-white hover:bg-neutral-700 disabled:opacity-50"
+            className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10 disabled:opacity-50"
           >
             {pending ? "업로드 중…" : "업로드"}
           </button>
@@ -342,7 +342,7 @@ function GradePreview({
   }
   return (
     <section>
-      <h3 className="text-sm font-semibold text-neutral-700">
+      <h3 className="text-sm font-normal text-neutral-700">
         환산 미리보기{!hasAny && " (입력된 성적 없음)"}
       </h3>
       <p className="mt-0.5 text-xs text-neutral-400">
@@ -380,7 +380,7 @@ function GradePreview({
                     {r.performanceByItem[item] ?? "–"}
                   </td>
                 ))}
-                <td className="px-2 py-1 text-right font-semibold">{r.total}</td>
+                <td className="px-2 py-1 text-right font-normal">{r.total}</td>
               </tr>
             ))}
           </tbody>

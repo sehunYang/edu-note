@@ -121,7 +121,7 @@ export function SetechForm({
         <button
           onClick={onBuild}
           disabled={pending || !studentId}
-          className="rounded bg-neutral-800 px-3 py-1 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+          className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-sm text-white hover:bg-white/10 disabled:opacity-50"
         >
           ① 프롬프트 생성
         </button>
@@ -132,12 +132,12 @@ export function SetechForm({
       {prompt && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-neutral-600">
+            <label className="text-xs font-normal text-neutral-600">
               코워크 붙여넣기용 프롬프트
             </label>
             <button
               onClick={onCopy}
-              className="rounded border border-neutral-300 px-2 py-0.5 text-xs hover:bg-neutral-50"
+              className="rounded-full border border-white/25 px-2 py-0.5 text-xs hover:bg-white/10"
             >
               복사
             </button>
@@ -152,7 +152,7 @@ export function SetechForm({
       )}
 
       <div className="space-y-2">
-        <label className="text-xs font-semibold text-neutral-600">
+        <label className="text-xs font-normal text-neutral-600">
           ② 코워크 결과 붙여넣기 → 검수 후 저장
         </label>
         <textarea
@@ -178,11 +178,11 @@ export function SetechForm({
           }`}
         >
           {save.ok ? (
-            <p className="font-medium text-emerald-800">
+            <p className="font-normal text-emerald-800">
               저장됨 · {save.byteCount} / {save.byteLimit} byte
             </p>
           ) : (
-            <p className="font-medium text-red-700">{save.message}</p>
+            <p className="font-normal text-red-700">{save.message}</p>
           )}
           {save.warnings.length > 0 && (
             <ul className="mt-1 space-y-0.5 text-xs">

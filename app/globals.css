@@ -3,8 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0a;
+  --foreground: #ffffff;
+  color-scheme: dark;
 }
 
 html {
@@ -14,6 +15,39 @@ html {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: ui-sans-serif, system-ui, "Apple SD Gothic Neo", "Malgun Gothic",
-    sans-serif;
+  font-family: "Pretendard Variable", Pretendard, Inter, -apple-system,
+    system-ui, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 400;
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Print pages must stay legible on paper: force a light rendering. */
+@media print {
+  :root {
+    color-scheme: light;
+  }
+  * {
+    background-color: transparent !important;
+    color: #111 !important;
+    border-color: #bbb !important;
+  }
+  body {
+    background: #fff !important;
+  }
 }

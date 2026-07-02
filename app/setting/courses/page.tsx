@@ -81,7 +81,7 @@ export default async function CoursesStagePage({
 
   return (
     <div>
-      <h2 className="text-lg font-semibold">5. 수업 관리</h2>
+      <h2 className="text-lg font-normal">5. 수업 관리</h2>
       <p className="mt-1 text-sm text-neutral-500">
         분반별 평가설정(100% 검증)·수강 일괄등록·시험일·역할을 관리합니다. ({year}
         학년도 {semester}학기{semester !== activeSem && " · 과거 학기 조회 중"})
@@ -93,8 +93,8 @@ export default async function CoursesStagePage({
             href={`/setting/courses?semester=${s}`}
             className={
               s === semester
-                ? "rounded bg-neutral-800 px-2 py-1 text-white"
-                : "rounded border border-neutral-300 px-2 py-1 text-neutral-600 hover:bg-neutral-50"
+                ? "rounded-full border border-white/25 bg-transparent px-2 py-1 text-white"
+                : "rounded-full border border-white/25 px-2 py-1 text-neutral-600 hover:bg-white/10"
             }
           >
             {s}학기{s === activeSem && " (현재)"}
@@ -103,7 +103,7 @@ export default async function CoursesStagePage({
       </div>
 
       <section className="mt-5 rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-semibold text-neutral-700">컴시간 시간표 동기화</h3>
+        <h3 className="text-sm font-normal text-neutral-700">컴시간 시간표 동기화</h3>
         <p className="mt-1 text-xs text-neutral-400">
           컴시간알리미 학교·교사명으로 본인 시간표를 가져와 과목·분반을 생성합니다.
         </p>

@@ -20,7 +20,7 @@ const TIER_LABEL: Record<string, string> = {
 const TIER_CLASS: Record<string, string> = {
   normal: "text-neutral-400",
   warning: "text-orange-600",
-  critical: "font-semibold text-red-600",
+  critical: "font-normal text-red-600",
 };
 
 export interface FieldTripStudent {
@@ -77,7 +77,7 @@ export function FieldTripSection({
             name="endDate"
             className="rounded border border-neutral-300 px-2 py-1 text-sm"
           />
-          <button className="rounded bg-neutral-800 px-3 py-1 text-sm text-white hover:bg-neutral-700">
+          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-sm text-white hover:bg-white/10">
             체험 추가
           </button>
         </form>

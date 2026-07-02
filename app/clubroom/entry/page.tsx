@@ -23,7 +23,7 @@ export default async function ClubroomEntryPage() {
   if (!club) {
     return (
       <div>
-        <h2 className="text-lg font-semibold text-neutral-800">활동 입력</h2>
+        <h2 className="text-lg font-normal text-neutral-800">활동 입력</h2>
         <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           아직 개설된 동아리가 없습니다. <strong>동아리 개설</strong> 탭에서 먼저
           동아리를 만드세요.
@@ -42,7 +42,7 @@ export default async function ClubroomEntryPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-neutral-800">
+      <h2 className="text-lg font-normal text-neutral-800">
         활동 입력 — {club.name}
       </h2>
       <p className="mt-1 text-sm text-neutral-500">
@@ -80,7 +80,7 @@ export default async function ClubroomEntryPage() {
 
                 <form action={saveCommonAction} className="mt-2">
                   <input type="hidden" name="activityDate" value={s.date} />
-                  <label className="text-xs font-medium text-neutral-600">
+                  <label className="text-xs font-normal text-neutral-600">
                     공통 내용
                   </label>
                   <textarea
@@ -89,13 +89,13 @@ export default async function ClubroomEntryPage() {
                     rows={2}
                     className="mt-1 w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
                   />
-                  <button className="mt-1 rounded border border-neutral-300 px-3 py-1 text-sm hover:bg-neutral-50">
+                  <button className="mt-1 rounded-full border border-white/25 px-3 py-1 text-sm hover:bg-white/10">
                     공통 저장
                   </button>
                 </form>
 
                 <div className="mt-4 space-y-2 border-t border-neutral-100 pt-3">
-                  <p className="text-xs font-medium text-neutral-600">
+                  <p className="text-xs font-normal text-neutral-600">
                     부원별 개별 메모
                   </p>
                   {members.map((m) => (
@@ -126,7 +126,7 @@ export default async function ClubroomEntryPage() {
                         placeholder="개별 메모(선택)"
                         className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
                       />
-                      <button className="rounded border border-neutral-300 px-3 py-1 text-sm hover:bg-neutral-50">
+                      <button className="rounded-full border border-white/25 px-3 py-1 text-sm hover:bg-white/10">
                         저장
                       </button>
                     </form>

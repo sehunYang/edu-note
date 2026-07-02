@@ -32,7 +32,7 @@ export default async function SettingLayout({
     <div className="mx-auto max-w-4xl px-6 py-10">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">⚙️ 세팅실</h1>
+          <h1 className="text-2xl font-normal tracking-tight">⚙️ 세팅실</h1>
           <p className="mt-1 text-sm text-neutral-500">
             {year}학년도 기초 환경을 순서대로 설정합니다.
           </p>
@@ -63,7 +63,7 @@ export default async function SettingLayout({
             <Link
               key={s.feature}
               href={`/setting/${s.feature}`}
-              className={`${base} border-neutral-300 text-neutral-700 hover:border-neutral-500 hover:bg-neutral-50`}
+              className={`${base} border-white/25 text-neutral-700 hover:border-neutral-500 hover:bg-white/10`}
             >
               <span>
                 {meta.n}. {meta.title}

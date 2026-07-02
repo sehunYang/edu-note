@@ -85,7 +85,7 @@ export function ProgressBoard({
         <form action={generateSessionsAction} className="mt-3">
           <input type="hidden" name="year" value={year} />
           <input type="hidden" name="semester" value={semester} />
-          <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
+          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
             {semester}학기 차시 생성/정리
           </button>
         </form>
@@ -96,7 +96,7 @@ export function ProgressBoard({
 
       {/* 분반별 전체 차시 */}
       <section>
-        <h3 className="border-b border-neutral-200 pb-2 font-semibold text-neutral-800">
+        <h3 className="border-b border-neutral-200 pb-2 font-normal text-neutral-800">
           분반별 차시
         </h3>
         {sections.length === 0 ? (
@@ -143,7 +143,7 @@ function PopupSection({
   );
   return (
     <section>
-      <h3 className="border-b border-neutral-200 pb-2 font-semibold text-neutral-800">
+      <h3 className="border-b border-neutral-200 pb-2 font-normal text-neutral-800">
         이번주 · 연체 예정 차시 ({popup.length})
       </h3>
       {popup.length === 0 ? (
@@ -161,7 +161,7 @@ function PopupSection({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="flex items-center gap-2 text-sm">
                     <span className="w-24 text-neutral-500">{p.date}</span>
-                    <span className="font-medium">{p.subjectName}</span>
+                    <span className="font-normal">{p.subjectName}</span>
                     <span className="text-neutral-400">{p.sectionLabel}</span>
                     {p.overdue && (
                       <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-700">
@@ -199,7 +199,7 @@ function StatsHeader({ stats }: { stats: StatView[] }) {
   const pct = (r: number) => `${Math.round(r * 100)}%`;
   return (
     <section className="rounded-lg border border-neutral-200 p-5">
-      <h3 className="font-semibold text-neutral-800">진도 현황(분반별)</h3>
+      <h3 className="font-normal text-neutral-800">진도 현황(분반별)</h3>
       <p className="mt-1 text-xs text-neutral-400">
         단원진도 = 완료(done) 차시의 마지막 도달 단원(여유차시 제외, 자동 도출). 시험진도율은
         지필 시행 과목만 표시(목표 = 오늘까지 차시 ÷ 시험목표 차시, 2차시 이상 뒤지면 빨강).
@@ -216,7 +216,7 @@ function StatsHeader({ stats }: { stats: StatView[] }) {
                 : "border-neutral-200 bg-neutral-50"
             }`}
           >
-            <span className="font-medium">
+            <span className="font-normal">
               {st.subjectName}{" "}
               <span className="text-neutral-400">{st.label}</span>
             </span>
@@ -224,7 +224,7 @@ function StatsHeader({ stats }: { stats: StatView[] }) {
               <span className="text-neutral-600">
                 단원진도{" "}
                 {st.lastDoneUnitCode != null ? (
-                  <span className="font-medium text-neutral-800">
+                  <span className="font-normal text-neutral-800">
                     {fmtCode(st.lastDoneUnitCode)}
                     {st.lastDoneUnitLabel && (
                       <span className="ml-1 text-xs text-neutral-500">
@@ -243,8 +243,8 @@ function StatsHeader({ stats }: { stats: StatView[] }) {
                     <span
                       className={
                         st.color === "red"
-                          ? "font-semibold text-red-600"
-                          : "font-semibold text-green-700"
+                          ? "font-normal text-red-600"
+                          : "font-normal text-green-700"
                       }
                     >
                       {pct(st.actualRate)}
@@ -281,7 +281,7 @@ function SectionBlock({
   return (
     <div className="rounded-lg border border-neutral-200 p-4">
       <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
-        <span className="font-medium">
+        <span className="font-normal">
           {section.subjectName}{" "}
           <span className="text-neutral-400">{section.label}</span>
         </span>
@@ -358,8 +358,8 @@ function StatusButtons({
           onClick={() => setStatus(st)}
           className={`rounded border px-2 py-0.5 text-xs disabled:opacity-50 ${
             current === st
-              ? "border-neutral-800 bg-neutral-800 text-white"
-              : "border-neutral-300 hover:bg-neutral-50"
+              ? "border-neutral-800 border border-white/25 bg-transparent text-white"
+              : "border-white/25 hover:bg-white/10"
           }`}
         >
           {statusLabel[st]}

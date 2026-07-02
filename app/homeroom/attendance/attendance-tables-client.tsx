@@ -59,12 +59,12 @@ export function EditableAttendanceTable({
       <table className="mt-3 w-full text-sm">
         <thead className="text-left text-neutral-400">
           <tr>
-            <th className="py-1 font-medium">학생</th>
-            {withDate && <th className="py-1 font-medium">날짜</th>}
-            <th className="py-1 font-medium">성격</th>
-            <th className="py-1 font-medium">교시</th>
-            <th className="py-1 font-medium">사유</th>
-            <th className="py-1 font-medium">신고서</th>
+            <th className="py-1 font-normal">학생</th>
+            {withDate && <th className="py-1 font-normal">날짜</th>}
+            <th className="py-1 font-normal">성격</th>
+            <th className="py-1 font-normal">교시</th>
+            <th className="py-1 font-normal">사유</th>
+            <th className="py-1 font-normal">신고서</th>
             <th className="py-1" />
           </tr>
         </thead>
@@ -111,7 +111,7 @@ export function EditableAttendanceTable({
                       placeholder="비고"
                       className="rounded border border-neutral-300 px-2 py-1 text-xs"
                     />
-                    <button className="rounded bg-neutral-800 px-2 py-1 text-xs text-white hover:bg-neutral-700">
+                    <button className="rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10">
                       저장
                     </button>
                     <button
@@ -212,7 +212,7 @@ const TIER_LABEL: Record<string, string> = {
 const TIER_CLASS: Record<string, string> = {
   normal: "text-neutral-400",
   warning: "text-orange-600",
-  critical: "font-semibold text-red-600",
+  critical: "font-normal text-red-600",
 };
 
 /** 미제출 신고서 목록(페이지네이션 10). */
@@ -228,12 +228,12 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
       <table className="mt-3 w-full text-sm">
         <thead className="text-left text-neutral-400">
           <tr>
-            <th className="py-1 font-medium">학생</th>
-            <th className="py-1 font-medium">날짜</th>
-            <th className="py-1 font-medium">성격</th>
-            <th className="py-1 font-medium">교시</th>
-            <th className="py-1 font-medium">마감</th>
-            <th className="py-1 font-medium">상태</th>
+            <th className="py-1 font-normal">학생</th>
+            <th className="py-1 font-normal">날짜</th>
+            <th className="py-1 font-normal">성격</th>
+            <th className="py-1 font-normal">교시</th>
+            <th className="py-1 font-normal">마감</th>
+            <th className="py-1 font-normal">상태</th>
             <th className="py-1" />
           </tr>
         </thead>

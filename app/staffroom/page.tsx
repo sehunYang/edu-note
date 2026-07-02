@@ -35,7 +35,7 @@ export default async function StaffroomPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">교무실</h1>
+        <h1 className="text-2xl font-normal tracking-tight">교무실</h1>
         <Link href="/" className="text-sm text-neutral-500 hover:underline">
           ← 홈
         </Link>
@@ -43,7 +43,7 @@ export default async function StaffroomPage() {
 
       {/* ── 업무 ── */}
       <section className="mt-6">
-        <h2 className="text-sm font-semibold text-neutral-700">업무</h2>
+        <h2 className="text-sm font-normal text-neutral-700">업무</h2>
         <form
           action={createTaskAction}
           className="mt-3 flex flex-wrap items-center gap-2"
@@ -59,7 +59,7 @@ export default async function StaffroomPage() {
             name="deadline"
             className="rounded border border-neutral-300 px-2 py-1.5 text-sm"
           />
-          <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
+          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
             추가
           </button>
         </form>
@@ -77,7 +77,7 @@ export default async function StaffroomPage() {
                   className="rounded-lg border border-neutral-200 p-3 text-sm"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">
+                    <span className="font-normal">
                       {t.title}
                       {t.deadline && (
                         <span
@@ -109,7 +109,7 @@ export default async function StaffroomPage() {
                       className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
                     />
                     <span className="text-xs text-neutral-400">% 진척</span>
-                    <button className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
+                    <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
                       저장
                     </button>
                     <div className="ml-2 h-1.5 flex-1 overflow-hidden rounded bg-neutral-100">
@@ -128,7 +128,7 @@ export default async function StaffroomPage() {
 
       {/* ── 예산 ── */}
       <section className="mt-10">
-        <h2 className="text-sm font-semibold text-neutral-700">예산</h2>
+        <h2 className="text-sm font-normal text-neutral-700">예산</h2>
         <form
           action={createBudgetAction}
           className="mt-3 flex flex-wrap items-center gap-2"
@@ -146,7 +146,7 @@ export default async function StaffroomPage() {
             placeholder="계획액(원)"
             className="w-32 rounded border border-neutral-300 px-2 py-1.5 text-sm"
           />
-          <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
+          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
             추가
           </button>
         </form>
@@ -168,7 +168,7 @@ export default async function StaffroomPage() {
                   className="rounded-lg border border-neutral-200 p-4"
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold">{b.area}</h3>
+                    <h3 className="font-normal">{b.area}</h3>
                     <form action={deleteBudgetAction} className="inline">
                       <input type="hidden" name="id" value={b.id} />
                       <button className="text-xs text-red-500 hover:underline">
@@ -241,7 +241,7 @@ export default async function StaffroomPage() {
                       placeholder="메모(선택)"
                       className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
                     />
-                    <button className="rounded border border-neutral-300 px-3 py-1 text-sm hover:bg-neutral-50">
+                    <button className="rounded-full border border-white/25 px-3 py-1 text-sm hover:bg-white/10">
                       지출 추가
                     </button>
                   </form>

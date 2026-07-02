@@ -141,30 +141,30 @@ export function EventsCalendar({
 
   return (
     <section className="rounded-lg border border-neutral-200 p-4 md:col-span-2">
-      <h2 className="text-sm font-semibold text-neutral-700">학사일정 · 상담 · 메모</h2>
+      <h2 className="text-sm font-normal text-neutral-700">학사일정 · 상담 · 메모</h2>
       <div className="mb-2 mt-2 flex items-center justify-between text-sm">
         <button
           type="button"
           onClick={() => shift(-1)}
-          className="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50"
+          className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
         >
           ‹
         </button>
-        <span className="font-medium">
+        <span className="font-normal">
           {month.year}년 {month.month + 1}월
           {loading && <span className="ml-2 text-xs text-neutral-400">불러오는 중…</span>}
         </span>
         <button
           type="button"
           onClick={() => shift(1)}
-          className="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50"
+          className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
         >
           ›
         </button>
       </div>
       <div className="grid grid-cols-7 gap-px text-center text-xs">
         {WK.map((w) => (
-          <div key={w} className="py-1 font-medium text-neutral-400">
+          <div key={w} className="py-1 font-normal text-neutral-400">
             {w}
           </div>
         ))}
@@ -182,7 +182,7 @@ export function EventsCalendar({
               onClick={() => setSelectedDate(dateStr)}
               className={`min-h-[3.5rem] rounded border p-1 text-left transition hover:border-blue-300 hover:bg-blue-50/40 ${
                 isToday
-                  ? "border-blue-400 bg-blue-50 font-semibold"
+                  ? "border-blue-400 bg-blue-50 font-normal"
                   : "border-neutral-100"
               }`}
             >
@@ -297,15 +297,15 @@ function DayDetailModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl"
+        className="w-full max-w-md rounded-xl bg-card p-6 border border-neutral-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-neutral-800">{date}</h2>
+          <h2 className="text-base font-normal text-neutral-800">{date}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+            className="rounded p-1 text-neutral-400 hover:bg-white/10 hover:text-neutral-600"
             aria-label="닫기"
           >
             ✕
@@ -334,7 +334,7 @@ function DayDetailModal({
         )}
 
         <div className="mt-4">
-          <h3 className="text-xs font-semibold text-neutral-500">메모</h3>
+          <h3 className="text-xs font-normal text-neutral-500">메모</h3>
           {memos.length === 0 ? (
             <p className="mt-1 text-xs text-neutral-400">메모가 없습니다.</p>
           ) : (
@@ -355,7 +355,7 @@ function DayDetailModal({
                         type="button"
                         onClick={saveEdit}
                         disabled={pending}
-                        className="shrink-0 rounded bg-neutral-800 px-2 py-0.5 text-xs text-white hover:bg-neutral-700 disabled:opacity-50"
+                        className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-0.5 text-xs text-white hover:bg-white/10 disabled:opacity-50"
                       >
                         저장
                       </button>
@@ -372,7 +372,7 @@ function DayDetailModal({
                             setEditId(m.id);
                             setEditText(m.content);
                           }}
-                          className="rounded px-1 text-xs text-neutral-500 hover:bg-neutral-100"
+                          className="rounded px-1 text-xs text-neutral-500 hover:bg-white/10"
                         >
                           수정
                         </button>
@@ -406,7 +406,7 @@ function DayDetailModal({
               type="button"
               onClick={add}
               disabled={pending || !draft.trim()}
-              className="shrink-0 rounded bg-neutral-800 px-3 py-1 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+              className="shrink-0 rounded-full border border-white/25 bg-transparent px-3 py-1 text-sm text-white hover:bg-white/10 disabled:opacity-50"
             >
               일정 추가하기
             </button>

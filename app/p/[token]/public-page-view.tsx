@@ -42,7 +42,7 @@ export function PublicPageView({
   return (
     <main className="mx-auto max-w-2xl px-6 py-10 space-y-8">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">
+        <h1 className="text-2xl font-normal tracking-tight">
           {payload.studentName ? `${payload.studentName} 학생 안내 페이지` : "학생 안내 페이지"}
         </h1>
         <p className="mt-1 text-xs text-neutral-400">
@@ -64,7 +64,7 @@ export function PublicPageView({
 
       {payload.personalMessage && (
         <section className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-          <h2 className="text-sm font-semibold text-blue-600">개별 메시지</h2>
+          <h2 className="text-sm font-normal text-blue-600">개별 메시지</h2>
           <p className="mt-1 whitespace-pre-line text-sm">
             {payload.personalMessage}
           </p>
@@ -77,7 +77,7 @@ export function PublicPageView({
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-lg border border-neutral-200 p-4">
-      <h2 className="text-sm font-semibold text-neutral-700">{title}</h2>
+      <h2 className="text-sm font-normal text-neutral-700">{title}</h2>
       <div className="mt-2">{children}</div>
     </section>
   );
@@ -99,13 +99,13 @@ function Notices({
   return (
     <section className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-neutral-500">교사 한마디</h2>
+        <h2 className="text-sm font-normal text-neutral-500">교사 한마디</h2>
         {items.length > 1 && (
           <div className="flex items-center gap-2 text-xs text-neutral-400">
             <button
               type="button"
               onClick={() => setIdx((cur - 1 + items.length) % items.length)}
-              className="rounded border border-neutral-300 px-2 py-0.5 hover:bg-white"
+              className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
             >
               ‹
             </button>
@@ -115,7 +115,7 @@ function Notices({
             <button
               type="button"
               onClick={() => setIdx((cur + 1) % items.length)}
-              className="rounded border border-neutral-300 px-2 py-0.5 hover:bg-white"
+              className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
             >
               ›
             </button>
@@ -135,13 +135,13 @@ function IndividualNotices({ notices }: { notices: string[] }) {
   return (
     <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-amber-600">개별 공지</h2>
+        <h2 className="text-sm font-normal text-amber-600">개별 공지</h2>
         {notices.length > 1 && (
           <div className="flex items-center gap-2 text-xs text-amber-500">
             <button
               type="button"
               onClick={() => setIdx((cur - 1 + notices.length) % notices.length)}
-              className="rounded border border-amber-300 px-2 py-0.5 hover:bg-white"
+              className="rounded border border-amber-300 px-2 py-0.5 hover:bg-white/10"
             >
               ‹
             </button>
@@ -151,7 +151,7 @@ function IndividualNotices({ notices }: { notices: string[] }) {
             <button
               type="button"
               onClick={() => setIdx((cur + 1) % notices.length)}
-              className="rounded border border-amber-300 px-2 py-0.5 hover:bg-white"
+              className="rounded border border-amber-300 px-2 py-0.5 hover:bg-white/10"
             >
               ›
             </button>
@@ -241,24 +241,24 @@ function CalendarSection({
         <button
           type="button"
           onClick={() => shift(-1)}
-          className="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50"
+          className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
         >
           ‹
         </button>
-        <span className="font-medium">
+        <span className="font-normal">
           {month.year}년 {month.month + 1}월
         </span>
         <button
           type="button"
           onClick={() => shift(1)}
-          className="rounded border border-neutral-300 px-2 py-0.5 hover:bg-neutral-50"
+          className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
         >
           ›
         </button>
       </div>
       <div className="grid grid-cols-7 gap-px text-center text-xs">
         {WK.map((w) => (
-          <div key={w} className="py-1 font-medium text-neutral-400">
+          <div key={w} className="py-1 font-normal text-neutral-400">
             {w}
           </div>
         ))}
@@ -275,7 +275,7 @@ function CalendarSection({
               onClick={() => setSelectedDate(dateStr)}
               className={`min-h-[3.25rem] rounded border p-1 text-left transition hover:border-blue-400 ${
                 isToday
-                  ? "border-blue-400 bg-blue-50 font-semibold"
+                  ? "border-blue-400 bg-blue-50 font-normal"
                   : "border-neutral-100"
               }`}
             >
@@ -373,15 +373,15 @@ function DayDetailModal({
       onClick={onClose}
     >
       <div
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl bg-card p-5 border border-neutral-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-neutral-800">{date}</h3>
+          <h3 className="font-normal text-neutral-800">{date}</h3>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-neutral-400 hover:bg-neutral-100"
+            className="rounded p-1 text-neutral-400 hover:bg-white/10"
             aria-label="닫기"
           >
             ✕
@@ -390,7 +390,7 @@ function DayDetailModal({
 
         {events.length > 0 && (
           <div className="mt-3">
-            <h4 className="text-xs font-semibold text-neutral-500">학사일정</h4>
+            <h4 className="text-xs font-normal text-neutral-500">학사일정</h4>
             <ul className="mt-1 space-y-1 text-sm">
               {events.map((e, i) => (
                 <li key={i} className="rounded bg-neutral-100 px-2 py-1 text-neutral-700">
@@ -402,7 +402,7 @@ function DayDetailModal({
         )}
 
         <div className="mt-3">
-          <h4 className="text-xs font-semibold text-neutral-500">내 메모/일정</h4>
+          <h4 className="text-xs font-normal text-neutral-500">내 메모/일정</h4>
           <ul className="mt-1 space-y-1.5">
             {memos.length === 0 && (
               <li className="text-xs text-neutral-400">등록한 메모가 없습니다.</li>
@@ -422,7 +422,7 @@ function DayDetailModal({
                         type="button"
                         disabled={pending}
                         onClick={() => saveEdit(m.id)}
-                        className="rounded bg-neutral-900 px-2 py-0.5 text-xs text-white disabled:opacity-50"
+                        className="rounded-full border border-white/25 bg-transparent px-2 py-0.5 text-xs text-white disabled:opacity-50"
                       >
                         저장
                       </button>
@@ -478,7 +478,7 @@ function DayDetailModal({
             type="button"
             disabled={pending || !body.trim()}
             onClick={add}
-            className="w-full rounded bg-neutral-900 py-1.5 text-sm text-white disabled:opacity-50"
+            className="w-full rounded-full border border-white/25 bg-transparent py-1.5 text-sm text-white disabled:opacity-50"
           >
             {pending ? "저장…" : "일정 추가하기"}
           </button>
@@ -526,7 +526,7 @@ function Timetable({
               {TT_WEEKDAYS.map((w) => (
                 <th
                   key={w}
-                  className={`border border-neutral-200 py-1 font-medium ${
+                  className={`border border-neutral-200 py-1 font-normal ${
                     w === todayWeekday
                       ? "bg-blue-100 text-blue-700"
                       : "bg-neutral-50"
@@ -540,7 +540,7 @@ function Timetable({
           <tbody>
             {TT_PERIODS.map((p) => (
               <tr key={p}>
-                <th className="border border-neutral-200 bg-neutral-50 py-1 font-medium text-neutral-400">
+                <th className="border border-neutral-200 bg-neutral-50 py-1 font-normal text-neutral-400">
                   {p}
                 </th>
                 {TT_WEEKDAYS.map((w) => {
@@ -624,7 +624,7 @@ function TimetableCell({
             type="button"
             disabled={pending}
             onClick={submit}
-            className="w-full rounded bg-neutral-900 px-1 py-0.5 text-[11px] text-white disabled:opacity-50"
+            className="w-full rounded-full border border-white/25 bg-transparent px-1 py-0.5 text-[11px] text-white disabled:opacity-50"
           >
             {pending ? "저장…" : "저장"}
           </button>
@@ -645,13 +645,13 @@ function Meals({ meals }: { meals: PublicPagePayload["meals"] }) {
         <table className="w-full border-collapse text-left text-sm">
           <thead>
             <tr>
-              <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+              <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal">
                 메뉴
               </th>
-              <th className="w-40 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+              <th className="w-40 border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal">
                 영양
               </th>
-              <th className="w-20 border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium">
+              <th className="w-20 border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal">
                 칼로리
               </th>
             </tr>
@@ -704,7 +704,7 @@ function Attendance2DTable({ matrix }: { matrix: PublicAttendance2D }) {
             {REASON_COLS.map(([, label]) => (
               <th
                 key={label}
-                className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium"
+                className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal"
               >
                 {label}
               </th>
@@ -714,7 +714,7 @@ function Attendance2DTable({ matrix }: { matrix: PublicAttendance2D }) {
         <tbody>
           {KIND_ROWS.map(([kind, kindLabel]) => (
             <tr key={kind}>
-              <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-medium text-neutral-500">
+              <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal text-neutral-500">
                 {kindLabel}
               </th>
               {REASON_COLS.map(([reason]) => (
@@ -800,7 +800,7 @@ function CounselSlotRow({
               type="button"
               disabled={pending}
               onClick={requestCancel}
-              className="rounded border border-neutral-300 px-2 py-0.5 text-xs hover:bg-neutral-50 disabled:opacity-40"
+              className="rounded-full border border-white/25 px-2 py-0.5 text-xs hover:bg-white/10 disabled:opacity-40"
             >
               {pending ? "요청…" : "취소 요청"}
             </button>
@@ -813,7 +813,7 @@ function CounselSlotRow({
             type="button"
             disabled={pending || slot.remaining <= 0}
             onClick={reserve}
-            className="rounded border border-neutral-300 px-2 py-0.5 text-xs hover:bg-neutral-50 disabled:opacity-40"
+            className="rounded-full border border-white/25 px-2 py-0.5 text-xs hover:bg-white/10 disabled:opacity-40"
           >
             {pending ? "신청…" : "신청"}
           </button>

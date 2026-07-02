@@ -92,7 +92,7 @@ export function StudentRoster({
       <section className="rounded-lg border border-neutral-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-neutral-700">
+            <h3 className="text-sm font-normal text-neutral-700">
               동명이인 매칭
             </h3>
             <p className="mt-1 text-xs text-neutral-400">
@@ -104,7 +104,7 @@ export function StudentRoster({
             <button
               type="submit"
               disabled={linking}
-              className="rounded-md border border-neutral-800 bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-40"
+              className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
             >
               {linking ? "매칭 중…" : "매칭 실행"}
             </button>
@@ -125,7 +125,7 @@ export function StudentRoster({
 
       {pending.length > 0 && (
         <section>
-          <h3 className="text-sm font-semibold text-amber-700">
+          <h3 className="text-sm font-normal text-amber-700">
             상속 보류 큐 ({pending.length})
           </h3>
           <div className="mt-2 space-y-2">
@@ -138,7 +138,7 @@ export function StudentRoster({
 
       <section>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-neutral-700">
+          <h3 className="text-sm font-normal text-neutral-700">
             학생 ({filtered.length}/{students.length})
           </h3>
           {/* 필터(client-side, AC-C6) */}
@@ -219,7 +219,7 @@ function PendingRow({ pending }: { pending: PendingLink }) {
       className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm"
     >
       <input type="hidden" name="yearLinkId" value={pending.yearLinkId} />
-      <div className="font-medium">{pending.displayName} — 후보 선택</div>
+      <div className="font-normal">{pending.displayName} — 후보 선택</div>
       <div className="mt-2 space-y-1">
         {pending.candidates.map((c, i) => (
           <label key={c.personId} className="flex items-center gap-2 text-xs">
@@ -283,7 +283,7 @@ function StudentCard({ student }: { student: StudentRow }) {
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => setEditing((v) => !v)}
-            className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50"
+            className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10"
           >
             {editing ? "닫기" : "수정"}
           </button>
@@ -293,7 +293,7 @@ function StudentCard({ student }: { student: StudentRow }) {
               <button
                 type="submit"
                 disabled={issuing}
-                className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50 disabled:opacity-40"
+                className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10 disabled:opacity-40"
               >
                 {issuing
                   ? "발급…"
@@ -372,7 +372,7 @@ function StudentCard({ student }: { student: StudentRow }) {
             </p>
             <button
               onClick={() => copyLink(shown)}
-              className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50"
+              className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10"
             >
               {copied ? "복사됨" : "복사"}
             </button>
@@ -404,7 +404,7 @@ function StudentCard({ student }: { student: StudentRow }) {
             placeholder="역할 추가"
             className="w-24 rounded border border-neutral-200 px-2 py-0.5 text-xs"
           />
-          <button className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs hover:bg-neutral-50">
+          <button className="rounded-full border border-white/25 px-1.5 py-0.5 text-xs hover:bg-white/10">
             +
           </button>
         </form>
@@ -460,7 +460,7 @@ function InlineEdit({
       <button
         type="submit"
         disabled={busy}
-        className="rounded border border-green-600 bg-green-600 px-2 py-0.5 text-white hover:bg-green-700 disabled:opacity-40"
+        className="rounded border border-green-600 bg-green-600 px-2 py-0.5 text-white hover:bg-green-500 disabled:opacity-40"
       >
         {busy ? "저장…" : "저장"}
       </button>

@@ -93,7 +93,7 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
         </select>
         <span className="text-xs text-neutral-400">단원 {sortedUnits.length}개</span>
         <span className="ml-auto rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
-          총 차시 수 = <span className="font-semibold">{totalOrdinals}</span>
+          총 차시 수 = <span className="font-normal">{totalOrdinals}</span>
           <span className="ml-1 text-neutral-400">(세부단원 최소차시 합)</span>
         </span>
       </div>
@@ -101,7 +101,7 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
       <ExamSegmentSection subject={selected} />
 
       <section>
-        <h3 className="text-sm font-semibold text-neutral-700">세부 단원</h3>
+        <h3 className="text-sm font-normal text-neutral-700">세부 단원</h3>
         <p className="mt-1 text-xs text-neutral-400">
           6자리 코드 = 대단원(2)·중단원(2)·소단원(2). 차시 계획에서 이 코드로 단원을
           자동 채웁니다.
@@ -128,7 +128,7 @@ function ExamSegmentSection({ subject }: { subject: SubjectSemesterView }) {
   if (subject.examOrdinals.length === 0) {
     return (
       <section>
-        <h3 className="text-sm font-semibold text-neutral-700">
+        <h3 className="text-sm font-normal text-neutral-700">
           시험 구간 차시 계획
         </h3>
         <p className="mt-1 text-xs text-neutral-400">
@@ -140,13 +140,13 @@ function ExamSegmentSection({ subject }: { subject: SubjectSemesterView }) {
   }
   return (
     <section>
-      <h3 className="text-sm font-semibold text-neutral-700">
+      <h3 className="text-sm font-normal text-neutral-700">
         시험 구간 차시 계획
       </h3>
       <p className="mt-1 text-xs text-neutral-400">
         시험 구간(1회=중간 전 / 2회=기말 전)별로 진행할 차시 수와 여유 차시 수를
         입력합니다. 대표분반 차시{" "}
-        <span className="font-semibold text-neutral-600">{subject.repLength}</span>개를
+        <span className="font-normal text-neutral-600">{subject.repLength}</span>개를
         참고하세요.
       </p>
       <ul className="mt-3 space-y-3">
@@ -178,7 +178,7 @@ function ExamSegmentRow({
       <form action={action} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="subjectId" value={subjectId} />
         <input type="hidden" name="examOrdinal" value={examOrdinal} />
-        <span className="rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+        <span className="rounded bg-red-50 px-2 py-0.5 text-xs font-normal text-red-600">
           {examOrdinal === 1 ? "중간 전(1회)" : "기말 전(2회)"}
         </span>
         <label className="flex items-center gap-1 text-xs text-neutral-500">
@@ -201,7 +201,7 @@ function ExamSegmentRow({
             className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
           />
         </label>
-        <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
+        <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
           저장
         </button>
         {!state.ok && state.error && (
@@ -344,7 +344,7 @@ function UnitRow({
             defaultValue={unit?.minOrdinals ?? 1}
             className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
           />
-          <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
+          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
             {isNew ? "단원 추가" : "저장"}
           </button>
         </div>
@@ -435,7 +435,7 @@ function ExamTargetsSection({
   if (subject.examOrdinals.length === 0) {
     return (
       <section>
-        <h3 className="text-sm font-semibold text-neutral-700">시험별 목표 진도</h3>
+        <h3 className="text-sm font-normal text-neutral-700">시험별 목표 진도</h3>
         <p className="mt-1 text-xs text-neutral-400">
           세팅실 학사일정에 등록된 시험(1차/2차)이 없습니다. 시험을 등록하면 목표
           진도 범위를 지정할 수 있습니다.
@@ -445,7 +445,7 @@ function ExamTargetsSection({
   }
   return (
     <section>
-      <h3 className="text-sm font-semibold text-neutral-700">시험별 목표 진도</h3>
+      <h3 className="text-sm font-normal text-neutral-700">시험별 목표 진도</h3>
       <p className="mt-1 text-xs text-neutral-400">
         시험까지 진행할 소단원 범위(어디~어디)를 지정합니다.
       </p>
@@ -492,7 +492,7 @@ function ExamTargetRow({
       <form action={action} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="subjectId" value={subjectId} />
         <input type="hidden" name="examOrdinal" value={examOrdinal} />
-        <span className="rounded bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+        <span className="rounded bg-red-50 px-2 py-0.5 text-xs font-normal text-red-600">
           {examOrdinal}차 시험
         </span>
         <UnitSelect
@@ -508,7 +508,7 @@ function ExamTargetRow({
           units={units}
           value={existing?.toCode ?? null}
         />
-        <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
+        <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
           저장
         </button>
         {!state.ok && state.error && (
@@ -517,7 +517,7 @@ function ExamTargetRow({
       </form>
       <div className="mt-2 text-xs">
         {hasSaved ? (
-          <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
+          <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 font-normal text-emerald-700">
             저장됨: {fromLabel ?? "(미지정)"} ~ {toLabel ?? "(미지정)"}
           </span>
         ) : (

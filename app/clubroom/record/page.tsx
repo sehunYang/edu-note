@@ -23,7 +23,7 @@ export default async function ClubroomRecordPage() {
   if (!club) {
     return (
       <div>
-        <h2 className="text-lg font-semibold text-neutral-800">생기부 작성</h2>
+        <h2 className="text-lg font-normal text-neutral-800">생기부 작성</h2>
         <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           아직 개설된 동아리가 없습니다. <strong>동아리 개설</strong> 탭에서 먼저
           동아리를 만드세요.
@@ -39,7 +39,7 @@ export default async function ClubroomRecordPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-neutral-800">
+      <h2 className="text-lg font-normal text-neutral-800">
         생기부 작성 — {club.name}
       </h2>
       <p className="mt-1 text-sm text-neutral-500">

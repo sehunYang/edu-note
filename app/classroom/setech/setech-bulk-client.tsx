@@ -117,7 +117,7 @@ export function SetechBulkClient({
     <div className="mt-5 space-y-6">
       {/* 과목·분반 선택 + 내보내기 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-semibold text-neutral-700">① 원천자료 내보내기</h3>
+        <h3 className="text-sm font-normal text-neutral-700">① 원천자료 내보내기</h3>
         <div className="mt-3 flex flex-wrap gap-2">
           <select
             value={subjectId}
@@ -148,7 +148,7 @@ export function SetechBulkClient({
           <button
             onClick={onExport}
             disabled={pending || !subjectId}
-            className="rounded bg-neutral-800 px-3 py-1 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+            className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-sm text-white hover:bg-white/10 disabled:opacity-50"
           >
             원천 CSV 다운로드
           </button>
@@ -158,7 +158,7 @@ export function SetechBulkClient({
       {/* 결과 업로드 */}
       <section className="rounded-lg border border-neutral-200 p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-neutral-700">
+          <h3 className="text-sm font-normal text-neutral-700">
             ② 코워크 결과 CSV 업로드(학번+과목 매칭)
           </h3>
           <button
@@ -166,7 +166,7 @@ export function SetechBulkClient({
             onClick={() =>
               downloadCsv(bulkResultCsvExample(), "세특_업로드_예시.csv")
             }
-            className="rounded border border-neutral-300 bg-white px-2 py-1 text-xs hover:bg-neutral-50"
+            className="rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs hover:bg-white/10"
           >
             ⬇ 예시 CSV 다운로드
           </button>
@@ -182,7 +182,7 @@ export function SetechBulkClient({
           <div className="mt-3 space-y-2 text-xs">
             {importResult.saved.length > 0 && (
               <div className="rounded border border-emerald-200 bg-emerald-50 p-2">
-                <p className="font-medium text-emerald-800">저장 {importResult.saved.length}</p>
+                <p className="font-normal text-emerald-800">저장 {importResult.saved.length}</p>
                 {importResult.saved
                   .filter((s) => s.warnings.length > 0)
                   .map((s, i) => (
@@ -194,7 +194,7 @@ export function SetechBulkClient({
             )}
             {importResult.rejected.length > 0 && (
               <div className="rounded border border-red-200 bg-red-50 p-2">
-                <p className="font-medium text-red-700">거부 {importResult.rejected.length}(바이트 초과·빈 내용)</p>
+                <p className="font-normal text-red-700">거부 {importResult.rejected.length}(바이트 초과·빈 내용)</p>
                 {importResult.rejected.map((r, i) => (
                   <p key={i} className="text-red-600">
                     ⛔ {r.sid} {r.subject} — {r.reasons.join("; ")}
@@ -204,7 +204,7 @@ export function SetechBulkClient({
             )}
             {importResult.skipped.length > 0 && (
               <div className="rounded border border-neutral-200 bg-neutral-50 p-2">
-                <p className="font-medium text-neutral-600">스킵 {importResult.skipped.length}(미매칭·형식오류)</p>
+                <p className="font-normal text-neutral-600">스킵 {importResult.skipped.length}(미매칭·형식오류)</p>
                 {importResult.skipped.map((s, i) => (
                   <p key={i} className="text-neutral-500">
                     {s.sid} {s.subject} — {s.reason}
@@ -228,7 +228,7 @@ export function SetechBulkClient({
 
       {/* 저장된 초안 */}
       <section>
-        <h3 className="text-sm font-semibold text-neutral-700">저장된 초안 {drafts.length}</h3>
+        <h3 className="text-sm font-normal text-neutral-700">저장된 초안 {drafts.length}</h3>
         {drafts.length === 0 ? (
           <p className="mt-2 text-sm text-neutral-400">아직 저장된 세특 초안이 없습니다.</p>
         ) : (
@@ -316,7 +316,7 @@ function ExtraNoteForm({
 
   return (
     <section className="rounded-lg border border-neutral-200 p-4">
-      <h3 className="text-sm font-semibold text-neutral-700">학생 추가 입력(자율 탐구 등)</h3>
+      <h3 className="text-sm font-normal text-neutral-700">학생 추가 입력(자율 탐구 등)</h3>
       <p className="mt-1 text-xs text-neutral-400">
         세특 원천자료에 합류합니다. 과목을 고르면 그 과목 수강생만 표시됩니다. 점수가
         아닌 활동 서술을 기입하세요.
@@ -362,7 +362,7 @@ function ExtraNoteForm({
       <button
         onClick={onSave}
         disabled={pending || !effectiveStudentId || !body.trim()}
-        className="mt-2 rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+        className="mt-2 rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
       >
         추가 입력 저장
       </button>
@@ -370,7 +370,7 @@ function ExtraNoteForm({
 
       {/* AC-4.3 저장된 추가 입력 목록(수정/삭제) */}
       <div className="mt-4 border-t border-neutral-100 pt-3">
-        <h4 className="text-xs font-semibold text-neutral-600">
+        <h4 className="text-xs font-normal text-neutral-600">
           저장된 추가 입력 {extraNotes.length}
         </h4>
         {extraNotes.length === 0 ? (

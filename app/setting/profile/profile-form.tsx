@@ -53,7 +53,7 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
     <div className="mt-5 space-y-6">
       {/* 학교 해석 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-semibold text-neutral-700">학교 코드 해석</h3>
+        <h3 className="text-sm font-normal text-neutral-700">학교 코드 해석</h3>
         <p className="mt-1 text-xs text-neutral-400">
           학교명을 한 번만 입력하면 NEIS(학사일정)와 컴시간(시간표) 식별자를 함께
           찾습니다. 못 찾아도 수동 입력으로 진행할 수 있습니다.
@@ -69,7 +69,7 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
           <button
             type="submit"
             disabled={resolving || schoolName.trim().length === 0}
-            className="rounded-md border border-neutral-800 bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-40"
+            className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
           >
             {resolving ? "검색 중…" : "검색"}
           </button>
@@ -193,7 +193,7 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
           <button
             type="submit"
             disabled={saving}
-            className="rounded-md border border-green-600 bg-green-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-40"
+            className="rounded-md border border-green-600 bg-green-600 px-4 py-1.5 text-sm font-normal text-white hover:bg-green-500 disabled:opacity-40"
           >
             {saving ? "저장 중…" : "저장"}
           </button>
@@ -218,7 +218,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium text-neutral-600">
+      <span className="mb-1 block text-xs font-normal text-neutral-600">
         {label}
       </span>
       {children}
@@ -246,7 +246,7 @@ function ProviderPicker({
 }) {
   return (
     <div className="rounded border border-neutral-200 p-3">
-      <div className="text-xs font-semibold text-neutral-700">{label}</div>
+      <div className="text-xs font-normal text-neutral-700">{label}</div>
       {status === "none" && (
         <p className="mt-1 text-xs text-neutral-400">
           {error ? `검색 실패(${error}) — 수동 입력 유지` : "검색 결과 없음 — 수동 입력 유지"}
@@ -265,7 +265,7 @@ function ProviderPicker({
               className={`block w-full rounded border px-2 py-1 text-left text-xs ${
                 o.selected
                   ? "border-green-500 bg-green-50 text-green-800"
-                  : "border-neutral-200 hover:bg-neutral-50"
+                  : "border-neutral-200 hover:bg-white/5"
               }`}
             >
               {o.selected ? "✓ " : ""}

@@ -23,7 +23,7 @@ export function HomeroomTimetableSync() {
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h4 className="font-semibold">담임반 시간표 동기화</h4>
+          <h4 className="font-normal">담임반 시간표 동기화</h4>
           <p className="mt-1 text-xs text-neutral-500">
             컴시간에서 담임반 시간표를 가져와 학생 안내 페이지에 표시합니다.
           </p>
@@ -31,7 +31,7 @@ export function HomeroomTimetableSync() {
         <button
           type="submit"
           disabled={pending}
-          className="shrink-0 rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-60"
+          className="shrink-0 rounded-full border border-white/25 bg-transparent px-4 py-2 text-sm font-normal text-white hover:bg-white/10 disabled:opacity-60"
         >
           {pending ? "동기화 중…" : "담임반 동기화"}
         </button>

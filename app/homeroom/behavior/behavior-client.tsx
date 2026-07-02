@@ -77,7 +77,7 @@ export function BehaviorClient({
       >
         <div className="grid gap-3 md:grid-cols-2">
           <div>
-            <label className="text-xs font-semibold text-neutral-600">
+            <label className="text-xs font-normal text-neutral-600">
               학생 (담임반)
             </label>
             <select
@@ -95,7 +95,7 @@ export function BehaviorClient({
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-neutral-600">기록일</label>
+            <label className="text-xs font-normal text-neutral-600">기록일</label>
             <input
               type="date"
               value={notedOn}
@@ -122,14 +122,14 @@ export function BehaviorClient({
         <button
           type="submit"
           disabled={pending || !studentId || !body.trim()}
-          className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+          className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
         >
           {pending ? "저장 중…" : "행특 저장"}
         </button>
       </form>
 
       <section>
-        <h3 className="text-xs font-semibold text-neutral-500">
+        <h3 className="text-xs font-normal text-neutral-500">
           최근 행특 {recent.length}
         </h3>
         <ul className="mt-2 space-y-2">
@@ -203,14 +203,14 @@ function BehaviorRow({ note }: { note: RecentBehaviorNote }) {
             type="button"
             onClick={onSave}
             disabled={pending}
-            className="rounded bg-neutral-800 px-3 py-1 text-xs text-white hover:bg-neutral-700 disabled:opacity-50"
+            className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10 disabled:opacity-50"
           >
             저장
           </button>
           <button
             type="button"
             onClick={() => setEditing(false)}
-            className="rounded border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-50"
+            className="rounded-full border border-white/25 px-3 py-1 text-xs hover:bg-white/10"
           >
             취소
           </button>

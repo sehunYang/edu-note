@@ -45,7 +45,7 @@ export default async function HomeroomBehaviorPage({
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-neutral-800">행동특성 기록 ({year})</h2>
+      <h2 className="text-lg font-normal text-neutral-800">행동특성 기록 ({year})</h2>
       <p className="mt-1 text-sm text-neutral-500">
         담임반 학생의 행동특성을 누가기록합니다(매일 16시 후 넛지).
       </p>

@@ -32,7 +32,7 @@ export default async function ClubroomLayout({
     <div className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">🎬 동아리실</h1>
+          <h1 className="text-2xl font-normal tracking-tight">🎬 동아리실</h1>
           <p className="mt-1 text-sm text-neutral-500">
             동아리 개설·부원 배정·활동 계획·활동 입력·생기부 작성을 한곳에서
             관리합니다.
@@ -51,7 +51,7 @@ export default async function ClubroomLayout({
           <Link
             key={t.href}
             href={t.href}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:border-neutral-500 hover:bg-neutral-50"
+            className="rounded-full border border-white/25 px-3 py-2 text-sm text-neutral-700 hover:border-neutral-500 hover:bg-white/10"
           >
             {t.label}
           </Link>

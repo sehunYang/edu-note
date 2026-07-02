@@ -24,7 +24,7 @@ export function GoogleLoginButton() {
     <button
       onClick={onClick}
       disabled={loading}
-      className="inline-flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium shadow-sm hover:bg-neutral-50 disabled:opacity-60"
+      className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-transparent px-5 py-2.5 text-sm font-normal hover:bg-white/10 disabled:opacity-60"
     >
       <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
         <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.5l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.4 5.4 2.5 13.3l7.9 6.2C12.2 13.7 17.6 9.5 24 9.5z" />

@@ -24,8 +24,8 @@ export function PlanStageNav({
           href={s.href}
           className={`rounded-md px-3 py-1.5 text-sm ${
             s.key === active
-              ? "bg-neutral-800 text-white"
-              : "border border-neutral-300 text-neutral-600 hover:bg-neutral-50"
+              ? "border border-white/25 bg-transparent text-white"
+              : "border border-white/25 text-neutral-600 hover:bg-white/10"
           }`}
         >
           {s.label}

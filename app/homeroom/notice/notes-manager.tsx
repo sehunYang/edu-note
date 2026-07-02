@@ -41,7 +41,7 @@ export function NotesManager({
 
   return (
     <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-      <h2 className="text-sm font-semibold text-neutral-700">교사 한마디 (다중)</h2>
+      <h2 className="text-sm font-normal text-neutral-700">교사 한마디 (다중)</h2>
       <p className="mt-1 text-xs text-neutral-400">
         여러 개를 등록하면 공개 페이지에서 순서대로 노출됩니다. 위/아래 버튼으로
         순서를 바꿀 수 있습니다.
@@ -149,7 +149,7 @@ function AllNoticeForm() {
       action={createAllTeacherNoteAction}
       className="rounded-lg border border-neutral-200 p-3"
     >
-      <h3 className="text-xs font-semibold text-neutral-700">전체 공지</h3>
+      <h3 className="text-xs font-normal text-neutral-700">전체 공지</h3>
       <p className="mt-0.5 text-[11px] text-neutral-400">
         모든 학생에게 공통으로 노출됩니다.
       </p>
@@ -160,7 +160,7 @@ function AllNoticeForm() {
           placeholder="전체 공지 내용"
           className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
-        <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
+        <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
           추가
         </button>
       </div>
@@ -185,7 +185,7 @@ function IndividualNoticeForm({ students }: { students: NoteStudentOption[] }) {
       action={bulkCreateIndividualNotesAction}
       className="rounded-lg border border-neutral-200 p-3"
     >
-      <h3 className="text-xs font-semibold text-neutral-700">개별 공지</h3>
+      <h3 className="text-xs font-normal text-neutral-700">개별 공지</h3>
       <p className="mt-0.5 text-[11px] text-neutral-400">
         선택한 학생 각자에게 같은 내용의 개별 공지가 따로 생성됩니다(이후 각각
         수정·삭제 가능).
@@ -204,7 +204,7 @@ function IndividualNoticeForm({ students }: { students: NoteStudentOption[] }) {
         />
         <button
           disabled={selected.length === 0}
-          className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-40"
+          className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
         >
           추가{selected.length > 0 && ` (${selected.length}명)`}
         </button>
@@ -252,7 +252,7 @@ function TargetPicker({
   return (
     <div className="rounded border border-neutral-100 bg-neutral-50 p-2">
       <div className="flex items-center gap-3 text-xs text-neutral-600">
-        <span className="font-medium">대상</span>
+        <span className="font-normal">대상</span>
         <label className="flex items-center gap-1">
           <input
             type="radio"
@@ -343,7 +343,7 @@ function ReorderButtons({
         <button
           disabled={isFirst}
           aria-label="위로"
-          className="rounded border border-neutral-200 px-1.5 text-xs text-neutral-500 hover:bg-neutral-50 disabled:opacity-30"
+          className="rounded border border-neutral-200 px-1.5 text-xs text-neutral-500 hover:bg-white/5 disabled:opacity-30"
         >
           ↑
         </button>
@@ -354,7 +354,7 @@ function ReorderButtons({
         <button
           disabled={isLast}
           aria-label="아래로"
-          className="rounded border border-neutral-200 px-1.5 text-xs text-neutral-500 hover:bg-neutral-50 disabled:opacity-30"
+          className="rounded border border-neutral-200 px-1.5 text-xs text-neutral-500 hover:bg-white/5 disabled:opacity-30"
         >
           ↓
         </button>

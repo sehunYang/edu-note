@@ -42,8 +42,8 @@ export function SemesterSelector({
             aria-pressed={active}
             className={`rounded px-3 py-1 text-sm ${
               active
-                ? "bg-neutral-800 text-white"
-                : "text-neutral-600 hover:bg-neutral-100"
+                ? "border border-white/25 bg-transparent text-white"
+                : "text-neutral-600 hover:bg-white/10"
             }`}
           >
             {sem}학기

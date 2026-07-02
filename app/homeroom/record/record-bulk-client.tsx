@@ -99,7 +99,7 @@ export function RecordBulkClient({
             }}
             className={`px-3 py-2 text-sm ${
               area === a.key
-                ? "border-b-2 border-neutral-800 font-semibold text-neutral-800"
+                ? "border-b-2 border-neutral-800 font-normal text-neutral-800"
                 : "text-neutral-400 hover:text-neutral-600"
             }`}
           >
@@ -110,7 +110,7 @@ export function RecordBulkClient({
 
       {/* 내보내기 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-semibold text-neutral-700">
+        <h3 className="text-sm font-normal text-neutral-700">
           ① {areaLabel} 원천자료 내보내기
         </h3>
         <p className="mt-1 text-xs text-neutral-400">
@@ -119,7 +119,7 @@ export function RecordBulkClient({
         <button
           onClick={onExport}
           disabled={pending}
-          className="mt-3 rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+          className="mt-3 rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
         >
           원천 CSV 다운로드
         </button>
@@ -127,7 +127,7 @@ export function RecordBulkClient({
 
       {/* 업로드 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-semibold text-neutral-700">
+        <h3 className="text-sm font-normal text-neutral-700">
           ② 코워크 결과 CSV 업로드(학번 매칭)
         </h3>
         <input
@@ -139,7 +139,7 @@ export function RecordBulkClient({
         />
         {skipped.length > 0 && (
           <div className="mt-3 rounded border border-neutral-200 bg-neutral-50 p-2 text-xs">
-            <p className="font-medium text-neutral-600">스킵 {skipped.length}</p>
+            <p className="font-normal text-neutral-600">스킵 {skipped.length}</p>
             {skipped.map((s, i) => (
               <p key={i} className="text-neutral-500">
                 {s.sid} — {s.reason}
@@ -153,7 +153,7 @@ export function RecordBulkClient({
 
       {/* 저장된 초안(현재 영역) */}
       <section>
-        <h3 className="text-sm font-semibold text-neutral-700">
+        <h3 className="text-sm font-normal text-neutral-700">
           저장된 {areaLabel} 초안 {areaDrafts.length}
         </h3>
         {areaDrafts.length === 0 ? (

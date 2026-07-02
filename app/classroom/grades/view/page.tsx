@@ -35,12 +35,12 @@ export default async function GradesViewPage({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-neutral-800">
+        <h2 className="text-lg font-normal text-neutral-800">
           저장 성적 테이블 · {sem}학기
         </h2>
         <Link
           href={`/classroom/grades?semester=${sem}`}
-          className="rounded border border-neutral-300 bg-white px-3 py-1 text-xs text-neutral-600 hover:bg-neutral-50"
+          className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-neutral-600 hover:bg-white/10"
         >
           ← 성적 기록
         </Link>
@@ -60,14 +60,14 @@ export default async function GradesViewPage({
               key={t.subjectId}
               className="rounded-lg border border-neutral-200 p-4"
             >
-              <h3 className="text-sm font-semibold text-neutral-700">
+              <h3 className="text-sm font-normal text-neutral-700">
                 {t.subjectName}
               </h3>
 
               {/* 지필 원점수 */}
               {(t.stored.midEnabled || t.stored.finalEnabled) && (
                 <div className="mt-3">
-                  <h4 className="text-xs font-medium text-neutral-500">지필 원점수</h4>
+                  <h4 className="text-xs font-normal text-neutral-500">지필 원점수</h4>
                   <div className="mt-1 overflow-x-auto">
                     <table className="min-w-full text-xs">
                       <thead>
@@ -111,7 +111,7 @@ export default async function GradesViewPage({
               ) : (
                 t.stored.performance.map((item) => (
                   <div key={item.item} className="mt-3">
-                    <h4 className="text-xs font-medium text-neutral-500">
+                    <h4 className="text-xs font-normal text-neutral-500">
                       수행 · {item.item}
                     </h4>
                     <div className="mt-1 overflow-x-auto">

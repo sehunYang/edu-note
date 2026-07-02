@@ -19,7 +19,7 @@ export default async function ProfileStagePage() {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold">2. 교사 기본 설정</h2>
+      <h2 className="text-lg font-normal">2. 교사 기본 설정</h2>
       <p className="mt-1 text-sm text-neutral-500">
         이름·학교명·담임여부·담임반을 설정합니다. 학교명 1회 입력으로 NEIS·컴시간
         식별자를 함께 해석합니다.

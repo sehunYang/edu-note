@@ -34,14 +34,14 @@ export default async function ActivitiesPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">활동 기입 ({year})</h1>
+        <h1 className="text-2xl font-normal tracking-tight">활동 기입 ({year})</h1>
         <Link href="/" className="text-sm text-neutral-500 hover:underline">
           ← 홈
         </Link>
       </div>
 
       <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-        <h2 className="text-sm font-semibold text-neutral-700">새 활동 기입</h2>
+        <h2 className="text-sm font-normal text-neutral-700">새 활동 기입</h2>
         <p className="mt-1 text-xs text-neutral-400">
           자율·진로 모두 해당하는 활동은 <strong>자율+진로</strong>로 선택하면 한 곳(기본:
           자율)으로 자동 배치되어 세특에 중복 들어가지 않습니다.
@@ -85,7 +85,7 @@ export default async function ActivitiesPage() {
               placeholder="활동 내용(관찰 사실 위주)"
               className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
             />
-            <button className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700">
+            <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
               기입 저장
             </button>
           </form>
@@ -93,7 +93,7 @@ export default async function ActivitiesPage() {
       </section>
 
       <section className="mt-8">
-        <h2 className="text-sm font-semibold text-neutral-700">
+        <h2 className="text-sm font-normal text-neutral-700">
           기입 {activities.length}건
         </h2>
         {activities.length === 0 ? (
@@ -108,7 +108,7 @@ export default async function ActivitiesPage() {
                   className="rounded-lg border border-neutral-200 p-3 text-sm"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">
+                    <span className="font-normal">
                       {st ? `${st.sid} ${st.name}` : "(이전 연도 학생)"}
                     </span>
                     <span className="flex items-center gap-2 text-xs text-neutral-400">

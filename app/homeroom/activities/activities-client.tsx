@@ -68,7 +68,7 @@ function StudentCheckList({
   }
   return (
     <div className="space-y-1">
-      <label className="flex items-center gap-2 text-xs font-semibold text-neutral-600">
+      <label className="flex items-center gap-2 text-xs font-normal text-neutral-600">
         <input
           type="checkbox"
           checked={allChecked}
@@ -136,7 +136,7 @@ function ActivityRow({
     return (
       <li className="rounded border border-neutral-200 p-3 text-sm">
         <div className="mb-2 flex items-center gap-2">
-          <span className="font-medium">{label}</span>
+          <span className="font-normal">{label}</span>
           <select
             value={tag}
             onChange={(e) => setTag(e.target.value as ActivityTag)}
@@ -158,14 +158,14 @@ function ActivityRow({
             type="button"
             onClick={onSave}
             disabled={pending || !body.trim()}
-            className="rounded bg-neutral-800 px-3 py-1 text-xs text-white hover:bg-neutral-700 disabled:opacity-50"
+            className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10 disabled:opacity-50"
           >
             저장
           </button>
           <button
             type="button"
             onClick={() => setEditing(false)}
-            className="rounded border border-neutral-300 px-3 py-1 text-xs hover:bg-neutral-50"
+            className="rounded-full border border-white/25 px-3 py-1 text-xs hover:bg-white/10"
           >
             취소
           </button>
@@ -245,10 +245,10 @@ function ScheduledActivitySection({
 
   return (
     <section className="space-y-3 rounded-lg border border-neutral-200 p-5">
-      <h2 className="text-sm font-semibold text-neutral-700">학사일정 자율·진로 활동</h2>
+      <h2 className="text-sm font-normal text-neutral-700">학사일정 자율·진로 활동</h2>
       <form onSubmit={onSubmit} className="space-y-3">
         <div>
-          <label className="text-xs font-semibold text-neutral-600">활동 일정</label>
+          <label className="text-xs font-normal text-neutral-600">활동 일정</label>
           <select
             value={eventId}
             onChange={(e) => setEventId(e.target.value)}
@@ -267,7 +267,7 @@ function ScheduledActivitySection({
         {selectedEvent && (
           <>
             <div>
-              <label className="text-xs font-semibold text-neutral-600">
+              <label className="text-xs font-normal text-neutral-600">
                 활동 분류
               </label>
               <div className="mt-1 flex gap-3">
@@ -287,7 +287,7 @@ function ScheduledActivitySection({
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-neutral-600">
+              <label className="text-xs font-normal text-neutral-600">
                 대상 학생 (복수 선택)
               </label>
               <div className="mt-1">
@@ -311,7 +311,7 @@ function ScheduledActivitySection({
             <button
               type="submit"
               disabled={pending || selected.size === 0 || !body.trim()}
-              className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+              className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
             >
               {pending ? "저장 중…" : `일괄 저장 (${selected.size}명)`}
             </button>
@@ -359,12 +359,12 @@ function FreeActivitySection({ students }: { students: HomeroomStudent[] }) {
 
   return (
     <section className="space-y-3 rounded-lg border border-neutral-200 p-5">
-      <h2 className="text-sm font-semibold text-neutral-700">자유 탐구/활동</h2>
+      <h2 className="text-sm font-normal text-neutral-700">자유 탐구/활동</h2>
 
       <div className="flex flex-wrap gap-4">
         {/* 공통/개별 토글 */}
         <div className="flex items-center gap-3 text-sm">
-          <span className="text-xs font-semibold text-neutral-600">기입 방식</span>
+          <span className="text-xs font-normal text-neutral-600">기입 방식</span>
           {(["common", "individual"] as const).map((m) => (
             <label key={m} className="flex items-center gap-1">
               <input
@@ -381,7 +381,7 @@ function FreeActivitySection({ students }: { students: HomeroomStudent[] }) {
 
         {/* 자율/진로 토글 */}
         <div className="flex items-center gap-3 text-sm">
-          <span className="text-xs font-semibold text-neutral-600">활동 분류</span>
+          <span className="text-xs font-normal text-neutral-600">활동 분류</span>
           {(["autonomy", "career", "both"] as ActivityTag[]).map((t) => (
             <label key={t} className="flex items-center gap-1">
               <input
@@ -410,7 +410,7 @@ function FreeActivitySection({ students }: { students: HomeroomStudent[] }) {
           <button
             type="submit"
             disabled={pending || !commonBody.trim()}
-            className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-white hover:bg-neutral-700 disabled:opacity-50"
+            className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
           >
             {pending ? "저장 중…" : `공통 저장 (${students.length}명)`}
           </button>
@@ -438,7 +438,7 @@ function FreeActivitySection({ students }: { students: HomeroomStudent[] }) {
                 type="button"
                 onClick={() => onSubmitIndividual(s.id)}
                 disabled={pending || !(individualBodies[s.id] ?? "").trim()}
-                className="shrink-0 rounded bg-neutral-800 px-2 py-1.5 text-xs text-white hover:bg-neutral-700 disabled:opacity-50"
+                className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-1.5 text-xs text-white hover:bg-white/10 disabled:opacity-50"
               >
                 저장
               </button>
@@ -474,7 +474,7 @@ export function ActivitiesClient({
       <FreeActivitySection students={students} />
 
       <section>
-        <h2 className="text-xs font-semibold text-neutral-500">
+        <h2 className="text-xs font-normal text-neutral-500">
           저장 내역 {entries.length}건
         </h2>
         {entries.length === 0 ? (

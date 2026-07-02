@@ -13,7 +13,7 @@ export function GenerateButton() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-60"
+        className="rounded-full border border-white/25 bg-transparent px-4 py-2 text-sm font-normal text-white hover:bg-white/10 disabled:opacity-60"
       >
         {pending ? "생성 중…" : "차시 생성 / 갱신"}
       </button>

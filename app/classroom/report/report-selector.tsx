@@ -50,7 +50,7 @@ export function ReportSelector({
   return (
     <div className="mt-4 grid gap-3 md:grid-cols-2">
       <div>
-        <label className="text-xs font-semibold text-neutral-600">분반</label>
+        <label className="text-xs font-normal text-neutral-600">분반</label>
         <select
           value={selectedSection}
           onChange={(e) => pushWith({ section: e.target.value })}
@@ -65,7 +65,7 @@ export function ReportSelector({
         </select>
       </div>
       <div>
-        <label className="text-xs font-semibold text-neutral-600">학생</label>
+        <label className="text-xs font-normal text-neutral-600">학생</label>
         <select
           value={selectedStudent}
           onChange={(e) => pushWith({ student: e.target.value })}

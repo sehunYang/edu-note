@@ -99,7 +99,7 @@ export default async function AttendancePage({
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-neutral-800">출결 관리</h2>
+      <h2 className="text-lg font-normal text-neutral-800">출결 관리</h2>
 
       <nav className="mt-4 flex flex-wrap gap-1 border-b border-neutral-200 text-sm">
         {VIEWS.map((v) => (
@@ -108,7 +108,7 @@ export default async function AttendancePage({
             href={`/homeroom/attendance?view=${v.key}`}
             className={`-mb-px border-b-2 px-3 py-2 ${
               view === v.key
-                ? "border-neutral-800 font-semibold text-neutral-800"
+                ? "border-neutral-800 font-normal text-neutral-800"
                 : "border-transparent text-neutral-500 hover:text-neutral-700"
             }`}
           >
@@ -128,13 +128,13 @@ export default async function AttendancePage({
               defaultValue={date}
               className="rounded border border-neutral-300 px-2 py-1"
             />
-            <button className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
+            <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
               이동
             </button>
           </form>
 
           <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-            <h2 className="text-sm font-semibold text-neutral-700">출결 입력 ({date})</h2>
+            <h2 className="text-sm font-normal text-neutral-700">출결 입력 ({date})</h2>
             {students.length === 0 ? (
               <p className="mt-3 text-sm text-neutral-400">
                 먼저{" "}
@@ -152,7 +152,7 @@ export default async function AttendancePage({
           </section>
 
           <section className="mt-8">
-            <h2 className="text-sm font-semibold text-neutral-700">
+            <h2 className="text-sm font-normal text-neutral-700">
               {date} 출결 {todayRecords.length}건
             </h2>
             <EditableAttendanceTable rows={todayRecords} />
@@ -162,7 +162,7 @@ export default async function AttendancePage({
 
       {view === "fieldtrip" && (
         <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-          <h2 className="text-sm font-semibold text-neutral-700">교외체험학습 사후보고서</h2>
+          <h2 className="text-sm font-normal text-neutral-700">교외체험학습 사후보고서</h2>
           <p className="mt-1 text-xs text-neutral-400">
             기간(시작~종료, 종료 생략=당일) 입력 시 수업일마다 인정결석이 자동 생성됩니다.
             체험 종료일 기준 수업일 마감으로 미제출 시 티어가 오릅니다.
@@ -205,11 +205,11 @@ export default async function AttendancePage({
                 </option>
               ))}
             </select>
-            <button className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
+            <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
               조회
             </button>
           </form>
-          <h2 className="mt-4 text-sm font-semibold text-neutral-700">
+          <h2 className="mt-4 text-sm font-normal text-neutral-700">
             {month} 출결 {monthRows.length}건
           </h2>
           <EditableAttendanceTable rows={monthRows} withDate />
@@ -246,13 +246,13 @@ export default async function AttendancePage({
                 </option>
               ))}
             </select>
-            <button className="rounded border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50">
+            <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
               검색
             </button>
           </form>
           {selectedStudentId ? (
             <>
-              <h2 className="mt-4 text-sm font-semibold text-neutral-700">
+              <h2 className="mt-4 text-sm font-normal text-neutral-700">
                 출결 {studentRows.length}건
               </h2>
               <EditableAttendanceTable rows={studentRows} withDate />
@@ -265,7 +265,7 @@ export default async function AttendancePage({
 
       {view === "unsubmitted" && (
         <section className="mt-6">
-          <h2 className="text-sm font-semibold text-neutral-700">
+          <h2 className="text-sm font-normal text-neutral-700">
             미제출 신고서 {unsubmitted.length}건
           </h2>
           <UnsubmittedTable rows={unsubmitted} />
