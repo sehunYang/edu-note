@@ -17,8 +17,9 @@ export async function getCurrentUser() {
 export async function getOwnerId(): Promise<string> {
   const user = await getCurrentUser();
   if (!user) throw new Error("로그인이 필요합니다.");
+  // fail-closed: ALLOWED_EMAIL 미설정이면 거부 (미들웨어와 동일 정책).
   const allowed = process.env.ALLOWED_EMAIL;
-  if (allowed && user.email !== allowed) {
+  if (!allowed || user.email !== allowed) {
     throw new Error("허용되지 않은 계정입니다.");
   }
   return user.id;

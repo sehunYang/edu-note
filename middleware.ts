@@ -45,6 +45,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|login|auth|p/|api/health|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // 제외 프리픽스는 세그먼트 경계((?:/|$))로 끝나야 한다 — 안 그러면
+    // /loginfoo, /authoring 같은 향후 경로가 의도치 않게 보호에서 빠진다.
+    "/((?!_next/static|_next/image|favicon.ico|login(?:/|$)|auth(?:/|$)|p/|api/health(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

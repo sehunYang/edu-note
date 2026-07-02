@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"/c/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build > /dev/null 2>&1; echo \"build exit=$?\"",
-    "testCommand": "npm test",
+    "buildCommand": "cd \"/c/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local node_modules/vitest/vitest.mjs run 2>&1 | tail -5 && npm run build > /dev/null 2>&1; echo \"build exit=$?\"",
+    "testCommand": "cd \"/c/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && RUN_DB_ITEST=1 node --env-file=.env.local node_modules/vitest/vitest.mjs run 2>&1 | tail -5 && npm run build > /dev/null 2>&1; echo \"build exit=$?\"",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {

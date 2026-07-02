@@ -1,6 +1,6 @@
 import "server-only";
 import postgres from "postgres";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "@/lib/db/schema";
 import {
@@ -75,6 +75,8 @@ export type StudentWriteResult =
 /**
  * 학생 선택과목 자가매핑(토큰 스코프). 토큰의 학생 본인 (weekday, period) 행만 upsert.
  */
+const SUBJECT_MAX = 50;
+
 export async function saveElectiveMapping(
   token: string,
   weekday: number,
@@ -83,7 +85,18 @@ export async function saveElectiveMapping(
 ): Promise<StudentWriteResult> {
   const subject = mappedSubject.trim();
   if (!subject) return { ok: false, message: "과목이 비어 있습니다." };
-  if (!Number.isInteger(weekday) || !Number.isInteger(period)) {
+  if (subject.length > SUBJECT_MAX) {
+    return { ok: false, message: `과목명은 ${SUBJECT_MAX}자 이내여야 합니다.` };
+  }
+  // weekday 1=월..7=일(schema/classes.ts), period 는 0(조회)~10 상한(미인증 표면 방어).
+  if (
+    !Number.isInteger(weekday) ||
+    !Number.isInteger(period) ||
+    weekday < 1 ||
+    weekday > 7 ||
+    period < 0 ||
+    period > 10
+  ) {
     return { ok: false, message: "요일/교시가 올바르지 않습니다." };
   }
   const db = publicDb();
@@ -140,10 +153,22 @@ export async function reserveCounsel(
     await reserveCounselSlot(db, resolved.ownerId, slotId, resolved.studentYearId);
     return { ok: true };
   } catch (e) {
-    // 정원 초과·중복 예약 등은 안내 메시지로.
-    return { ok: false, message: e instanceof Error ? e.message : "신청 실패" };
+    // 정원 초과·중복 예약 등 의도된 안내만 통과. DB 내부 오류 문구는
+    // 미인증 사용자에게 노출하지 않는다(정보 누출 방지).
+    const msg = e instanceof Error ? e.message : "";
+    return {
+      ok: false,
+      message: COUNSEL_USER_MESSAGES.has(msg) ? msg : "신청 실패",
+    };
   }
 }
+
+/** reserveCounselSlot(lib/db/queries/counseling.ts)이 던지는 사용자 안내 메시지. */
+const COUNSEL_USER_MESSAGES = new Set([
+  "슬롯을 찾을 수 없습니다.",
+  "이미 예약됨",
+  "정원 초과",
+]);
 
 /**
  * 상담 예약 취소 요청(토큰 스코프, AC-6.7). 본인 확정 예약의 취소를 '요청'만 한다
@@ -193,6 +218,7 @@ export async function requestCounselCancel(
 // 다른 학생의 메모에는 횡적으로 접근할 수 없다.
 
 const MEMO_BODY_MAX = 2000;
+const MEMO_COUNT_MAX = 500; // 학생당 상한 — 미인증 표면의 무한 insert 방지
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -232,6 +258,21 @@ export async function saveStudentMemo(
           ),
         );
     } else {
+      const [{ cnt }] = await db
+        .select({ cnt: count() })
+        .from(schema.studentCalendarMemos)
+        .where(
+          eq(
+            schema.studentCalendarMemos.studentYearId,
+            resolved.studentYearId,
+          ),
+        );
+      if (Number(cnt) >= MEMO_COUNT_MAX) {
+        return {
+          ok: false,
+          message: `메모는 ${MEMO_COUNT_MAX}개까지 저장할 수 있습니다.`,
+        };
+      }
       await db.insert(schema.studentCalendarMemos).values({
         studentYearId: resolved.studentYearId,
         date,

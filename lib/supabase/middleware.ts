@@ -37,13 +37,15 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // fail-closed: ALLOWED_EMAIL 미설정이면 전면 차단. (미설정 시 아무 계정이나
+  // 통과시키는 fail-open 은 env 누락 한 번으로 조용히 전체 개방되는 구조였음)
   const allowed = process.env.ALLOWED_EMAIL;
-  const authorized = !!user && (!allowed || user.email === allowed);
+  const authorized = !!user && !!allowed && user.email === allowed;
 
   if (!authorized) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    if (user && allowed && user.email !== allowed) {
+    if (user && user.email !== allowed) {
       url.searchParams.set("error", "forbidden");
     }
     return NextResponse.redirect(url);
