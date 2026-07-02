@@ -47,7 +47,7 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"/c/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && tail -5 \"C:\\Users\\Sehun\\AppData\\Local\\Temp\\claude\\C--Users-Sehun-Desktop-Private-Files-Dev-Edu-Note\\6b9daba7-8ffa-4b89-89fc-d97c730c04d8\\tasks\\b8g6u7tu3.output\" && npm run build > /dev/null 2>&1; echo \"exit=$?\"",
+    "buildCommand": "cd \"/c/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build > /dev/null 2>&1; echo \"build exit=$?\"",
     "testCommand": "npm test",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
@@ -241,8 +241,8 @@
     },
     {
       "path": "lib\\public\\get-public-page.ts",
-      "accessCount": 14,
-      "lastAccessed": 1781667898502,
+      "accessCount": 15,
+      "lastAccessed": 1783010235774,
       "type": "file"
     },
     {

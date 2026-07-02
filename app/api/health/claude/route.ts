@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getOwnerId } from "@/lib/auth/owner";
 import { getClaudeClient, CLAUDE_MODELS } from "@/lib/integrations/claude";
 
 /**
@@ -15,6 +16,14 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  // 미들웨어 matcher 가 /api/health 를 제외하므로 이 라우트는 자체 가드가 필수다.
+  // 무인증 호출 1건 = Anthropic API 실호출 1건(비용)이므로 owner 외 전면 차단.
+  try {
+    await getOwnerId();
+  } catch {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   const startedAt = Date.now();
   try {
     const client = getClaudeClient();
