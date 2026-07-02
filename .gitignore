@@ -33,3 +33,6 @@ yarn-error.log*
 
 # OMC 상태 (로컬 전용)
 /.omc/state/
+
+.vercel
+.env*
