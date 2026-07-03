@@ -1,6 +1,7 @@
 "use client";
 import { useActionState } from "react";
 import { generateAllAction, type GenState } from "./actions";
+import { Button } from "@/app/ui/button";
 
 /** 차시 생성/갱신 버튼 (계획 §4 B). 결과를 옆에 표시. */
 export function GenerateButton() {
@@ -10,13 +11,13 @@ export function GenerateButton() {
   );
   return (
     <form action={action} className="flex items-center gap-3">
-      <button
+      <Button
         type="submit"
         disabled={pending}
-        className="rounded-full border border-white/25 bg-transparent px-4 py-2 text-sm font-normal text-white hover:bg-white/10 disabled:opacity-60"
+        className="px-4 py-2 text-sm font-normal disabled:opacity-60"
       >
         {pending ? "생성 중…" : "차시 생성 / 갱신"}
-      </button>
+      </Button>
       {state && state.ok && (
         <span className="text-sm text-green-700">
           ✅ {state.sections}개 분반 · 신규 {state.generated}차시

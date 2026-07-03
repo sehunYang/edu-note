@@ -10,6 +10,7 @@ import {
 } from "../actions";
 import type { CalendarEventAttrView } from "@/lib/db/queries";
 import type { EventKind } from "@/lib/domain/calendar-keywords";
+import { Button } from "@/app/ui/button";
 
 const PAGE_SIZE = 20;
 
@@ -95,13 +96,13 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
             </p>
           </div>
           <form action={sync}>
-            <button
+            <Button
               type="submit"
               disabled={syncing}
-              className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
+              className="px-3 py-1.5 text-sm disabled:opacity-40"
             >
               {syncing ? "동기화 중…" : "동기화"}
-            </button>
+            </Button>
           </form>
         </div>
         {syncState && syncState.ok && (
@@ -128,13 +129,13 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
           </h3>
           <form action={save}>
             <input type="hidden" name="updates" value={updatesJson} />
-            <button
+            <Button
               type="submit"
               disabled={saving || events.length === 0}
-              className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
+              className="px-3 py-1.5 text-sm disabled:opacity-40"
             >
               {saving ? "저장 중…" : "일괄 저장"}
-            </button>
+            </Button>
           </form>
         </div>
         {saveState && saveState.ok && (

@@ -9,6 +9,7 @@ import {
 import { sixDigitCode, parseSixDigit } from "@/lib/domain/lesson-unit";
 import { Paginator } from "@/lib/ui/paginator";
 import { paginate, DEFAULT_PAGE_SIZE } from "@/lib/db/pagination";
+import { Button } from "@/app/ui/button";
 
 /**
  * 차시 계획 클라이언트 에디터 (QC v4 US-2, AC-1.6~1.10). 과목 선택 → 차시 1..N 행.
@@ -288,14 +289,14 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-neutral-400">차시 {rowCount}개</span>
-        <button
+        <Button
           type="button"
           onClick={() => save(false)}
           disabled={pending}
-          className="rounded-full border border-white/25 bg-transparent px-4 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+          className="px-4 py-1.5 text-sm"
         >
           {pending ? "저장 중…" : "일괄 저장"}
-        </button>
+        </Button>
       </div>
 
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}
@@ -387,11 +388,11 @@ function SessionRow({
             여유차시
           </span>
         )}
-        <button
+        <Button
           type="button"
           onClick={() => onToggleSlack(!isSlack)}
           disabled={slackPending}
-          className="ml-auto rounded-full border border-white/25 px-2 py-0.5 text-xs hover:bg-white/10 disabled:opacity-50"
+          className="ml-auto px-2 py-0.5 text-xs"
           title={
             isSlack
               ? "여유차시를 해제하고 이후 내용을 앞으로 당깁니다."
@@ -399,7 +400,7 @@ function SessionRow({
           }
         >
           {isSlack ? "여유차시 해제" : "여유차시로 등록"}
-        </button>
+        </Button>
       </div>
 
       <div className="mt-2 flex items-center gap-2">
@@ -471,22 +472,22 @@ function ExceedModal({
           ))}
         </ul>
         <div className="mt-4 flex justify-end gap-2">
-          <button
+          <Button
             type="button"
             onClick={onCancel}
             disabled={pending}
-            className="rounded-full border border-white/25 px-3 py-1.5 text-sm text-neutral-600 hover:bg-white/10 disabled:opacity-50"
+            className="px-3 py-1.5 text-sm text-neutral-600"
           >
             취소
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onConfirm}
             disabled={pending}
-            className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+            className="px-3 py-1.5 text-sm"
           >
             네
-          </button>
+          </Button>
         </div>
       </div>
     </div>

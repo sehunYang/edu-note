@@ -8,6 +8,7 @@ import {
   deleteNoticeEventAction,
 } from "./actions";
 import type { NoticeEventRow } from "@/lib/db/queries";
+import { Button } from "@/app/ui/button";
 
 const PAGE_SIZE = 10;
 
@@ -52,9 +53,9 @@ export function EventsManager({
             placeholder="공지/할 일 제목"
             className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
           />
-          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
+          <Button className="px-3 py-1.5 text-sm">
             추가
-          </button>
+          </Button>
         </div>
         <textarea
           name="content"

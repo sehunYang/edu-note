@@ -2,6 +2,7 @@
 import { useActionState } from "react";
 import { saveFixedClassesAction, type FixedClassState } from "./actions";
 import type { GradeClassOffering } from "@/lib/db/queries";
+import { Button } from "@/app/ui/button";
 
 /**
  * 고정반 설정 패널 (QC v3 Part B AC-10.3). 담임 학년의 (반,과목) 제공목록을 체크박스로
@@ -64,12 +65,12 @@ export function FixedClassPanel({
               );
             })}
           </ul>
-          <button
+          <Button
             disabled={saving}
-            className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+            className="px-3 py-1.5 text-sm"
           >
             {saving ? "저장 중…" : "고정반 저장"}
-          </button>
+          </Button>
           {state?.ok ? (
             <p className="text-xs text-green-600">{state.saved}개 과목을 저장했습니다.</p>
           ) : state && !state.ok ? (

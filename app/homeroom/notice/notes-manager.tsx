@@ -10,6 +10,7 @@ import {
   reorderTeacherNoteAction,
 } from "./actions";
 import type { TeacherNoteRow } from "@/lib/db/queries";
+import { Button } from "@/app/ui/button";
 
 /** 공개 페이지 대상 학생 옵션(학번 라벨). */
 export interface NoteStudentOption {
@@ -160,9 +161,9 @@ function AllNoticeForm() {
           placeholder="전체 공지 내용"
           className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
-        <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
+        <Button className="px-3 py-1.5 text-sm">
           추가
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -202,12 +203,12 @@ function IndividualNoticeForm({ students }: { students: NoteStudentOption[] }) {
           placeholder="개별 공지 내용"
           className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
-        <button
+        <Button
           disabled={selected.length === 0}
-          className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
+          className="px-3 py-1.5 text-sm disabled:opacity-40"
         >
           추가{selected.length > 0 && ` (${selected.length}명)`}
-        </button>
+        </Button>
       </div>
 
       <div className="mt-2 rounded border border-neutral-100 bg-neutral-50 p-2">

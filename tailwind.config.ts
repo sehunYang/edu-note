@@ -28,6 +28,7 @@ const config: Config = {
         twilight: "#c4b5fd",
         breeze: "#a0c3ec",
         midnight: "#0d1726",
+        glow: "rgba(255,255,255,0.06)",
         neutral: {
           50: "#131418",
           100: "#232529",
@@ -217,6 +218,23 @@ const config: Config = {
         "4xl": ["2.5rem", { lineHeight: "2.75rem", letterSpacing: "-0.025em" }],
         "5xl": ["3rem", { lineHeight: "1", letterSpacing: "-0.025em" }],
         "6xl": ["4rem", { lineHeight: "1", letterSpacing: "-0.03em" }],
+      },
+      keyframes: {
+        "fade-in-up": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "scale-in": {
+          from: { opacity: "0", transform: "scale(0.96)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
+      },
+      animation: {
+        "fade-in-up": "fade-in-up 180ms ease-out both",
+        "scale-in": "scale-in 150ms ease-out both",
+      },
+      transitionDuration: {
+        "120": "120ms",
       },
     },
   },

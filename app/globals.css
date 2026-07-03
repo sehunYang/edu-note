@@ -35,6 +35,42 @@ body {
   ::selection {
     background: rgba(255, 255, 255, 0.2);
   }
+
+  button {
+    transition: transform 120ms ease, background-color 150ms ease,
+      border-color 150ms ease;
+  }
+
+  button:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.6);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+@layer utilities {
+  /* Vercel식 절제된 상단 라디얼 글로우 — 브랜드 no-shadow 유지, 배경 그라디언트만. */
+  .hero-glow {
+    background-image: radial-gradient(
+      ellipse 80% 40% at 50% 0%,
+      rgba(255, 255, 255, 0.06),
+      transparent 70%
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Print pages must stay legible on paper: force a light rendering. */
@@ -46,6 +82,8 @@ body {
     background-color: transparent !important;
     color: #111 !important;
     border-color: #bbb !important;
+    animation: none !important;
+    transition: none !important;
   }
   body {
     background: #fff !important;

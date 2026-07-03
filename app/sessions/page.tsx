@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/queries";
 import { GenerateButton } from "./generate-button";
 import { setBoundaryAction, setStatusAction } from "./actions";
+import { Button } from "@/app/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -90,9 +91,9 @@ export default async function SessionsPage() {
                       defaultValue={subject.boundary ?? ""}
                       className="rounded border border-neutral-300 px-2 py-1"
                     />
-                    <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
+                    <Button className="px-2 py-1 text-xs">
                       저장
-                    </button>
+                    </Button>
                   </form>
                 </div>
 

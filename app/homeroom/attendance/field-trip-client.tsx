@@ -4,6 +4,7 @@ import { Paginator } from "@/lib/ui/paginator";
 import { paginate } from "@/lib/db/pagination";
 import { addFieldTripAction, toggleFieldTripAction } from "./actions";
 import type { FieldTripRow } from "@/lib/db/queries";
+import { Button } from "@/app/ui/button";
 
 /**
  * 교외체험학습 사후보고서 (QC v4 US-4, AC-4.2/4.6/4.7).
@@ -77,9 +78,9 @@ export function FieldTripSection({
             name="endDate"
             className="rounded border border-neutral-300 px-2 py-1 text-sm"
           />
-          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-sm text-white hover:bg-white/10">
+          <Button className="px-3 py-1 text-sm">
             체험 추가
-          </button>
+          </Button>
         </form>
       )}
 

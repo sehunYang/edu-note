@@ -8,6 +8,7 @@ import {
   deleteMemoAction,
 } from "./actions";
 import type { TodayMemoRow } from "@/lib/db/queries";
+import { Button } from "@/app/ui/button";
 
 /**
  * 오늘의 학교 학사일정 캘린더 (QC v5 c7 B.3/B.4). 다가오는 학사일정을 월간 캘린더로
@@ -143,24 +144,24 @@ export function EventsCalendar({
     <section className="rounded-lg border border-neutral-200 p-4 md:col-span-2">
       <h2 className="text-sm font-normal text-neutral-700">학사일정 · 상담 · 메모</h2>
       <div className="mb-2 mt-2 flex items-center justify-between text-sm">
-        <button
+        <Button
           type="button"
           onClick={() => shift(-1)}
-          className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
+          className="px-2 py-0.5"
         >
           ‹
-        </button>
+        </Button>
         <span className="font-normal">
           {month.year}년 {month.month + 1}월
           {loading && <span className="ml-2 text-xs text-neutral-400">불러오는 중…</span>}
         </span>
-        <button
+        <Button
           type="button"
           onClick={() => shift(1)}
-          className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
+          className="px-2 py-0.5"
         >
           ›
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-7 gap-px text-center text-xs">
         {WK.map((w) => (
@@ -351,14 +352,14 @@ function DayDetailModal({
                         onChange={(e) => setEditText(e.target.value)}
                         className="min-w-0 flex-1 rounded border border-neutral-300 px-1.5 py-0.5 text-sm"
                       />
-                      <button
+                      <Button
                         type="button"
                         onClick={saveEdit}
                         disabled={pending}
-                        className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-0.5 text-xs text-white hover:bg-white/10 disabled:opacity-50"
+                        className="shrink-0 px-2 py-0.5 text-xs"
                       >
                         저장
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <>
@@ -402,14 +403,14 @@ function DayDetailModal({
               placeholder="일정/메모 입력"
               className="min-w-0 flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
             />
-            <button
+            <Button
               type="button"
               onClick={add}
               disabled={pending || !draft.trim()}
-              className="shrink-0 rounded-full border border-white/25 bg-transparent px-3 py-1 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+              className="shrink-0 px-3 py-1 text-sm"
             >
               일정 추가하기
-            </button>
+            </Button>
           </div>
         </div>
       </div>

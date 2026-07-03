@@ -2,6 +2,7 @@ import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { getOwnerClub } from "@/lib/db/queries";
 import { createClubAction, deleteClubAction } from "./actions";
+import { Button } from "@/app/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -53,9 +54,9 @@ export default async function ClubroomCreatePage() {
               placeholder="동아리명"
               className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
             />
-            <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
+            <Button className="px-3 py-1.5 text-sm">
               만들기
-            </button>
+            </Button>
           </form>
         </section>
       )}

@@ -7,6 +7,7 @@ import type {
   CounselSlotRow,
   CounselReservationRow,
 } from "@/lib/db/queries";
+import { Button } from "@/app/ui/button";
 
 /**
  * 상담실 목록 클라이언트 (QC v4 US-8, AC-8.2). 서버 컴포넌트의 슬롯·상담기록
@@ -147,9 +148,9 @@ export function CounselSlotList({
                       </option>
                     ))}
                   </select>
-                  <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
+                  <Button className="px-2 py-1 text-xs">
                     예약 등록
-                  </button>
+                  </Button>
                 </form>
               )}
             </li>
@@ -254,9 +255,9 @@ export function CounselLogList({
                     rows={3}
                     className="w-full rounded border border-neutral-300 px-3 py-2 text-xs"
                   />
-                  <button className="rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10">
+                  <Button className="px-2 py-1 text-xs">
                     저장
-                  </button>
+                  </Button>
                 </form>
               </details>
             </li>

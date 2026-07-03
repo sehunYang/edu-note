@@ -5,6 +5,7 @@ import {
   reconcileClubActivitySessions,
 } from "@/lib/db/queries";
 import { reconcileAction, updatePlanAction } from "./actions";
+import { Button } from "@/app/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -40,9 +41,9 @@ export default async function ClubroomPlanPage() {
           활동 계획 — {club.name}
         </h2>
         <form action={reconcileAction} className="inline">
-          <button className="rounded-full border border-white/25 px-3 py-1.5 text-sm text-neutral-700 hover:bg-white/10">
+          <Button className="px-3 py-1.5 text-sm text-neutral-700">
             차시 동기화
-          </button>
+          </Button>
         </form>
       </div>
       <p className="mt-1 text-sm text-neutral-500">
@@ -76,9 +77,9 @@ export default async function ClubroomPlanPage() {
                   placeholder="예정 활동"
                   className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
                 />
-                <button className="rounded-full border border-white/25 px-3 py-1.5 text-sm hover:bg-white/10">
+                <Button className="px-3 py-1.5 text-sm">
                   저장
-                </button>
+                </Button>
               </form>
             </li>
           ))}

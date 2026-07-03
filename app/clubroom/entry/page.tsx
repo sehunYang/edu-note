@@ -7,6 +7,7 @@ import {
   listClubMembers,
 } from "@/lib/db/queries";
 import { saveCommonAction, saveOverrideAction } from "./actions";
+import { Button } from "@/app/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -89,9 +90,9 @@ export default async function ClubroomEntryPage() {
                     rows={2}
                     className="mt-1 w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
                   />
-                  <button className="mt-1 rounded-full border border-white/25 px-3 py-1 text-sm hover:bg-white/10">
+                  <Button className="mt-1 px-3 py-1 text-sm">
                     공통 저장
-                  </button>
+                  </Button>
                 </form>
 
                 <div className="mt-4 space-y-2 border-t border-neutral-100 pt-3">
@@ -126,9 +127,9 @@ export default async function ClubroomEntryPage() {
                         placeholder="개별 메모(선택)"
                         className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
                       />
-                      <button className="rounded-full border border-white/25 px-3 py-1 text-sm hover:bg-white/10">
+                      <Button className="px-3 py-1 text-sm">
                         저장
-                      </button>
+                      </Button>
                     </form>
                   ))}
                 </div>

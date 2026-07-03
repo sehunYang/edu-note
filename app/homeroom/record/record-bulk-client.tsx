@@ -5,6 +5,7 @@ import {
   importRecordResultAction,
 } from "./actions";
 import { downloadCsv } from "@/lib/ui/download-csv";
+import { Button } from "@/app/ui/button";
 
 type Area = "autonomy" | "career" | "behavior";
 
@@ -116,13 +117,13 @@ export function RecordBulkClient({
         <p className="mt-1 text-xs text-neutral-400">
           담임반 학생 전원의 {areaLabel} 원천자료를 한 파일로 내보냅니다.
         </p>
-        <button
+        <Button
           onClick={onExport}
           disabled={pending}
-          className="mt-3 rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+          className="mt-3 px-3 py-1.5 text-sm"
         >
           원천 CSV 다운로드
-        </button>
+        </Button>
       </section>
 
       {/* 업로드 */}

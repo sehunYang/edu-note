@@ -7,6 +7,7 @@ import {
   updateBehaviorNoteAction,
   deleteBehaviorNoteAction,
 } from "./actions";
+import { Button } from "@/app/ui/button";
 
 const PAGE_SIZE = 10;
 
@@ -119,13 +120,13 @@ export function BehaviorClient({
           placeholder="키워드(콤마/공백 구분)"
           className="w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
-        <button
+        <Button
           type="submit"
           disabled={pending || !studentId || !body.trim()}
-          className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+          className="px-3 py-1.5 text-sm"
         >
           {pending ? "저장 중…" : "행특 저장"}
-        </button>
+        </Button>
       </form>
 
       <section>
@@ -199,21 +200,21 @@ function BehaviorRow({ note }: { note: RecentBehaviorNote }) {
           className="mt-2 w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
         <div className="mt-2 flex gap-2">
-          <button
+          <Button
             type="button"
             onClick={onSave}
             disabled={pending}
-            className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10 disabled:opacity-50"
+            className="px-3 py-1 text-xs"
           >
             저장
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => setEditing(false)}
-            className="rounded-full border border-white/25 px-3 py-1 text-xs hover:bg-white/10"
+            className="px-3 py-1 text-xs"
           >
             취소
-          </button>
+          </Button>
         </div>
       </li>
     );

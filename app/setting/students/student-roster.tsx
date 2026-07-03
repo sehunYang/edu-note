@@ -17,6 +17,7 @@ import {
   type UpdateStudentState,
 } from "../actions";
 import type { PendingLink, ClassRoleRow } from "@/lib/db/queries";
+import { Button } from "@/app/ui/button";
 
 interface StudentRow {
   id: string;
@@ -101,13 +102,13 @@ export function StudentRoster({
             </p>
           </div>
           <form action={link}>
-            <button
+            <Button
               type="submit"
               disabled={linking}
-              className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
+              className="px-3 py-1.5 text-sm disabled:opacity-40"
             >
               {linking ? "매칭 중…" : "매칭 실행"}
-            </button>
+            </Button>
           </form>
         </div>
         {linkState && linkState.ok && (
@@ -281,26 +282,26 @@ function StudentCard({ student }: { student: StudentRow }) {
           </span>
         </span>
         <div className="flex items-center gap-1.5">
-          <button
+          <Button
             onClick={() => setEditing((v) => !v)}
-            className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10"
+            className="px-2 py-1 text-xs"
           >
             {editing ? "닫기" : "수정"}
-          </button>
+          </Button>
           {student.isHomeroom && (
             <form action={issue}>
               <input type="hidden" name="studentYearId" value={student.id} />
-              <button
+              <Button
                 type="submit"
                 disabled={issuing}
-                className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10 disabled:opacity-40"
+                className="px-2 py-1 text-xs disabled:opacity-40"
               >
                 {issuing
                   ? "발급…"
                   : student.activeToken
                     ? "공개링크 재발급"
                     : "공개링크 발급"}
-              </button>
+              </Button>
             </form>
           )}
           {/* 하드삭제(AC-C3) — 우측 상단 빨간 X */}
@@ -313,14 +314,15 @@ function StudentCard({ student }: { student: StudentRow }) {
             }}
           >
             <input type="hidden" name="studentYearId" value={student.id} />
-            <button
+            <Button
+              variant="destructive"
               type="submit"
               disabled={deleting}
               title="학적 삭제"
-              className="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-40"
+              className="px-2 py-1 text-xs disabled:opacity-40"
             >
               ✕
-            </button>
+            </Button>
           </form>
         </div>
       </div>
@@ -370,12 +372,12 @@ function StudentCard({ student }: { student: StudentRow }) {
             <p className="break-all rounded bg-neutral-50 p-2 text-xs text-neutral-600">
               /p/{shown}
             </p>
-            <button
+            <Button
               onClick={() => copyLink(shown)}
-              className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10"
+              className="px-2 py-1 text-xs"
             >
               {copied ? "복사됨" : "복사"}
-            </button>
+            </Button>
           </div>
         );
       })()}
@@ -404,9 +406,9 @@ function StudentCard({ student }: { student: StudentRow }) {
             placeholder="역할 추가"
             className="w-24 rounded border border-neutral-200 px-2 py-0.5 text-xs"
           />
-          <button className="rounded-full border border-white/25 px-1.5 py-0.5 text-xs hover:bg-white/10">
+          <Button className="px-1.5 py-0.5 text-xs">
             +
-          </button>
+          </Button>
         </form>
       </div>
     </div>

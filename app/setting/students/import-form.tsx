@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState, useActionState, type ChangeEvent } from "react";
 import { importRosterAction, type ImportState } from "./import-actions";
+import { Button } from "@/app/ui/button";
 
 /**
  * CSV 임포트 폼 (C4 세팅실). 붙여넣기 + 파일 업로드 지원. 한글 Excel CSV(EUC-KR)는
@@ -46,13 +47,13 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
           />
         </label>
         {fileName && <span className="text-xs text-neutral-500">{fileName}</span>}
-        <button
+        <Button
           type="button"
           onClick={downloadCsvExample}
-          className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm hover:bg-white/10"
+          className="px-3 py-1.5 text-sm"
         >
           ⬇ CSV 예시 다운로드
-        </button>
+        </Button>
       </div>
 
       <textarea
@@ -64,13 +65,13 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
         className="w-full rounded border border-neutral-300 p-2 font-mono text-sm"
       />
 
-      <button
+      <Button
         type="submit"
         disabled={pending}
-        className="rounded-full border border-white/25 bg-transparent px-4 py-2 text-sm font-normal text-white hover:bg-white/10 disabled:opacity-60"
+        className="px-4 py-2 text-sm font-normal disabled:opacity-60"
       >
         {pending ? "임포트 중…" : "명단 임포트"}
-      </button>
+      </Button>
 
       {state && state.ok && (
         <div className="rounded border border-green-200 bg-green-50 p-3 text-sm">

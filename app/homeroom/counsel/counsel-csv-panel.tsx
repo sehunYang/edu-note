@@ -2,6 +2,7 @@
 import { useRef, useState, useTransition } from "react";
 import { downloadCsv } from "@/lib/ui/download-csv";
 import { importCounselCsvAction } from "./actions";
+import { Button } from "@/app/ui/button";
 
 interface Props {
   year: number;
@@ -44,13 +45,13 @@ export function CounselCsvPanel({ year, getCsvAction }: Props) {
       </h2>
       <div className="flex flex-wrap gap-3">
         {/* 원천자료 내보내기 */}
-        <button
+        <Button
           onClick={handleExport}
           disabled={isPending}
-          className="rounded-full border border-white/25 px-3 py-1.5 text-sm hover:bg-white/10 disabled:opacity-50"
+          className="px-3 py-1.5 text-sm"
         >
           원천자료 내보내기
-        </button>
+        </Button>
 
         {/* 결과 CSV 업로드 */}
         <form onSubmit={handleImport} className="flex items-center gap-2">
@@ -62,13 +63,13 @@ export function CounselCsvPanel({ year, getCsvAction }: Props) {
             required
             className="text-xs text-neutral-600"
           />
-          <button
+          <Button
             type="submit"
             disabled={isPending}
-            className="rounded-full border border-white/25 px-3 py-1.5 text-sm hover:bg-white/10 disabled:opacity-50"
+            className="px-3 py-1.5 text-sm"
           >
             결과 CSV 업로드
-          </button>
+          </Button>
         </form>
       </div>
 

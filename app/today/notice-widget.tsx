@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Button } from "@/app/ui/button";
 
 /**
  * 오늘의 학교 공지 위젯 (QC v4 AC-7.10). 공지실 데이터 이관:
@@ -49,23 +50,23 @@ function TeacherNotesCarousel({ notes }: { notes: string[] }) {
         <p className="text-xs font-normal text-neutral-500">교사 한마디</p>
         {notes.length > 1 && (
           <div className="flex items-center gap-2 text-xs text-neutral-400">
-            <button
+            <Button
               type="button"
               onClick={() => setIdx((cur - 1 + notes.length) % notes.length)}
-              className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
+              className="px-2 py-0.5"
             >
               ‹
-            </button>
+            </Button>
             <span>
               {cur + 1}/{notes.length}
             </span>
-            <button
+            <Button
               type="button"
               onClick={() => setIdx((cur + 1) % notes.length)}
-              className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
+              className="px-2 py-0.5"
             >
               ›
-            </button>
+            </Button>
           </div>
         )}
       </div>

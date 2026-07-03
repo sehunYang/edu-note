@@ -14,6 +14,7 @@ import {
   type MaterializeExamsState,
 } from "../actions";
 import type { SectionRoleRow, EvalSettingsView, StudentOption } from "@/lib/db/queries";
+import { Button } from "@/app/ui/button";
 
 export interface SubjectView {
   subjectId: string;
@@ -59,13 +60,13 @@ export function CoursesManager({
             </p>
           </div>
           <form action={materialize}>
-            <button
+            <Button
               type="submit"
               disabled={materializing}
-              className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
+              className="px-3 py-1.5 text-sm disabled:opacity-40"
             >
               {materializing ? "반영 중…" : "시험일 반영"}
-            </button>
+            </Button>
           </form>
         </div>
         {matState && matState.ok && (
@@ -253,13 +254,13 @@ function SectionBlock({
           placeholder="반(빈=전체)"
           className="w-24 rounded border border-neutral-300 px-1 py-0.5"
         />
-        <button
+        <Button
           type="submit"
           disabled={enrolling}
-          className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10 disabled:opacity-40"
+          className="px-2 py-0.5 disabled:opacity-40"
         >
           {enrolling ? "등록…" : "일괄 등록"}
-        </button>
+        </Button>
         {enrollState && enrollState.ok && (
           <span className="text-green-700">+{enrollState.count}명</span>
         )}
@@ -288,13 +289,13 @@ function SectionBlock({
               <form key={s.id} action={enrollOne} className="inline">
                 <input type="hidden" name="sectionId" value={section.id} />
                 <input type="hidden" name="studentYearId" value={s.id} />
-                <button
+                <Button
                   type="submit"
                   disabled={enrollingOne}
-                  className="rounded-full border border-white/25 px-1.5 py-0.5 hover:bg-white/10 disabled:opacity-40"
+                  className="px-1.5 py-0.5 disabled:opacity-40"
                 >
                   + {s.name} ({s.sid})
-                </button>
+                </Button>
               </form>
             ))}
           </div>
@@ -324,9 +325,9 @@ function SectionBlock({
                 placeholder="역할"
                 className="w-20 rounded border border-neutral-200 px-1 py-0.5"
               />
-              <button className="rounded-full border border-white/25 px-1 py-0.5 hover:bg-white/10">
+              <Button className="px-1 py-0.5">
                 +
-              </button>
+              </Button>
             </form>
             {/* 수강 삭제(AC-D3) */}
             <form action={unenrollAction} className="ml-auto inline">

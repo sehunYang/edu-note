@@ -8,6 +8,7 @@ import {
   deleteActivityAction,
 } from "./actions";
 import type { ActivityTag } from "@/lib/domain/types";
+import { Button } from "@/app/ui/button";
 
 const PAGE_SIZE = 10;
 
@@ -154,21 +155,21 @@ function ActivityRow({
           className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
         />
         <div className="mt-2 flex gap-2">
-          <button
+          <Button
             type="button"
             onClick={onSave}
             disabled={pending || !body.trim()}
-            className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10 disabled:opacity-50"
+            className="px-3 py-1 text-xs"
           >
             저장
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => setEditing(false)}
-            className="rounded-full border border-white/25 px-3 py-1 text-xs hover:bg-white/10"
+            className="px-3 py-1 text-xs"
           >
             취소
-          </button>
+          </Button>
         </div>
       </li>
     );
@@ -308,13 +309,13 @@ function ScheduledActivitySection({
               className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
             />
 
-            <button
+            <Button
               type="submit"
               disabled={pending || selected.size === 0 || !body.trim()}
-              className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+              className="px-3 py-1.5 text-sm"
             >
               {pending ? "저장 중…" : `일괄 저장 (${selected.size}명)`}
-            </button>
+            </Button>
           </>
         )}
       </form>
@@ -407,13 +408,13 @@ function FreeActivitySection({ students }: { students: HomeroomStudent[] }) {
             placeholder="전체 학생에게 공통으로 기입할 활동 내역"
             className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
           />
-          <button
+          <Button
             type="submit"
             disabled={pending || !commonBody.trim()}
-            className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+            className="px-3 py-1.5 text-sm"
           >
             {pending ? "저장 중…" : `공통 저장 (${students.length}명)`}
-          </button>
+          </Button>
         </form>
       ) : (
         <div className="space-y-2">
@@ -434,14 +435,14 @@ function FreeActivitySection({ students }: { students: HomeroomStudent[] }) {
                 placeholder="활동 내역"
                 className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
               />
-              <button
+              <Button
                 type="button"
                 onClick={() => onSubmitIndividual(s.id)}
                 disabled={pending || !(individualBodies[s.id] ?? "").trim()}
-                className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-1.5 text-xs text-white hover:bg-white/10 disabled:opacity-50"
+                className="shrink-0 px-2 py-1.5 text-xs"
               >
                 저장
-              </button>
+              </Button>
             </div>
           ))}
         </div>

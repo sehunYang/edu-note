@@ -7,6 +7,7 @@ import {
 } from "./actions";
 import { performanceCsvExample, jipilCsvExample } from "@/lib/csv/grades";
 import { downloadCsv } from "@/lib/ui/download-csv";
+import { Button } from "@/app/ui/button";
 
 /**
  * 성적 기록 클라이언트 업로더 (교실 2-2 단계4). 과목 선택 → 수행 항목별 업로드칸
@@ -159,15 +160,15 @@ function PerformanceBox({
     <li className="rounded-lg border border-neutral-200 p-4">
       <div className="flex items-center justify-between">
         <span className="text-sm font-normal text-neutral-700">{itemName}</span>
-        <button
+        <Button
           type="button"
           onClick={() =>
             downloadCsv(performanceCsvExample(), `수행_${itemName}_예시.csv`)
           }
-          className="rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs hover:bg-white/10"
+          className="px-2 py-1 text-xs"
         >
           ⬇ 예시 다운로드
-        </button>
+        </Button>
       </div>
       <form action={action} className="mt-2 space-y-2">
         <input type="hidden" name="subjectId" value={subjectId} />
@@ -186,13 +187,13 @@ function PerformanceBox({
           {fileName && (
             <span className="text-xs text-neutral-500">{fileName}</span>
           )}
-          <button
+          <Button
             type="submit"
             disabled={pending || !csv}
-            className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10 disabled:opacity-50"
+            className="px-3 py-1 text-xs"
           >
             {pending ? "업로드 중…" : "업로드"}
-          </button>
+          </Button>
         </div>
         <UploadResult state={state} />
       </form>
@@ -228,13 +229,13 @@ function JipilBox({
     <li className="rounded-lg border border-neutral-200 p-4">
       <div className="flex items-center justify-between">
         <span className="text-sm font-normal text-neutral-700">{label}</span>
-        <button
+        <Button
           type="button"
           onClick={() => downloadCsv(jipilCsvExample(), `지필_${label}_예시.csv`)}
-          className="rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs hover:bg-white/10"
+          className="px-2 py-1 text-xs"
         >
           ⬇ 예시 다운로드
-        </button>
+        </Button>
       </div>
       <form action={action} className="mt-2 space-y-2">
         <input type="hidden" name="subjectId" value={subjectId} />
@@ -253,13 +254,13 @@ function JipilBox({
           {fileName && (
             <span className="text-xs text-neutral-500">{fileName}</span>
           )}
-          <button
+          <Button
             type="submit"
             disabled={pending || !csv}
-            className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10 disabled:opacity-50"
+            className="px-3 py-1 text-xs"
           >
             {pending ? "업로드 중…" : "업로드"}
-          </button>
+          </Button>
         </div>
         <UploadResult state={state} />
       </form>

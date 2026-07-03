@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/app/ui/button";
 
 /** Google 로그인 버튼 (계획 §3.2). PKCE 흐름으로 /auth/callback 으로 복귀. */
 export function GoogleLoginButton() {
@@ -21,10 +22,10 @@ export function GoogleLoginButton() {
   };
 
   return (
-    <button
+    <Button
       onClick={onClick}
       disabled={loading}
-      className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-transparent px-5 py-2.5 text-sm font-normal hover:bg-white/10 disabled:opacity-60"
+      className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-normal disabled:opacity-60"
     >
       <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
         <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.5l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.4 5.4 2.5 13.3l7.9 6.2C12.2 13.7 17.6 9.5 24 9.5z" />
@@ -33,6 +34,6 @@ export function GoogleLoginButton() {
         <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2 1.3-4.5 2.1-8.8 2.1-6.4 0-11.8-4.2-13.6-9.9l-7.9 6.2C6.4 42.6 14.6 48 24 48z" />
       </svg>
       {loading ? "이동 중…" : "Google로 로그인"}
-    </button>
+    </Button>
   );
 }

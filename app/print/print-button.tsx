@@ -1,4 +1,6 @@
 "use client";
+import { Button } from "@/app/ui/button";
+
 
 /**
  * 인쇄 버튼 (계획 §4 Phase2-K-2 인쇄실). 브라우저 인쇄 대화상자를 띄운다.
@@ -6,11 +8,11 @@
  */
 export function PrintButton() {
   return (
-    <button
+    <Button
       onClick={() => window.print()}
-      className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 print:hidden"
+      className="px-3 py-1.5 text-sm print:hidden"
     >
       인쇄 / PDF 저장
-    </button>
+    </Button>
   );
 }

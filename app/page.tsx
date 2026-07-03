@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 import { collectNudges } from "@/lib/db/queries";
 import { NudgeBanner } from "./nudge-banner";
 import type { NudgeResult } from "@/lib/domain/nudge";
+import { Button } from "@/app/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function Home() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-12">
+    <main className="hero-glow mx-auto max-w-2xl px-6 py-12">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-normal tracking-tight">📆 Edu_Note</h1>
@@ -42,9 +43,9 @@ export default async function Home() {
           </p>
         </div>
         <form action="/auth/signout" method="post">
-          <button className="rounded-full border border-white/25 px-3 py-1.5 text-xs text-neutral-600 hover:bg-white/10">
+          <Button className="px-3 py-1.5 text-xs text-neutral-600">
             로그아웃
-          </button>
+          </Button>
         </form>
       </div>
 
@@ -127,7 +128,7 @@ function DashCard({
   return (
     <Link
       href={href}
-      className="rounded-lg border border-neutral-200 p-5 transition hover:border-neutral-400 "
+      className="rounded-lg border border-neutral-200 p-5 transition-colors hover:border-white/20"
     >
       <h2 className="font-normal">{title}</h2>
       <p className="mt-1 text-sm text-neutral-500">{desc}</p>

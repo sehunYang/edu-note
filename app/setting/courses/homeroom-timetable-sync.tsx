@@ -4,6 +4,7 @@ import {
   syncHomeroomTimetableAction,
   type HomeroomSyncState,
 } from "./timetable-actions";
+import { Button } from "@/app/ui/button";
 
 /**
  * 담임반 시간표 컴시간 동기화 트리거 (QC v4 US-5 AC-5.4 — 공지실에서 세팅실 컴시간
@@ -28,13 +29,13 @@ export function HomeroomTimetableSync() {
             컴시간에서 담임반 시간표를 가져와 학생 안내 페이지에 표시합니다.
           </p>
         </div>
-        <button
+        <Button
           type="submit"
           disabled={pending}
-          className="shrink-0 rounded-full border border-white/25 bg-transparent px-4 py-2 text-sm font-normal text-white hover:bg-white/10 disabled:opacity-60"
+          className="shrink-0 px-4 py-2 text-sm font-normal disabled:opacity-60"
         >
           {pending ? "동기화 중…" : "담임반 동기화"}
-        </button>
+        </Button>
       </div>
 
       {state && state.ok && (

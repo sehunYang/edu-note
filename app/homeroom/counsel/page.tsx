@@ -20,6 +20,7 @@ import {
 } from "./actions";
 import { CounselCsvPanel } from "./counsel-csv-panel";
 import { CounselSlotList, CounselLogList } from "./counsel-lists-client";
+import { Button } from "@/app/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -104,9 +105,9 @@ export default async function CounselPage() {
               placeholder="상담 내용"
               className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
             />
-            <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
+            <Button className="px-3 py-1.5 text-sm">
               상담일지 저장
-            </button>
+            </Button>
           </form>
         )}
       </section>
@@ -139,9 +140,9 @@ export default async function CounselPage() {
               className="w-16 rounded border border-neutral-300 px-2 py-1 text-sm"
             />
           </div>
-          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
+          <Button className="px-3 py-1.5 text-sm">
             슬롯 개설
-          </button>
+          </Button>
         </form>
 
         {/* 슬롯 목록 (10개씩 페이지네이션) */}

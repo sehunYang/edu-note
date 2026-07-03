@@ -6,6 +6,7 @@ import {
   type SaveDraftActionResult,
 } from "./actions";
 import type { SpecialNoteType } from "@/lib/domain/types";
+import { Button } from "@/app/ui/button";
 
 interface Option {
   id: string;
@@ -118,13 +119,13 @@ export function SetechForm({
             ))}
           </select>
         )}
-        <button
+        <Button
           onClick={onBuild}
           disabled={pending || !studentId}
-          className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+          className="px-3 py-1 text-sm"
         >
           ① 프롬프트 생성
-        </button>
+        </Button>
       </div>
 
       {msg && <p className="text-xs text-neutral-500">{msg}</p>}
@@ -135,12 +136,12 @@ export function SetechForm({
             <label className="text-xs font-normal text-neutral-600">
               코워크 붙여넣기용 프롬프트
             </label>
-            <button
+            <Button
               onClick={onCopy}
-              className="rounded-full border border-white/25 px-2 py-0.5 text-xs hover:bg-white/10"
+              className="px-2 py-0.5 text-xs"
             >
               복사
-            </button>
+            </Button>
           </div>
           <textarea
             readOnly
@@ -162,13 +163,14 @@ export function SetechForm({
           placeholder="코워크(Claude Code)에서 생성된 세특 본문을 붙여넣으세요."
           className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
         />
-        <button
+        <Button
           onClick={onSave}
-          disabled={pending || !content.trim() || !studentId}
-          className="rounded bg-emerald-700 px-3 py-1.5 text-sm text-white hover:bg-emerald-600 disabled:opacity-50"
+          loading={pending}
+          disabled={!content.trim() || !studentId}
+          className="bg-emerald-700 px-3 py-1.5 text-sm hover:bg-emerald-600"
         >
           검수 후 저장
-        </button>
+        </Button>
       </div>
 
       {save && (

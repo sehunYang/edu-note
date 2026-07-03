@@ -1,6 +1,7 @@
 "use client";
 import { useState, useActionState } from "react";
 import { deleteYearAction, type DeleteYearState } from "../actions";
+import { Button } from "@/app/ui/button";
 
 interface YearRow {
   schoolYear: number;
@@ -79,12 +80,13 @@ function DeleteForm({
   const [open, setOpen] = useState(false);
   if (!open) {
     return (
-      <button
+      <Button
+        variant="destructive"
         onClick={() => setOpen(true)}
-        className="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+        className="px-2 py-1 text-xs"
       >
         삭제
-      </button>
+      </Button>
     );
   }
   return (

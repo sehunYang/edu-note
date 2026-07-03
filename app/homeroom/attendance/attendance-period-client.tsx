@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { recordAttendanceAction, addAbsenceRangeAction } from "./actions";
+import { Button } from "@/app/ui/button";
 
 /**
  * 출결 입력 클라이언트 (QC v3 Part B, AC-7.x). 교시 체크 UI.
@@ -131,12 +132,12 @@ export function AttendancePeriodClient({
           placeholder="비고(예: 생리통)"
           className="rounded border border-neutral-300 px-2 py-1 text-sm"
         />
-        <button
+        <Button
           disabled={pending}
-          className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+          className="px-3 py-1 text-sm"
         >
           기록
-        </button>
+        </Button>
       </div>
 
       {showPivot && (

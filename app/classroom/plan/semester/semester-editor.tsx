@@ -9,6 +9,7 @@ import {
 } from "../actions";
 import { sixDigitCode } from "@/lib/domain/lesson-unit";
 import { computeUnitOrdinalSum } from "@/lib/domain/lesson-plan";
+import { Button } from "@/app/ui/button";
 
 /**
  * 학기 계획 클라이언트 에디터 (QC v4 US-2). 과목 선택 → 세부단원 트리 편집 +
@@ -201,9 +202,9 @@ function ExamSegmentRow({
             className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
           />
         </label>
-        <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
+        <Button className="px-3 py-1.5 text-sm">
           저장
-        </button>
+        </Button>
         {!state.ok && state.error && (
           <p className="w-full text-xs text-red-600">{state.error}</p>
         )}
@@ -344,9 +345,9 @@ function UnitRow({
             defaultValue={unit?.minOrdinals ?? 1}
             className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
           />
-          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
+          <Button className="px-3 py-1.5 text-sm">
             {isNew ? "단원 추가" : "저장"}
-          </button>
+          </Button>
         </div>
         {!saveState.ok && saveState.error && (
           <p className="text-xs text-red-600">{saveState.error}</p>
@@ -508,9 +509,9 @@ function ExamTargetRow({
           units={units}
           value={existing?.toCode ?? null}
         />
-        <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
+        <Button className="px-3 py-1.5 text-sm">
           저장
-        </button>
+        </Button>
         {!state.ok && state.error && (
           <p className="w-full text-xs text-red-600">{state.error}</p>
         )}

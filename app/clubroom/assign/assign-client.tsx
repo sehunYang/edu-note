@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Button } from "@/app/ui/button";
 
 interface Candidate {
   id: string;
@@ -65,13 +66,13 @@ export function AssignClient({
           </li>
         ))}
       </ul>
-      <button
+      <Button
         type="submit"
         disabled={selected.size === 0}
-        className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+        className="px-3 py-1.5 text-sm"
       >
         선택 {selected.size}명 배정
-      </button>
+      </Button>
     </form>
   );
 }

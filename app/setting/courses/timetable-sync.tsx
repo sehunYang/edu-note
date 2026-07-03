@@ -1,6 +1,7 @@
 "use client";
 import { useActionState } from "react";
 import { syncTimetableAction, type SyncState } from "./timetable-actions";
+import { Button } from "@/app/ui/button";
 
 /** 컴시간 동기화 폼 (C5 세팅실). 학교명·교사명 → 시간표 sync(과목/분반 생성). */
 export function TimetableSync({
@@ -38,13 +39,13 @@ export function TimetableSync({
         </div>
       </div>
 
-      <button
+      <Button
         type="submit"
         disabled={pending}
-        className="rounded-full border border-white/25 bg-transparent px-4 py-2 text-sm font-normal text-white hover:bg-white/10 disabled:opacity-60"
+        className="px-4 py-2 text-sm font-normal disabled:opacity-60"
       >
         {pending ? "동기화 중…" : "컴시간 동기화"}
-      </button>
+      </Button>
 
       {state && state.ok && (
         <p className="rounded border border-green-200 bg-green-50 p-3 text-sm">

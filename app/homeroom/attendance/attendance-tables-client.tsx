@@ -9,6 +9,7 @@ import {
   markUnsubmittedSubmittedAction,
 } from "./actions";
 import type { AttendanceStudentRow } from "@/lib/db/queries";
+import { Button } from "@/app/ui/button";
 
 /**
  * 출결 목록 클라이언트 (QC v4 US-4, AC-4.5~4.7).
@@ -111,9 +112,9 @@ export function EditableAttendanceTable({
                       placeholder="비고"
                       className="rounded border border-neutral-300 px-2 py-1 text-xs"
                     />
-                    <button className="rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10">
+                    <Button className="px-2 py-1 text-xs">
                       저장
-                    </button>
+                    </Button>
                     <button
                       type="button"
                       onClick={() => setEditingId(null)}

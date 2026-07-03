@@ -13,6 +13,7 @@ import {
   deleteStudentMemoAction,
 } from "./actions";
 import type { PublicStudentMemo } from "@/lib/public";
+import { Button } from "@/app/ui/button";
 
 /** KST(UTC+9) 기준 오늘 날짜(YYYY-MM-DD). 12시간 고정이 아닌 날짜 경계로 산출. */
 function kstToday(now: Date = new Date()): string {
@@ -102,23 +103,23 @@ function Notices({
         <h2 className="text-sm font-normal text-neutral-500">교사 한마디</h2>
         {items.length > 1 && (
           <div className="flex items-center gap-2 text-xs text-neutral-400">
-            <button
+            <Button
               type="button"
               onClick={() => setIdx((cur - 1 + items.length) % items.length)}
-              className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
+              className="px-2 py-0.5"
             >
               ‹
-            </button>
+            </Button>
             <span>
               {cur + 1}/{items.length}
             </span>
-            <button
+            <Button
               type="button"
               onClick={() => setIdx((cur + 1) % items.length)}
-              className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
+              className="px-2 py-0.5"
             >
               ›
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -238,23 +239,23 @@ function CalendarSection({
   return (
     <Card title="일정 안내">
       <div className="mb-2 flex items-center justify-between text-sm">
-        <button
+        <Button
           type="button"
           onClick={() => shift(-1)}
-          className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
+          className="px-2 py-0.5"
         >
           ‹
-        </button>
+        </Button>
         <span className="font-normal">
           {month.year}년 {month.month + 1}월
         </span>
-        <button
+        <Button
           type="button"
           onClick={() => shift(1)}
-          className="rounded-full border border-white/25 px-2 py-0.5 hover:bg-white/10"
+          className="px-2 py-0.5"
         >
           ›
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-7 gap-px text-center text-xs">
         {WK.map((w) => (
@@ -418,14 +419,14 @@ function DayDetailModal({
                       className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
                     />
                     <div className="flex gap-2">
-                      <button
+                      <Button
                         type="button"
-                        disabled={pending}
+                        loading={pending}
                         onClick={() => saveEdit(m.id)}
-                        className="rounded-full border border-white/25 bg-transparent px-2 py-0.5 text-xs text-white disabled:opacity-50"
+                        className="px-2 py-0.5 text-xs"
                       >
                         저장
-                      </button>
+                      </Button>
                       <button
                         type="button"
                         onClick={() => setEditingId(null)}
@@ -474,14 +475,15 @@ function DayDetailModal({
             className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
           />
           {err && <p className="text-xs text-red-600">{err}</p>}
-          <button
+          <Button
             type="button"
-            disabled={pending || !body.trim()}
+            loading={pending}
+            disabled={!body.trim()}
             onClick={add}
-            className="w-full rounded-full border border-white/25 bg-transparent py-1.5 text-sm text-white disabled:opacity-50"
+            className="w-full py-1.5 text-sm"
           >
-            {pending ? "저장…" : "일정 추가하기"}
-          </button>
+            일정 추가하기
+          </Button>
         </div>
       </div>
     </div>
@@ -620,14 +622,14 @@ function TimetableCell({
             placeholder="과목명"
             className="w-full rounded border border-neutral-300 px-1 py-0.5 text-[11px]"
           />
-          <button
+          <Button
             type="button"
-            disabled={pending}
+            loading={pending}
             onClick={submit}
-            className="w-full rounded-full border border-white/25 bg-transparent px-1 py-0.5 text-[11px] text-white disabled:opacity-50"
+            className="w-full px-1 py-0.5 text-[11px]"
           >
-            {pending ? "저장…" : "저장"}
-          </button>
+            저장
+          </Button>
           {err && <p className="text-[10px] text-red-600">{err}</p>}
         </div>
       )}
@@ -796,27 +798,27 @@ function CounselSlotRow({
               취소 요청됨
             </span>
           ) : (
-            <button
+            <Button
               type="button"
               disabled={pending}
               onClick={requestCancel}
-              className="rounded-full border border-white/25 px-2 py-0.5 text-xs hover:bg-white/10 disabled:opacity-40"
+              className="px-2 py-0.5 text-xs disabled:opacity-40"
             >
               {pending ? "요청…" : "취소 요청"}
-            </button>
+            </Button>
           )}
         </span>
       ) : (
         <span className="flex items-center gap-2">
           {err && <span className="text-[11px] text-red-600">{err}</span>}
-          <button
+          <Button
             type="button"
             disabled={pending || slot.remaining <= 0}
             onClick={reserve}
-            className="rounded-full border border-white/25 px-2 py-0.5 text-xs hover:bg-white/10 disabled:opacity-40"
+            className="px-2 py-0.5 text-xs disabled:opacity-40"
           >
             {pending ? "신청…" : "신청"}
-          </button>
+          </Button>
         </span>
       )}
     </li>

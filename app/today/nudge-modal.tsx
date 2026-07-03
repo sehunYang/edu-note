@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { NudgeResult } from "@/lib/domain/nudge";
+import { Button } from "@/app/ui/button";
 
 /**
  * 오늘의 학교 넛지 모달 (QC v5 c7 B.1). 해결 전까지 /today 진입마다 표시한다.
@@ -131,13 +132,13 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
           )}
         </ul>
 
-        <button
+        <Button
           type="button"
           onClick={close}
-          className="mt-5 w-full rounded-full border border-white/25 py-2 text-sm text-neutral-600 hover:bg-white/10"
+          className="mt-5 w-full py-2 text-sm text-neutral-600"
         >
           다음에 하기
-        </button>
+        </Button>
       </div>
     </div>
   );

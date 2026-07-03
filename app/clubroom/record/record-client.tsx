@@ -2,6 +2,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { byteLength } from "@/lib/domain/byte-count";
 import { saveRecordDraftAction } from "./actions";
+import { Button } from "@/app/ui/button";
 
 interface SourceRow {
   studentYearId: string;
@@ -117,13 +118,13 @@ export function RecordClient({
           className="mt-2 w-full rounded border border-neutral-300 px-3 py-2 text-sm"
           placeholder="원천자료를 참고해 생기부 본문을 작성하세요."
         />
-        <button
+        <Button
           onClick={onSave}
           disabled={pending || over || !content.trim()}
-          className="mt-2 rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+          className="mt-2 px-3 py-1.5 text-sm"
         >
           초안 저장
-        </button>
+        </Button>
         {msg && <p className="mt-2 text-xs text-neutral-500">{msg}</p>}
       </section>
 

@@ -1,5 +1,6 @@
 import { completeStageAction, reopenStageAction } from "./actions";
 import type { SettingStage } from "@/lib/db/queries";
+import { Button } from "@/app/ui/button";
 
 /**
  * 단계 완료/재오픈 버튼 (AC-0.1). 각 세팅 단계 하단에 두어 setup_state 를 기록한다.
@@ -24,9 +25,9 @@ export function StageGate({
       {completed ? (
         <form action={reopenStageAction}>
           <input type="hidden" name="stage" value={stage} />
-          <button className="rounded-full border border-white/25 px-3 py-1.5 text-xs text-neutral-600 hover:bg-white/10">
+          <Button className="px-3 py-1.5 text-xs text-neutral-600">
             다시 열기
-          </button>
+          </Button>
         </form>
       ) : (
         <form action={completeStageAction}>

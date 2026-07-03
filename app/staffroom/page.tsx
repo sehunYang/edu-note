@@ -11,6 +11,7 @@ import {
   addExpenseAction,
   deleteExpenseAction,
 } from "./actions";
+import { Button } from "@/app/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -59,9 +60,9 @@ export default async function StaffroomPage() {
             name="deadline"
             className="rounded border border-neutral-300 px-2 py-1.5 text-sm"
           />
-          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
+          <Button className="px-3 py-1.5 text-sm">
             추가
-          </button>
+          </Button>
         </form>
 
         {tasks.length === 0 ? (
@@ -109,9 +110,9 @@ export default async function StaffroomPage() {
                       className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
                     />
                     <span className="text-xs text-neutral-400">% 진척</span>
-                    <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
+                    <Button className="px-2 py-1 text-xs">
                       저장
-                    </button>
+                    </Button>
                     <div className="ml-2 h-1.5 flex-1 overflow-hidden rounded bg-neutral-100">
                       <div
                         className="h-full bg-neutral-700"
@@ -146,9 +147,9 @@ export default async function StaffroomPage() {
             placeholder="계획액(원)"
             className="w-32 rounded border border-neutral-300 px-2 py-1.5 text-sm"
           />
-          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
+          <Button className="px-3 py-1.5 text-sm">
             추가
-          </button>
+          </Button>
         </form>
 
         {budgets.length === 0 ? (
@@ -241,9 +242,9 @@ export default async function StaffroomPage() {
                       placeholder="메모(선택)"
                       className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
                     />
-                    <button className="rounded-full border border-white/25 px-3 py-1 text-sm hover:bg-white/10">
+                    <Button className="px-3 py-1 text-sm">
                       지출 추가
-                    </button>
+                    </Button>
                   </form>
                 </div>
               );

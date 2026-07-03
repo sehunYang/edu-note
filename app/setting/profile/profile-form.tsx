@@ -9,6 +9,7 @@ import {
 import type { TeacherSettings } from "@/lib/db/queries";
 import type { NeisSchoolInfo } from "@/lib/integrations/neis";
 import type { SchoolSearchRow } from "@/lib/integrations/comcigan";
+import { Button } from "@/app/ui/button";
 
 /**
  * C2 교사 기본 설정 폼 (AC-2.1~2.3). 이름·학교명·담임여부·담임반 + 학교명 1회 입력으로
@@ -66,13 +67,13 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
             placeholder="예: 인천해송고등학교"
             className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
           />
-          <button
+          <Button
             type="submit"
             disabled={resolving || schoolName.trim().length === 0}
-            className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-40"
+            className="px-3 py-1.5 text-sm disabled:opacity-40"
           >
             {resolving ? "검색 중…" : "검색"}
-          </button>
+          </Button>
         </form>
 
         {resolveState && !resolveState.ok && (

@@ -16,6 +16,7 @@ import {
 } from "./attendance-tables-client";
 import { FieldTripSection } from "./field-trip-client";
 import type { AttendanceReason } from "@/lib/domain/types";
+import { Button } from "@/app/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -128,9 +129,9 @@ export default async function AttendancePage({
               defaultValue={date}
               className="rounded border border-neutral-300 px-2 py-1"
             />
-            <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
+            <Button className="px-2 py-1 text-xs">
               이동
-            </button>
+            </Button>
           </form>
 
           <section className="mt-6 rounded-lg border border-neutral-200 p-5">
@@ -205,9 +206,9 @@ export default async function AttendancePage({
                 </option>
               ))}
             </select>
-            <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
+            <Button className="px-2 py-1 text-xs">
               조회
-            </button>
+            </Button>
           </form>
           <h2 className="mt-4 text-sm font-normal text-neutral-700">
             {month} 출결 {monthRows.length}건
@@ -246,9 +247,9 @@ export default async function AttendancePage({
                 </option>
               ))}
             </select>
-            <button className="rounded-full border border-white/25 px-2 py-1 text-xs hover:bg-white/10">
+            <Button className="px-2 py-1 text-xs">
               검색
-            </button>
+            </Button>
           </form>
           {selectedStudentId ? (
             <>

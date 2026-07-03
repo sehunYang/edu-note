@@ -3,6 +3,7 @@ import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { listStudents, listStudentActivities } from "@/lib/db/queries";
 import { createActivityAction, deleteActivityAction } from "./actions";
+import { SubmitButton } from "./submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -85,9 +86,7 @@ export default async function ActivitiesPage() {
               placeholder="활동 내용(관찰 사실 위주)"
               className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
             />
-            <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
-              기입 저장
-            </button>
+            <SubmitButton>기입 저장</SubmitButton>
           </form>
         )}
       </section>

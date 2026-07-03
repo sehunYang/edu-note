@@ -9,6 +9,7 @@ import {
   loadSectionStudentsAction,
   loadStudentSectionsAction,
 } from "./actions";
+import { Button } from "@/app/ui/button";
 
 const PAGE_SIZE = 10;
 
@@ -236,13 +237,14 @@ export function ObservationsClient({
           placeholder="키워드(콤마/공백 구분)"
           className="w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
-        <button
+        <Button
           type="submit"
-          disabled={pending || !studentId || !sectionId || !body.trim()}
-          className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+          loading={pending}
+          disabled={!studentId || !sectionId || !body.trim()}
+          className="px-3 py-1.5 text-sm"
         >
-          {pending ? "저장 중…" : "관찰 저장"}
-        </button>
+          관찰 저장
+        </Button>
       </form>
 
       {/* 최근 관찰 */}
@@ -317,21 +319,21 @@ function ObservationRow({ obs }: { obs: RecentObservation }) {
           className="mt-2 w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
         <div className="mt-2 flex gap-2">
-          <button
+          <Button
             type="button"
             onClick={onSave}
             disabled={pending}
-            className="rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10 disabled:opacity-50"
+            className="px-3 py-1 text-xs"
           >
             저장
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => setEditing(false)}
-            className="rounded-full border border-white/25 px-3 py-1 text-xs hover:bg-white/10"
+            className="px-3 py-1 text-xs"
           >
             취소
-          </button>
+          </Button>
         </div>
       </li>
     );

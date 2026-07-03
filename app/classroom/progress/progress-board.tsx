@@ -7,6 +7,7 @@ import {
 import type { SessionStatus } from "@/lib/domain/types";
 import { Paginator } from "@/lib/ui/paginator";
 import { paginate } from "@/lib/db/pagination";
+import { Button } from "@/app/ui/button";
 
 /** 분반별 진척도 통계 뷰(서버 getSectionProgressStats 결과 미러). */
 export interface StatView {
@@ -85,9 +86,9 @@ export function ProgressBoard({
         <form action={generateSessionsAction} className="mt-3">
           <input type="hidden" name="year" value={year} />
           <input type="hidden" name="semester" value={semester} />
-          <button className="rounded-full border border-white/25 bg-transparent px-3 py-1.5 text-sm text-white hover:bg-white/10">
+          <Button className="px-3 py-1.5 text-sm">
             {semester}학기 차시 생성/정리
-          </button>
+          </Button>
         </form>
       </section>
 
