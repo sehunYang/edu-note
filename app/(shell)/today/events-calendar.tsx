@@ -292,13 +292,13 @@ function DayDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex animate-fade-in-up items-center justify-center bg-black/40 p-4"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-xl bg-card p-6 border border-neutral-200"
+        className="w-full max-w-md animate-scale-in rounded-xl bg-card p-6 border border-neutral-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">

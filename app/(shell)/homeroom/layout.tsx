@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { getTeacherSettings } from "@/lib/db/queries";
+import { TabNav } from "@/app/ui/tab-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -61,17 +62,9 @@ export default async function HomeroomLayout({
         </div>
       ) : (
         <>
-          <nav className="mt-6 flex flex-wrap gap-2" aria-label="담임 교실 탭">
-            {TABS.map((t) => (
-              <Link
-                key={t.href}
-                href={t.href}
-                className="rounded-full border border-white/25 px-3 py-2 text-sm text-neutral-700 hover:border-neutral-500 hover:bg-white/10"
-              >
-                {t.label}
-              </Link>
-            ))}
-          </nav>
+          <div className="mt-6">
+            <TabNav tabs={TABS} ariaLabel="담임 교실 탭" />
+          </div>
 
           <section className="mt-8">{children}</section>
         </>

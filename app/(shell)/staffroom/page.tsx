@@ -12,6 +12,7 @@ import {
   deleteExpenseAction,
 } from "./actions";
 import { Button } from "@/app/ui/button";
+import { CountUp } from "@/app/ui/count-up";
 
 export const dynamic = "force-dynamic";
 
@@ -115,7 +116,7 @@ export default async function StaffroomPage() {
                     </Button>
                     <div className="ml-2 h-1.5 flex-1 overflow-hidden rounded bg-neutral-100">
                       <div
-                        className="h-full bg-neutral-700"
+                        className="h-full bg-neutral-700 transition-[width] duration-500"
                         style={{ width: `${t.progress}%` }}
                       />
                     </div>
@@ -179,14 +180,14 @@ export default async function StaffroomPage() {
                   </div>
                   <p className="mt-1 text-xs text-neutral-500">
                     계획 {won(b.plannedAmount)} · 집행 {won(b.spent)} (
-                    {rate}%) ·{" "}
+                    <CountUp value={rate} suffix="%" />) ·{" "}
                     <span className={remaining < 0 ? "text-red-500" : ""}>
                       잔액 {won(remaining)}
                     </span>
                   </p>
                   <div className="mt-2 h-1.5 overflow-hidden rounded bg-neutral-100">
                     <div
-                      className={`h-full ${rate >= 100 ? "bg-red-400" : "bg-neutral-700"}`}
+                      className={`h-full transition-[width] duration-500 ${rate >= 100 ? "bg-red-400" : "bg-neutral-700"}`}
                       style={{ width: `${rate}%` }}
                     />
                   </div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { activeSemester } from "@/lib/domain/school-year";
+import { TabNav } from "@/app/ui/tab-nav";
 import { SemesterSelector } from "./semester-selector";
 
 export const dynamic = "force-dynamic";
@@ -41,17 +42,7 @@ export default function ClassroomLayout({
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <nav className="flex flex-wrap gap-2" aria-label="교실 탭">
-          {TABS.map((t) => (
-            <Link
-              key={t.href}
-              href={t.href}
-              className="rounded-full border border-white/25 px-3 py-2 text-sm text-neutral-700 hover:border-neutral-500 hover:bg-white/10"
-            >
-              {t.label}
-            </Link>
-          ))}
-        </nav>
+        <TabNav tabs={TABS} ariaLabel="교실 탭" />
         <SemesterSelector defaultSemester={defaultSemester} />
       </div>
 

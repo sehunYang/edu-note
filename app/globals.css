@@ -61,6 +61,50 @@ body {
       transparent 70%
     );
   }
+
+  /* 등장 스태거 (Stage 2-2): 부모에 .stagger 클래스만 부여하면 첫 8개 직계
+     자식이 40ms 간격으로 순차 fade-in-up. reduced-motion 가드가 무효화. */
+  .stagger > * {
+    animation: fade-in-up 180ms ease-out both;
+  }
+  .stagger > *:nth-child(1) {
+    animation-delay: 0ms;
+  }
+  .stagger > *:nth-child(2) {
+    animation-delay: 40ms;
+  }
+  .stagger > *:nth-child(3) {
+    animation-delay: 80ms;
+  }
+  .stagger > *:nth-child(4) {
+    animation-delay: 120ms;
+  }
+  .stagger > *:nth-child(5) {
+    animation-delay: 160ms;
+  }
+  .stagger > *:nth-child(6) {
+    animation-delay: 200ms;
+  }
+  .stagger > *:nth-child(7) {
+    animation-delay: 240ms;
+  }
+  .stagger > *:nth-child(n + 8) {
+    animation-delay: 280ms;
+  }
+
+  /* 아코디언 (Stage 2-3): grid-rows 0fr→1fr 전환. .accordion-open 토글.
+     자식(단일 래퍼)은 overflow-hidden 필요. */
+  .accordion {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 200ms ease;
+  }
+  .accordion.accordion-open {
+    grid-template-rows: 1fr;
+  }
+  .accordion > * {
+    overflow: hidden;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

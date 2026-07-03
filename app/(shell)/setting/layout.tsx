@@ -3,6 +3,7 @@ import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { getStageStatuses, type SettingStage } from "@/lib/db/queries";
 import { activeSchoolYear } from "@/lib/domain/school-year";
+import { StageNav } from "./stage-nav";
 
 export const dynamic = "force-dynamic";
 
@@ -42,37 +43,15 @@ export default async function SettingLayout({
         </Link>
       </div>
 
-      <nav className="mt-6 flex flex-wrap gap-2" aria-label="세팅 단계">
-        {statuses.map((s) => {
-          const meta = STAGE_LABEL[s.feature];
-          const base =
-            "flex items-center gap-2 rounded-md border px-3 py-2 text-sm";
-          if (!s.unlocked) {
-            return (
-              <span
-                key={s.feature}
-                aria-disabled
-                title="선행 단계를 먼저 완료하세요"
-                className={`${base} cursor-not-allowed border-neutral-200 text-neutral-300`}
-              >
-                🔒 {meta.n}. {meta.title}
-              </span>
-            );
-          }
-          return (
-            <Link
-              key={s.feature}
-              href={`/setting/${s.feature}`}
-              className={`${base} border-white/25 text-neutral-700 hover:border-neutral-500 hover:bg-white/10`}
-            >
-              <span>
-                {meta.n}. {meta.title}
-              </span>
-              {s.completed && <span className="text-green-600">✓</span>}
-            </Link>
-          );
-        })}
-      </nav>
+      <StageNav
+        stages={statuses.map((s) => ({
+          feature: s.feature,
+          n: STAGE_LABEL[s.feature].n,
+          title: STAGE_LABEL[s.feature].title,
+          unlocked: s.unlocked,
+          completed: s.completed,
+        }))}
+      />
 
       <section className="mt-8">{children}</section>
     </div>

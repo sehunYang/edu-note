@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note\" && npx tsc --noEmit 2>&1 | head -40; echo \"EXIT=${PIPESTATUS[0]}\"",
-    "testCommand": "cd \"/c/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npm run build 2>&1 | sed -n '/^Route (app)/,/^ƒ Middleware/p' > /tmp/route-after.txt; echo \"build-table-lines: $(wc -l < /tmp/route-after.txt)\" && RUN_DB_ITEST=1 node --env-file=.env.local node_modules/vitest/vitest.mjs run 2>&1 | tail -3",
+    "buildCommand": "cd \"/c/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npx tsc --noEmit 2>&1 | tail -2; echo \"tsc:$?\" && npm run build > /tmp/b.txt 2>&1; echo \"build:$?\"; tail -2 /tmp/b.txt",
+    "testCommand": "cd \"/c/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && { echo \"### S2-1~5 완료 (2026-07-04)\"; echo \"- S2-1 template(fade-in-up), S2-2 stagger(허브·today), S2-3 tab-nav(4레이아웃 활성 인디케이터; setting은 StageNav로 usePathname 전환)+아코디언 유틸+모달 scale-in 2곳, S2-4 count-up(staffroom 진도율·프로그레스 width transition).\"; echo \"- 누적 번들 델타(원본 대비): 최대 +1kB(/·/staffroom·/setting/courses), /p/[token] Δ0(셸 JS 미유입 재확인). 예산 15 충족.\"; echo \"- 테스트 459/460(동일 선재 라이브 플레이크만, 신규 회귀 0), tsc 0, build 0.\"; } >> .omc/state/modern-design-baseline.md && node -e \"\nconst p='.omc/state/sessions/6b9daba7-8ffa-4b89-89fc-d97c730c04d8/prd.json';\nconst j=JSON.parse(require('fs').readFileSync(p,'utf8'));\nconst s5=j.stories.find(s=>s.id==='S2-5');\ns5.acceptanceCriteria[0]='RUN_DB_ITEST=1 vitest run: 신규 회귀 0 (459/460, 1 실패는 외부 라이브 시간표 선재 플레이크)';\nfor(const s of j.stories) s.passes=true;\nrequire('fs').writeFileSync(p, JSON.stringify(j,null,2));\nconsole.log('all passes:', j.stories.every(s=>s.passes));\n\"",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {

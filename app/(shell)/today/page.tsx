@@ -163,7 +163,7 @@ export default async function TodayPage() {
           (기존 모달과 별개로 유지 — 모달을 닫아도 배너는 남는다). */}
       <NudgeBanner nudges={nudges} />
 
-      <div className="mt-6 grid gap-6 md:grid-cols-2">
+      <div className="stagger mt-6 grid gap-6 md:grid-cols-2">
         {/* 오늘 시간표 — 수업마다 색상 + 시간(AC-7.7) */}
         <section className="rounded-lg border border-neutral-200 p-4">
           <h2 className="text-sm font-normal text-neutral-700">오늘 시간표</h2>

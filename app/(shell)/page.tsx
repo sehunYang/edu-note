@@ -57,7 +57,7 @@ export default async function Home() {
 
       {/* QC v6 ⑦ — 대표 8개 컴포넌트만 지정 순서로 배치(이모지 부여). 그 외 기능은
           각 대표 컴포넌트 하위로 접근. */}
-      <section className="mt-10 grid gap-3">
+      <section className="stagger mt-10 grid gap-3">
         <DashCard
           href="/setting"
           title="⚙️ 세팅실"
