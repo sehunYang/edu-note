@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import type { NudgeResult } from "@/lib/domain/nudge";
 import { Button } from "@/app/ui/button";
@@ -26,7 +27,9 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
 
   if (!open) return null;
 
-  return (
+  // body 포털: 진입 직후(template fade 진행 중)에 열리므로, 조상 transform의
+  // containing block에 걸리지 않게 뷰포트 기준으로 띄운다.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex animate-fade-in-up items-center justify-center bg-black/40 p-4"
       role="dialog"
@@ -140,6 +143,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
           다음에 하기
         </Button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

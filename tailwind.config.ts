@@ -230,8 +230,10 @@ const config: Config = {
         },
       },
       animation: {
-        "fade-in-up": "fade-in-up 180ms ease-out both",
-        "scale-in": "scale-in 150ms ease-out both",
+        /* fill은 backwards만: forwards가 남기는 translateY(0)/scale(1)도 transform이라
+           fixed 자손(모달)의 containing block이 되어 뷰포트 중앙 정렬이 깨진다. */
+        "fade-in-up": "fade-in-up 180ms ease-out backwards",
+        "scale-in": "scale-in 150ms ease-out backwards",
       },
       transitionDuration: {
         "120": "120ms",

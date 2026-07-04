@@ -65,7 +65,9 @@ body {
   /* 등장 스태거 (Stage 2-2): 부모에 .stagger 클래스만 부여하면 첫 8개 직계
      자식이 40ms 간격으로 순차 fade-in-up. reduced-motion 가드가 무효화. */
   .stagger > * {
-    animation: fade-in-up 180ms ease-out both;
+    /* fill backwards: 딜레이 전 은닉만. forwards는 transform을 영구히 남겨
+       자식 fixed 오버레이(모달)가 문서 기준으로 붙게 하므로 금지. */
+    animation: fade-in-up 180ms ease-out backwards;
   }
   .stagger > *:nth-child(1) {
     animation-delay: 0ms;
