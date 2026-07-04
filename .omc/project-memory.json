@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1782986284411,
+  "lastScanned": 1783155118822,
   "projectRoot": "C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note",
   "techStack": {
     "languages": [
@@ -47,8 +47,8 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "cd \"/c/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && npx tsc --noEmit 2>&1 | tail -2; echo \"tsc:$?\" && npm run build > /tmp/b.txt 2>&1; echo \"build:$?\"; tail -2 /tmp/b.txt",
-    "testCommand": "cd \"/c/Users/Sehun/Desktop/Private Files/Dev/Edu_Note\" && { echo \"### S2-1~5 완료 (2026-07-04)\"; echo \"- S2-1 template(fade-in-up), S2-2 stagger(허브·today), S2-3 tab-nav(4레이아웃 활성 인디케이터; setting은 StageNav로 usePathname 전환)+아코디언 유틸+모달 scale-in 2곳, S2-4 count-up(staffroom 진도율·프로그레스 width transition).\"; echo \"- 누적 번들 델타(원본 대비): 최대 +1kB(/·/staffroom·/setting/courses), /p/[token] Δ0(셸 JS 미유입 재확인). 예산 15 충족.\"; echo \"- 테스트 459/460(동일 선재 라이브 플레이크만, 신규 회귀 0), tsc 0, build 0.\"; } >> .omc/state/modern-design-baseline.md && node -e \"\nconst p='.omc/state/sessions/6b9daba7-8ffa-4b89-89fc-d97c730c04d8/prd.json';\nconst j=JSON.parse(require('fs').readFileSync(p,'utf8'));\nconst s5=j.stories.find(s=>s.id==='S2-5');\ns5.acceptanceCriteria[0]='RUN_DB_ITEST=1 vitest run: 신규 회귀 0 (459/460, 1 실패는 외부 라이브 시간표 선재 플레이크)';\nfor(const s of j.stories) s.passes=true;\nrequire('fs').writeFileSync(p, JSON.stringify(j,null,2));\nconsole.log('all passes:', j.stories.every(s=>s.passes));\n\"",
+    "buildCommand": "npm run build 2>&1 | tail -12",
+    "testCommand": "DB_URL=\"$(grep -m1 '^DATABASE_URL=' .env.local | cut -d= -f2- | tr -d '\"')\" && NEIS_KEY=\"$(grep -m1 '^NEIS_API_KEY=' .env.local | cut -d= -f2- | tr -d '\"')\" && DATABASE_URL=\"$DB_URL\" NEIS_API_KEY=\"$NEIS_KEY\" RUN_DB_ITEST=1 npx vitest run 2>&1 | tail -12",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",
     "scripts": {
@@ -90,20 +90,18 @@
     "app": {
       "path": "app",
       "purpose": "Application code",
-      "fileCount": 4,
-      "lastAccessed": 1782986284327,
+      "fileCount": 2,
+      "lastAccessed": 1783155118702,
       "keyFiles": [
         "globals.css",
-        "layout.tsx",
-        "nudge-banner.tsx",
-        "page.tsx"
+        "layout.tsx"
       ]
     },
     "content": {
       "path": "content",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1782986284347,
+      "lastAccessed": 1783155118728,
       "keyFiles": [
         "세특 작성 지침.md"
       ]
@@ -112,7 +110,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 3,
-      "lastAccessed": 1782986284348,
+      "lastAccessed": 1783155118729,
       "keyFiles": [
         "DEPLOY_MANUAL.md",
         "GOOGLE_OAUTH_SETUP.md",
@@ -123,7 +121,7 @@
       "path": "lib",
       "purpose": "Library code",
       "fileCount": 2,
-      "lastAccessed": 1782986284349,
+      "lastAccessed": 1783155118731,
       "keyFiles": [
         "device.test.ts",
         "device.ts"
@@ -133,7 +131,7 @@
       "path": "report",
       "purpose": null,
       "fileCount": 7,
-      "lastAccessed": 1782986284350,
+      "lastAccessed": 1783155118734,
       "keyFiles": [
         "qc-report-v1.md",
         "qc-report-v2.md",
@@ -146,7 +144,7 @@
       "path": "scripts",
       "purpose": "Build/utility scripts",
       "fileCount": 3,
-      "lastAccessed": 1782986284351,
+      "lastAccessed": 1783155118736,
       "keyFiles": [
         "apply-sql.mjs",
         "comcigan-probe.mjs",
@@ -157,14 +155,14 @@
       "path": "app\\api",
       "purpose": "API routes",
       "fileCount": 0,
-      "lastAccessed": 1782986284353,
+      "lastAccessed": 1783155118737,
       "keyFiles": []
     },
     "lib\\public": {
       "path": "lib\\public",
       "purpose": "Public files",
       "fileCount": 7,
-      "lastAccessed": 1782986284355,
+      "lastAccessed": 1783155118746,
       "keyFiles": [
         "dto.test.ts",
         "dto.ts",
@@ -175,8 +173,8 @@
   "hotPaths": [
     {
       "path": "lib\\db\\queries\\index.ts",
-      "accessCount": 76,
-      "lastAccessed": 1781669355120,
+      "accessCount": 77,
+      "lastAccessed": 1783123394976,
       "type": "file"
     },
     {
@@ -312,6 +310,12 @@
       "type": "file"
     },
     {
+      "path": "vitest.config.ts",
+      "accessCount": 7,
+      "lastAccessed": 1783155272716,
+      "type": "file"
+    },
+    {
       "path": "lib\\integrations\\comcigan.test.ts",
       "accessCount": 6,
       "lastAccessed": 1781051967612,
@@ -333,12 +337,6 @@
       "path": "lib\\integrations\\neis.test.ts",
       "accessCount": 6,
       "lastAccessed": 1781510551953,
-      "type": "file"
-    },
-    {
-      "path": "vitest.config.ts",
-      "accessCount": 6,
-      "lastAccessed": 1781673003562,
       "type": "file"
     },
     {

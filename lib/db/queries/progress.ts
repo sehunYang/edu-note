@@ -153,6 +153,21 @@ export interface ProgressPopupRow {
   overdue: boolean; // date < 오늘 = 연체
 }
 
+/** todayStr(yyyy-mm-dd)이 속한 ISO 주의 월요일~일요일 경계(UTC, yyyy-mm-dd). */
+function thisWeekRange(todayStr: string): { weekStart: string; weekEnd: string } {
+  const now = new Date(todayStr + "T00:00:00Z");
+  const dow = now.getUTCDay(); // 0=일..6=토
+  const sinceMonday = dow === 0 ? 6 : dow - 1; // 월요일까지 거슬러 간 일수
+  const monday = new Date(now);
+  monday.setUTCDate(now.getUTCDate() - sinceMonday);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return {
+    weekStart: monday.toISOString().slice(0, 10),
+    weekEnd: sunday.toISOString().slice(0, 10),
+  };
+}
+
 /** 이번주(월~일) ∪ 연체(date<오늘) 의 planned 차시. 활성 학기 과목으로 한정. */
 export async function listProgressPopup(
   db: DB,
@@ -161,17 +176,7 @@ export async function listProgressPopup(
   sem: 1 | 2,
 ): Promise<ProgressPopupRow[]> {
   const todayStr = today();
-
-  // 이번 ISO 주의 월요일~일요일 경계(UTC).
-  const now = new Date(todayStr + "T00:00:00Z");
-  const dow = now.getUTCDay(); // 0=일..6=토
-  const sinceMonday = dow === 0 ? 6 : dow - 1; // 월요일까지 거슬러 간 일수
-  const monday = new Date(now);
-  monday.setUTCDate(now.getUTCDate() - sinceMonday);
-  const sunday = new Date(monday);
-  sunday.setUTCDate(monday.getUTCDate() + 6);
-  const weekStart = monday.toISOString().slice(0, 10);
-  const weekEnd = sunday.toISOString().slice(0, 10);
+  const { weekStart, weekEnd } = thisWeekRange(todayStr);
 
   const rows = await db
     .select({
@@ -673,6 +678,48 @@ function deriveLastDoneUnit(
     resultLabel = meta.label;
   });
   return { lastDoneUnitCode: resultCode, lastDoneUnitLabel: resultLabel };
+}
+
+export interface WeeklyProgressStat {
+  /** 이번 주(월~일) 활성 학기 차시 수(분모). */
+  planned: number;
+  /** 그중 완료(done) 차시 수. */
+  done: number;
+  /** done/planned (0..1). planned 0이면 0. */
+  rate: number;
+}
+
+/**
+ * 이번 주(월~일, KST 기준) 활성 학기 차시의 완료율 집계(허브 요약 위젯용). 읽기 전용
+ * 단일 집계 — done/전체(이번 주 차시). 차시가 없으면 rate 0. ownerId·학년·학기 스코프.
+ */
+export async function getWeeklyProgressStat(
+  db: DB,
+  ownerId: string,
+  year: number,
+  sem: 1 | 2,
+): Promise<WeeklyProgressStat> {
+  // 이번 ISO 주의 월요일~일요일 경계(UTC) — listProgressPopup 과 동일 규약.
+  const { weekStart, weekEnd } = thisWeekRange(today());
+
+  const rows = await db
+    .select({ status: classSessions.status })
+    .from(classSessions)
+    .innerJoin(courseSections, eq(classSessions.sectionId, courseSections.id))
+    .innerJoin(subjects, eq(courseSections.subjectId, subjects.id))
+    .where(
+      and(
+        eq(classSessions.ownerId, ownerId),
+        eq(subjects.schoolYear, year),
+        eq(subjects.semester, sem),
+        gte(classSessions.date, weekStart),
+        lte(classSessions.date, weekEnd),
+      ),
+    );
+
+  const planned = rows.length;
+  const done = rows.filter((r) => r.status === "done").length;
+  return { planned, done, rate: planned === 0 ? 0 : done / planned };
 }
 
 /** 활성 학기 과목들의 분반 목록(과목명·분반순). 진척도 보드용. */
