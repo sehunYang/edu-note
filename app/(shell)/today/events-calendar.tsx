@@ -8,6 +8,7 @@ import {
   deleteMemoAction,
 } from "./actions";
 import type { TodayMemoRow } from "@/lib/db/queries";
+import type { GoogleEventDisplayItem } from "@/lib/domain/google-event";
 import { Button } from "@/app/ui/button";
 
 /**
@@ -51,11 +52,14 @@ export function EventsCalendar({
   events: initialEvents,
   counsel: initialCounsel,
   memos: initialMemos = [],
+  googleEvents: initialGoogleEvents = [],
   googleSyncError = null,
 }: {
   events: CalendarEventItem[];
   counsel: CalendarCounselItem[];
   memos?: TodayMemoRow[];
+  /** 구글 캘린더 → 읽기 전용 표시(우리가 push한 항목은 서버에서 이미 제외됨). */
+  googleEvents?: GoogleEventDisplayItem[];
   googleSyncError?: string | null;
 }) {
   const todayStr = useMemo(() => kstToday(), []);
@@ -69,6 +73,8 @@ export function EventsCalendar({
   const [events, setEvents] = useState<CalendarEventItem[]>(initialEvents);
   const [counsel, setCounsel] = useState<CalendarCounselItem[]>(initialCounsel);
   const [memos, setMemos] = useState<TodayMemoRow[]>(initialMemos);
+  const [googleEvents, setGoogleEvents] =
+    useState<GoogleEventDisplayItem[]>(initialGoogleEvents);
   const [loading, startLoad] = useTransition();
 
   // 초기 월(=오늘 월)은 props 를 그대로 쓰고, 그 이후 월 변경 시에만 재조회한다.
@@ -84,6 +90,7 @@ export function EventsCalendar({
       setEvents(data.events);
       setCounsel(data.counsel);
       setMemos(data.memos);
+      setGoogleEvents(data.googleEvents);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month.year, month.month]);
@@ -116,6 +123,16 @@ export function EventsCalendar({
     for (const m of memos) map.set(m.date, (map.get(m.date) ?? 0) + 1);
     return map;
   }, [memos]);
+
+  const googleEventsByDate = useMemo(() => {
+    const map = new Map<string, GoogleEventDisplayItem[]>();
+    for (const g of googleEvents) {
+      const arr = map.get(g.date) ?? [];
+      arr.push(g);
+      map.set(g.date, arr);
+    }
+    return map;
+  }, [googleEvents]);
 
   const first = new Date(month.year, month.month, 1);
   const startWeekday = first.getDay();
@@ -182,6 +199,7 @@ export function EventsCalendar({
           const evs = eventsByDate.get(dateStr) ?? [];
           const cs = counselByDate.get(dateStr) ?? [];
           const memoCount = memoCountByDate.get(dateStr) ?? 0;
+          const gEvents = googleEventsByDate.get(dateStr) ?? [];
           const isToday = dateStr === todayStr;
           return (
             <button
@@ -220,6 +238,15 @@ export function EventsCalendar({
                   상담 {label}
                 </div>
               ))}
+              {gEvents.map((g, j) => (
+                <div
+                  key={`ge${j}`}
+                  title={`구글: ${g.title}`}
+                  className="mt-0.5 truncate rounded bg-blue-100 px-1 text-[10px] text-blue-700"
+                >
+                  G {g.title}
+                </div>
+              ))}
             </button>
           );
         })}
@@ -230,6 +257,7 @@ export function EventsCalendar({
           date={selectedDate}
           events={eventsByDate.get(selectedDate) ?? []}
           counsel={counselByDate.get(selectedDate) ?? []}
+          googleEvents={googleEventsByDate.get(selectedDate) ?? []}
           onClose={() => setSelectedDate(null)}
           onMemosChanged={refreshMonthMemos}
         />
@@ -246,12 +274,15 @@ function DayDetailModal({
   date,
   events,
   counsel,
+  googleEvents = [],
   onClose,
   onMemosChanged,
 }: {
   date: string;
   events: string[];
   counsel: string[];
+  /** 구글 캘린더 읽기 전용 표시(수정·삭제 불가 — 편집은 구글에서). */
+  googleEvents?: GoogleEventDisplayItem[];
   onClose: () => void;
   onMemosChanged: () => void;
 }) {
@@ -334,7 +365,7 @@ function DayDetailModal({
           </button>
         </div>
 
-        {(events.length > 0 || counsel.length > 0) && (
+        {(events.length > 0 || counsel.length > 0 || googleEvents.length > 0) && (
           <div className="mt-3 space-y-1 text-sm">
             {events.map((t, i) => (
               <div
@@ -350,6 +381,20 @@ function DayDetailModal({
                 className="rounded bg-green-50 px-2 py-1 text-green-700"
               >
                 상담 {c}
+              </div>
+            ))}
+            {googleEvents.map((g, i) => (
+              <div
+                key={`ge${i}`}
+                className="rounded bg-blue-50 px-2 py-1 text-blue-700"
+                title="구글 캘린더 일정(읽기 전용) — 수정·삭제는 구글에서 해주세요."
+              >
+                구글: {g.title}
+                {g.startTime && (
+                  <span className="ml-1 text-xs text-blue-500">
+                    {g.endTime ? `${g.startTime}–${g.endTime}` : `${g.startTime}~`}
+                  </span>
+                )}
               </div>
             ))}
           </div>

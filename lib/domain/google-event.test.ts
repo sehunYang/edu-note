@@ -4,6 +4,8 @@ import {
   validateMemoTime,
   isAccessTokenFresh,
   buildGoogleEventPayload,
+  mapGoogleEventToDisplay,
+  filterExternalGoogleEvents,
 } from "./google-event";
 
 /**
@@ -217,5 +219,90 @@ describe("buildGoogleEventPayload — summary 절단", () => {
     });
     expect(p.summary).toBe("짧은 제목");
     expect(p.description).toBe("짧은 제목\n본문 내용");
+  });
+});
+
+describe("mapGoogleEventToDisplay", () => {
+  it("종일 이벤트 — start.date만 있으면 startTime/endTime null", () => {
+    const item = mapGoogleEventToDisplay({
+      id: "abc123",
+      summary: "체육대회",
+      start: { date: "2026-09-10" },
+      end: { date: "2026-09-11" },
+    });
+    expect(item).toEqual({
+      date: "2026-09-10",
+      title: "체육대회",
+      startTime: null,
+      endTime: null,
+    });
+  });
+
+  it("시간 이벤트 — dateTime에서 날짜·HH:MM 분리 추출", () => {
+    const item = mapGoogleEventToDisplay({
+      id: "def456",
+      summary: "학부모 상담",
+      start: { dateTime: "2026-09-10T14:00:00+09:00" },
+      end: { dateTime: "2026-09-10T15:00:00+09:00" },
+    });
+    expect(item).toEqual({
+      date: "2026-09-10",
+      title: "학부모 상담",
+      startTime: "14:00",
+      endTime: "15:00",
+    });
+  });
+
+  it("summary 없으면 '(제목 없음)'", () => {
+    const item = mapGoogleEventToDisplay({
+      id: "ghi789",
+      start: { date: "2026-09-10" },
+    });
+    expect(item?.title).toBe("(제목 없음)");
+  });
+
+  it("start 정보가 전혀 없으면 null(표시 안 함)", () => {
+    expect(mapGoogleEventToDisplay({ id: "x" })).toBeNull();
+  });
+
+  it("종료 시간 없이 시작만 있어도 처리(endTime null)", () => {
+    const item = mapGoogleEventToDisplay({
+      id: "jkl012",
+      summary: "메모",
+      start: { dateTime: "2026-09-10T09:00:00+09:00" },
+    });
+    expect(item?.startTime).toBe("09:00");
+    expect(item?.endTime).toBeNull();
+  });
+});
+
+describe("filterExternalGoogleEvents", () => {
+  it("우리가 push한 이벤트(파생 id 일치)는 제외한다", () => {
+    const memoId = "550e8400-e29b-41d4-a716-446655440000";
+    const ownEventId = deriveGoogleEventId(memoId); // 550e8400e29b41d4a716446655440000
+    const events = [
+      { id: ownEventId, summary: "우리 메모" },
+      { id: "external-1", summary: "구글에서 직접 만든 일정" },
+    ];
+    const result = filterExternalGoogleEvents(events, [memoId]);
+    expect(result).toEqual([{ id: "external-1", summary: "구글에서 직접 만든 일정" }]);
+  });
+
+  it("로컬 메모가 없으면 전부 외부 이벤트로 통과", () => {
+    const events = [{ id: "a" }, { id: "b" }];
+    expect(filterExternalGoogleEvents(events, [])).toEqual(events);
+  });
+
+  it("여러 로컬 메모의 파생 id를 모두 제외한다", () => {
+    const id1 = "550e8400-e29b-41d4-a716-446655440000";
+    const id2 = "660e8400-e29b-41d4-a716-446655440001";
+    const events = [
+      { id: deriveGoogleEventId(id1) },
+      { id: deriveGoogleEventId(id2) },
+      { id: "external" },
+    ];
+    expect(filterExternalGoogleEvents(events, [id1, id2])).toEqual([
+      { id: "external" },
+    ]);
   });
 });

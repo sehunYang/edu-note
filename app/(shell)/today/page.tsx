@@ -17,6 +17,7 @@ import {
 import { TodayNudgeModal } from "./nudge-modal";
 import { NudgeBanner } from "../nudge-banner";
 import { EventsCalendar } from "./events-calendar";
+import { fetchGoogleEventsInRange } from "./actions";
 import { getGoogleConnectionStatusAction } from "../setting/profile/google-calendar-actions";
 import { NoticeWidget } from "./notice-widget";
 import { TimetableWidget } from "./timetable-widget";
@@ -56,6 +57,7 @@ export default async function TodayPage() {
     teacherNotes,
     noticeEvents,
     googleStatus,
+    googleEvents,
   ] = await Promise.all([
     getTeacherTimetable(db, ownerId, year, semester),
     getEventsInRange(db, ownerId, monthFrom, monthTo),
@@ -68,6 +70,7 @@ export default async function TodayPage() {
     listTeacherNotes(db, ownerId),
     listNoticeEvents(db, ownerId),
     getGoogleConnectionStatusAction(),
+    fetchGoogleEventsInRange(monthFrom, monthTo),
   ]);
 
   const todaySlots = todaySlotsFor(allSlots, weekday);
@@ -117,6 +120,7 @@ export default async function TodayPage() {
             studentLabel: c.studentLabel,
           }))}
           memos={monthMemos}
+          googleEvents={googleEvents}
           googleSyncError={googleStatus.connected ? googleStatus.lastError : null}
         />
 

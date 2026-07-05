@@ -7,6 +7,9 @@ import {
   validateMemoTime,
   buildGoogleEventPayload,
   isAccessTokenFresh,
+  mapGoogleEventToDisplay,
+  filterExternalGoogleEvents,
+  type GoogleEventDisplayItem,
 } from "@/lib/domain/google-event";
 import {
   encryptToken,
@@ -14,6 +17,7 @@ import {
   refreshAccessToken,
   insertEvent,
   deleteEvent,
+  listEvents,
   GoogleAuthExpiredError,
 } from "@/lib/integrations/google-calendar";
 import {
@@ -110,13 +114,48 @@ async function pushMemoToGoogle(
   }
 }
 
+/**
+ * 구글 캘린더 → 오늘의 학교 읽기(읽기 전용, 쓰기 없음). 연결 없음/조회 실패는
+ * 조용히 빈 배열(원칙 3과 동일한 정신 — 실패해도 페이지는 정상 렌더). 우리가
+ * 직접 push한 이벤트(같은 기간 로컬 메모에서 파생된 id)는 중복 표시 방지를 위해
+ * 제외한다.
+ */
+export async function fetchGoogleEventsInRange(
+  from: string,
+  to: string,
+): Promise<GoogleEventDisplayItem[]> {
+  const ownerId = await getOwnerId();
+  const db = getDb();
+  const connection = await getGoogleConnection(db, ownerId);
+  if (!connection || !connection.syncEnabled) return [];
+  try {
+    const accessToken = await getFreshAccessToken(db, ownerId, connection);
+    const timeMin = `${from}T00:00:00+09:00`;
+    const timeMax = `${to}T23:59:59+09:00`;
+    const [rawEvents, localMemos] = await Promise.all([
+      listEvents(accessToken, connection.calendarId, timeMin, timeMax),
+      listTodayMemosInRange(db, ownerId, from, to),
+    ]);
+    const external = filterExternalGoogleEvents(
+      rawEvents,
+      localMemos.map((m) => m.id),
+    );
+    return external
+      .map(mapGoogleEventToDisplay)
+      .filter((x): x is GoogleEventDisplayItem => x !== null);
+  } catch {
+    return [];
+  }
+}
+
 export interface CalendarRangeData {
   events: { date: string; title: string }[];
   counsel: { date: string; studentLabel: string }[];
   memos: TodayMemoRow[];
+  googleEvents: GoogleEventDisplayItem[];
 }
 
-/** 월 네비게이션 시 해당 월 범위([from, to])의 학사일정·상담·메모를 재조회(B.3/B.4). */
+/** 월 네비게이션 시 해당 월 범위([from, to])의 학사일정·상담·메모·구글일정을 재조회(B.3/B.4). */
 export async function fetchCalendarRange(
   from: string,
   to: string,
@@ -124,10 +163,11 @@ export async function fetchCalendarRange(
   const ownerId = await getOwnerId();
   const db = getDb();
   const year = new Date().getFullYear();
-  const [events, reservations, memos] = await Promise.all([
+  const [events, reservations, memos, googleEvents] = await Promise.all([
     getEventsInRange(db, ownerId, from, to),
     listHomeroomReservationsInRange(db, ownerId, year, from, to),
     listTodayMemosInRange(db, ownerId, from, to),
+    fetchGoogleEventsInRange(from, to),
   ]);
   return {
     events: events.map((e) => ({ date: e.date, title: e.title })),
@@ -136,6 +176,7 @@ export async function fetchCalendarRange(
       studentLabel: c.studentLabel,
     })),
     memos,
+    googleEvents,
   };
 }
 

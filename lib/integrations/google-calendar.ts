@@ -1,5 +1,6 @@
 import "server-only";
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import type { GoogleCalendarApiEvent } from "@/lib/domain/google-event";
 
 /**
  * 구글 캘린더 연동 어댑터 (구글 캘린더 단방향 동기화 계획 3단계). refresh/access
@@ -100,6 +101,35 @@ export async function refreshAccessToken(
 function eventsUrl(calendarId: string, eventId?: string): string {
   const base = `${CALENDAR_BASE}/${encodeURIComponent(calendarId)}/events`;
   return eventId ? `${base}/${encodeURIComponent(eventId)}` : base;
+}
+
+/**
+ * 기간([timeMin, timeMax], RFC3339) 이벤트 목록 조회(구글→앱 읽기, 쓰기 없음).
+ * `singleEvents=true` 로 반복일정을 개별 인스턴스로 전개해 받는다(RRULE 직접
+ * 파싱 불필요). 조회 실패는 throw(호출측이 catch해 빈 배열로 처리 — best-effort).
+ */
+export async function listEvents(
+  accessToken: string,
+  calendarId: string,
+  timeMin: string,
+  timeMax: string,
+): Promise<GoogleCalendarApiEvent[]> {
+  const params = new URLSearchParams({
+    timeMin,
+    timeMax,
+    singleEvents: "true",
+    orderBy: "startTime",
+    maxResults: "250",
+  });
+  const res = await fetch(`${eventsUrl(calendarId)}?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(3000),
+  });
+  if (!res.ok) {
+    throw new Error(`구글 일정 조회 실패: HTTP ${res.status}`);
+  }
+  const json: { items?: GoogleCalendarApiEvent[] } = await res.json();
+  return json.items ?? [];
 }
 
 /**

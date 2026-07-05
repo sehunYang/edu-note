@@ -119,3 +119,57 @@ export function buildGoogleEventPayload(
     end: { dateTime: `${endDate}T${endTimeStr}:00`, timeZone: "Asia/Seoul" },
   };
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * 구글 캘린더 → 오늘의 학교 읽기(읽기 전용 표시, 쓰기 없음). 순수 함수.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** Google Calendar API events.list 응답 한 항목(필요한 필드만). */
+export interface GoogleCalendarApiEvent {
+  id: string;
+  summary?: string;
+  start?: { date?: string; dateTime?: string };
+  end?: { date?: string; dateTime?: string };
+}
+
+/** 오늘의 학교 캘린더에 표시할 구글 일정(읽기 전용). */
+export interface GoogleEventDisplayItem {
+  date: string; // YYYY-MM-DD
+  title: string;
+  startTime: string | null; // HH:MM. 종일이면 null.
+  endTime: string | null;
+}
+
+/**
+ * 구글 API 이벤트 → 표시용 항목 매핑. 종일 이벤트는 date만, 시간 이벤트는
+ * dateTime(Asia/Seoul 로컬 문자열)에서 날짜·HH:MM을 분리 추출한다. 다중일 종일
+ * 이벤트는 시작일에만 1회 표시(단순화 — 매일 반복 표시하지 않음).
+ */
+export function mapGoogleEventToDisplay(
+  event: GoogleCalendarApiEvent,
+): GoogleEventDisplayItem | null {
+  const title = event.summary?.trim() || "(제목 없음)";
+  if (event.start?.date) {
+    return { date: event.start.date, title, startTime: null, endTime: null };
+  }
+  if (event.start?.dateTime) {
+    const [date, time] = event.start.dateTime.split("T");
+    const startTime = time?.slice(0, 5) ?? null;
+    const endTime = event.end?.dateTime?.split("T")[1]?.slice(0, 5) ?? null;
+    return { date, title, startTime, endTime: endTime ?? null };
+  }
+  return null; // start 정보가 없으면(비정상 응답) 표시하지 않는다.
+}
+
+/**
+ * 구글에서 읽어온 이벤트 중 **우리가 직접 push한 것**을 제외한다(중복 표시 방지).
+ * 우리가 push한 이벤트의 id는 항상 `deriveGoogleEventId(로컬메모id)`이므로,
+ * 같은 기간의 로컬 메모 id 집합으로부터 파생한 id 목록과 비교해 걸러낸다.
+ */
+export function filterExternalGoogleEvents(
+  events: GoogleCalendarApiEvent[],
+  localMemoIds: string[],
+): GoogleCalendarApiEvent[] {
+  const ownIds = new Set(localMemoIds.map(deriveGoogleEventId));
+  return events.filter((e) => !ownIds.has(e.id));
+}
