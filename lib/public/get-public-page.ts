@@ -26,7 +26,7 @@ function publicSql() {
     globalForPublic._eduPublicPgClient = postgres(url, {
       prepare: false,
       max: 2,
-      idle_timeout: 20,
+      idle_timeout: 600, // 유휴 반납 10분 — 재연결 비용 제거(지연 개선 ③, lib/db/index.ts 와 동일)
     });
   }
   return globalForPublic._eduPublicPgClient;

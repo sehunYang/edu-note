@@ -30,7 +30,8 @@ function publicDb(): PostgresJsDatabase<typeof schema> {
   if (!globalForPublicWrite._eduPublicWriteDb) {
     const url = process.env.PUBLIC_DATABASE_URL ?? process.env.DATABASE_URL;
     if (!url) throw new Error("PUBLIC_DATABASE_URL(또는 DATABASE_URL) 미설정");
-    const sql = postgres(url, { prepare: false, max: 2, idle_timeout: 20 });
+    // idle_timeout 10분 — 재연결 비용 제거(지연 개선 ③, lib/db/index.ts 와 동일)
+    const sql = postgres(url, { prepare: false, max: 2, idle_timeout: 600 });
     globalForPublicWrite._eduPublicWriteClient = sql;
     globalForPublicWrite._eduPublicWriteDb = drizzle(sql, {
       schema,

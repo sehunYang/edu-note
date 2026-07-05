@@ -32,20 +32,21 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // getUser() 는 Supabase 서버에 토큰을 검증한다(getSession 보다 안전).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims(): 비대칭 서명 키면 JWKS(캐시)로 로컬 검증(왕복 0회), legacy 대칭 키면
+  // Auth 서버 검증 폴백 — getUser() 와 동일한 보안 수준을 왕복 없이 얻는다(지연 개선 ①).
+  // 만료 토큰의 자동 갱신(쿠키 setAll)은 supabase-js 가 내부에서 그대로 수행한다.
+  const { data, error } = await supabase.auth.getClaims();
+  const claims = error ? null : (data?.claims ?? null);
 
   // fail-closed: ALLOWED_EMAIL 미설정이면 전면 차단. (미설정 시 아무 계정이나
   // 통과시키는 fail-open 은 env 누락 한 번으로 조용히 전체 개방되는 구조였음)
   const allowed = process.env.ALLOWED_EMAIL;
-  const authorized = !!user && !!allowed && user.email === allowed;
+  const authorized = !!claims && !!allowed && claims.email === allowed;
 
   if (!authorized) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    if (user && user.email !== allowed) {
+    if (claims && claims.email !== allowed) {
       url.searchParams.set("error", "forbidden");
     }
     return NextResponse.redirect(url);

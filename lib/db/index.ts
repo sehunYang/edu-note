@@ -22,7 +22,10 @@ function pgClient() {
     globalForDb._eduPgClient = postgres(url, {
       prepare: false, // Supabase 풀러는 prepared statement 비활성 권장
       max: 3, // 단일 교사 앱 — 풀러 상한 보호용 소수 연결
-      idle_timeout: 20, // 유휴 연결 20초 후 반납
+      // 유휴 반납 10분(지연 개선 ③): 교사 클릭 간격(수십초~수분)에 연결이 죽어
+      // 매번 TCP+TLS+SCRAM 재연결 비용을 물던 것을 제거. Fluid Compute 인스턴스가
+      // 살아있는 동안 연결을 유지한다. max 3 이라 풀러 상한(15) 여유 충분.
+      idle_timeout: 600,
     });
   }
   return globalForDb._eduPgClient;
