@@ -17,6 +17,7 @@ import {
 import { TodayNudgeModal } from "./nudge-modal";
 import { NudgeBanner } from "../nudge-banner";
 import { EventsCalendar } from "./events-calendar";
+import { getGoogleConnectionStatusAction } from "../setting/profile/google-calendar-actions";
 import { NoticeWidget } from "./notice-widget";
 import { TimetableWidget } from "./timetable-widget";
 import { MealsWidget } from "./meals-widget";
@@ -54,6 +55,7 @@ export default async function TodayPage() {
     monthMemos,
     teacherNotes,
     noticeEvents,
+    googleStatus,
   ] = await Promise.all([
     getTeacherTimetable(db, ownerId, year, semester),
     getEventsInRange(db, ownerId, monthFrom, monthTo),
@@ -65,6 +67,7 @@ export default async function TodayPage() {
     listTodayMemosInRange(db, ownerId, monthFrom, monthTo),
     listTeacherNotes(db, ownerId),
     listNoticeEvents(db, ownerId),
+    getGoogleConnectionStatusAction(),
   ]);
 
   const todaySlots = todaySlotsFor(allSlots, weekday);
@@ -114,6 +117,7 @@ export default async function TodayPage() {
             studentLabel: c.studentLabel,
           }))}
           memos={monthMemos}
+          googleSyncError={googleStatus.connected ? googleStatus.lastError : null}
         />
 
         {/* 공지 위젯 — 한마디 스와이프 + 할일·공지(내용 포함) (AC-7.10) */}

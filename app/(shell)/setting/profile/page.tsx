@@ -4,6 +4,7 @@ import { isStageUnlocked, isStageComplete, getTeacherSettings } from "@/lib/db/q
 import { StageGate } from "../stage-gate";
 import { LockedNotice } from "../locked-notice";
 import { ProfileForm } from "./profile-form";
+import { GoogleCalendarCard } from "./google-calendar-card";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function ProfileStagePage() {
         식별자를 함께 해석합니다.
       </p>
       <ProfileForm initial={settings} />
+      <GoogleCalendarCard />
       <StageGate stage="profile" completed={completed} />
     </div>
   );

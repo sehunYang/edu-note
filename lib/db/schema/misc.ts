@@ -3,6 +3,7 @@ import {
   uuid,
   text,
   date,
+  time,
   integer,
   numeric,
   boolean,
@@ -68,11 +69,32 @@ export const clubActivitySessions = pgTable(
 
 // 오늘의학교 전용 일자별 메모. QC v5 c7 (0039). 일자별 다건 허용(unique 없음).
 // 오직 오늘의학교 캘린더에서만 노출(공개 페이지/타 캘린더 비노출).
+// startTime/endTime: 구글 캘린더 동기화 계획 v4 (0049). 둘 다 null=종일.
 export const todayCalendarMemos = pgTable("today_calendar_memos", {
   id: pk(),
   ownerId: ownerId(),
   date: date("date").notNull(),
   content: text("content").notNull(),
+  startTime: time("start_time"),
+  endTime: time("end_time"),
+  ...timestamps(),
+});
+
+// 구글 캘린더 연동 자격증명(교사 1인당 1행). 구글 캘린더 동기화 계획 v4 (0049).
+// refresh/access 토큰은 AES-256-GCM 암호문만 저장(lib/integrations/google-calendar.ts).
+// RLS enable + 정책 없음 = PostgREST 전면 차단, 서버 drizzle 커넥션(BYPASSRLS)만 접근.
+// google_event_id 컬럼 없음 — 이벤트 id는 메모 UUID에서 결정론 파생(멱등 설계 A′).
+export const googleCalendarConnections = pgTable("google_calendar_connections", {
+  id: pk(),
+  ownerId: ownerId().unique(),
+  refreshTokenEnc: text("refresh_token_enc").notNull(),
+  accessTokenEnc: text("access_token_enc"),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", {
+    withTimezone: true,
+  }),
+  calendarId: text("calendar_id").notNull().default("primary"),
+  syncEnabled: boolean("sync_enabled").notNull().default(true),
+  lastError: text("last_error"),
   ...timestamps(),
 });
 

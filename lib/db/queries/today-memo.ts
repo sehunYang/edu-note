@@ -14,6 +14,8 @@ export interface TodayMemoRow {
   id: string;
   date: string; // YYYY-MM-DD
   content: string;
+  startTime: string | null;
+  endTime: string | null;
 }
 
 /** 특정 날짜의 메모 목록(생성순). */
@@ -27,6 +29,8 @@ export async function listTodayMemos(
       id: todayCalendarMemos.id,
       date: todayCalendarMemos.date,
       content: todayCalendarMemos.content,
+      startTime: todayCalendarMemos.startTime,
+      endTime: todayCalendarMemos.endTime,
     })
     .from(todayCalendarMemos)
     .where(
@@ -50,6 +54,8 @@ export async function listTodayMemosInRange(
       id: todayCalendarMemos.id,
       date: todayCalendarMemos.date,
       content: todayCalendarMemos.content,
+      startTime: todayCalendarMemos.startTime,
+      endTime: todayCalendarMemos.endTime,
     })
     .from(todayCalendarMemos)
     .where(
@@ -68,10 +74,12 @@ export async function createTodayMemo(
   ownerId: string,
   date: string,
   content: string,
+  startTime?: string | null,
+  endTime?: string | null,
 ): Promise<{ id: string }> {
   const [row] = await db
     .insert(todayCalendarMemos)
-    .values({ ownerId, date, content })
+    .values({ ownerId, date, content, startTime: startTime ?? null, endTime: endTime ?? null })
     .returning({ id: todayCalendarMemos.id });
   return row;
 }
@@ -82,10 +90,12 @@ export async function updateTodayMemo(
   ownerId: string,
   id: string,
   content: string,
+  startTime?: string | null,
+  endTime?: string | null,
 ): Promise<void> {
   await db
     .update(todayCalendarMemos)
-    .set({ content, updatedAt: new Date() })
+    .set({ content, startTime: startTime ?? null, endTime: endTime ?? null, updatedAt: new Date() })
     .where(
       and(eq(todayCalendarMemos.id, id), eq(todayCalendarMemos.ownerId, ownerId)),
     );

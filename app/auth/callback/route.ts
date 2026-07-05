@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getDb } from "@/lib/db";
+import { upsertGoogleConnection } from "@/lib/db/queries";
+import { encryptToken } from "@/lib/integrations/google-calendar";
 
 /**
  * OAuth 콜백 (계획 §3.2). Google 로그인 후 code 를 세션으로 교환하고 홈으로.
@@ -20,8 +23,22 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // 증분 동의로 캘린더 스코프와 함께 로그인한 경우, 구글 refresh token 을
+      // 암호화해 저장한다(계획 6단계). ALLOWED_EMAIL 일치 시에만 저장(fail-closed).
+      const refreshToken = (data.session as any)?.provider_refresh_token as
+        | string
+        | undefined;
+      console.log("has refresh token:", !!refreshToken);
+      if (
+        refreshToken &&
+        data.session?.user?.email &&
+        data.session.user.email === process.env.ALLOWED_EMAIL
+      ) {
+        const db = getDb();
+        await upsertGoogleConnection(db, data.session.user.id, encryptToken(refreshToken));
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

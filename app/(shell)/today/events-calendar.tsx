@@ -51,10 +51,12 @@ export function EventsCalendar({
   events: initialEvents,
   counsel: initialCounsel,
   memos: initialMemos = [],
+  googleSyncError = null,
 }: {
   events: CalendarEventItem[];
   counsel: CalendarCounselItem[];
   memos?: TodayMemoRow[];
+  googleSyncError?: string | null;
 }) {
   const todayStr = useMemo(() => kstToday(), []);
   const [ty, tm] = useMemo(() => {
@@ -143,6 +145,11 @@ export function EventsCalendar({
   return (
     <section className="rounded-lg border border-neutral-200 p-4 md:col-span-2">
       <h2 className="text-sm font-normal text-neutral-700">학사일정 · 상담 · 메모</h2>
+      {googleSyncError && (
+        <p className="mt-1 text-xs text-red-600">
+          ⚠ 구글 동기화 오류 — 세팅실 프로필에서 확인하세요.
+        </p>
+      )}
       <div className="mb-2 mt-2 flex items-center justify-between text-sm">
         <Button
           type="button"
@@ -250,8 +257,12 @@ function DayDetailModal({
 }) {
   const [memos, setMemos] = useState<TodayMemoRow[]>([]);
   const [draft, setDraft] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [editId, setEditId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editEndTime, setEditEndTime] = useState("");
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -264,9 +275,11 @@ function DayDetailModal({
     const content = draft.trim();
     if (!content) return;
     startTransition(async () => {
-      const rows = await createMemoAction(date, content);
+      const rows = await createMemoAction(date, content, startTime || undefined, endTime || undefined);
       setMemos(rows);
       setDraft("");
+      setStartTime("");
+      setEndTime("");
       onMemosChanged();
     });
   }
@@ -275,10 +288,18 @@ function DayDetailModal({
     const content = editText.trim();
     if (!content) return;
     startTransition(async () => {
-      const rows = await updateMemoAction(editId, date, content);
+      const rows = await updateMemoAction(
+        editId,
+        date,
+        content,
+        editStartTime || undefined,
+        editEndTime || undefined,
+      );
       setMemos(rows);
       setEditId(null);
       setEditText("");
+      setEditStartTime("");
+      setEditEndTime("");
       onMemosChanged();
     });
   }
@@ -347,11 +368,28 @@ function DayDetailModal({
                 >
                   {editId === m.id ? (
                     <>
-                      <input
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        className="min-w-0 flex-1 rounded border border-neutral-300 px-1.5 py-0.5 text-sm"
-                      />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <input
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          className="w-full rounded border border-neutral-300 px-1.5 py-0.5 text-sm"
+                        />
+                        <div className="flex items-center gap-1 text-xs">
+                          <input
+                            type="time"
+                            value={editStartTime}
+                            onChange={(e) => setEditStartTime(e.target.value)}
+                            className="rounded border border-neutral-300 px-1 py-0.5"
+                          />
+                          <span className="text-neutral-400">~</span>
+                          <input
+                            type="time"
+                            value={editEndTime}
+                            onChange={(e) => setEditEndTime(e.target.value)}
+                            className="rounded border border-neutral-300 px-1 py-0.5"
+                          />
+                        </div>
+                      </div>
                       <Button
                         type="button"
                         onClick={saveEdit}
@@ -365,6 +403,11 @@ function DayDetailModal({
                     <>
                       <span className="min-w-0 flex-1 whitespace-pre-line break-words">
                         {m.content}
+                        {m.startTime && (
+                          <span className="ml-1.5 text-xs text-neutral-400">
+                            {m.endTime ? `${m.startTime}–${m.endTime}` : `${m.startTime}~`}
+                          </span>
+                        )}
                       </span>
                       <span className="flex shrink-0 gap-1">
                         <button
@@ -372,6 +415,8 @@ function DayDetailModal({
                           onClick={() => {
                             setEditId(m.id);
                             setEditText(m.content);
+                            setEditStartTime(m.startTime ?? "");
+                            setEditEndTime(m.endTime ?? "");
                           }}
                           className="rounded px-1 text-xs text-neutral-500 hover:bg-white/10"
                         >
@@ -393,24 +438,42 @@ function DayDetailModal({
             </ul>
           )}
 
-          <div className="mt-3 flex gap-2">
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") add();
-              }}
-              placeholder="일정/메모 입력"
-              className="min-w-0 flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
-            />
-            <Button
-              type="button"
-              onClick={add}
-              disabled={pending || !draft.trim()}
-              className="shrink-0 px-3 py-1 text-sm"
-            >
-              일정 추가하기
-            </Button>
+          <div className="mt-3 space-y-1.5">
+            <div className="flex gap-2">
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") add();
+                }}
+                placeholder="일정/메모 입력"
+                className="min-w-0 flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
+              />
+              <Button
+                type="button"
+                onClick={add}
+                disabled={pending || !draft.trim()}
+                className="shrink-0 px-3 py-1 text-sm"
+              >
+                일정 추가하기
+              </Button>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-neutral-500">
+              <span>시간(선택, 비우면 종일)</span>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="rounded border border-neutral-300 px-1 py-0.5"
+              />
+              <span className="text-neutral-400">~</span>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="rounded border border-neutral-300 px-1 py-0.5"
+              />
+            </div>
           </div>
         </div>
       </div>

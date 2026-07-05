@@ -119,7 +119,9 @@ export type AuditEvent =
   // QC v6 수업계획실 시험구간 계획 (US-1) + 학생 캘린더 메모 (US-5)
   | "exam_segment_plan_save"
   | "student_memo_save"
-  | "student_memo_delete";
+  | "student_memo_delete"
+  // 구글 캘린더 동기화 (계획 v4, 0049)
+  | "gcal_sync_fail";
 
 export async function writeAudit(
   db: DB,
