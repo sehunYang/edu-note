@@ -27,12 +27,13 @@ import {
 
 /**
  * 수업 계획실 서버액션 (교실 2-2 단계2). getOwnerId 가드 + 페이지범위 revalidate + audit.
- * 핵심개념(keywords)은 콤마/공백 구분 입력을 배열로 정규화한다.
+ * 핵심개념(keywords)은 콤마·# 구분 입력을 배열로 정규화한다. 공백은 구분자가
+ * 아니므로 "운동 에너지, 위치 에너지" 는 ["운동 에너지", "위치 에너지"] 2개로 남는다.
  */
 function parseKeywords(raw: string): string[] {
   return raw
-    .split(/[,\s]+/)
-    .map((k) => k.replace(/^#/, "").trim())
+    .split(/[,#]+/)
+    .map((k) => k.trim())
     .filter((k) => k.length > 0);
 }
 

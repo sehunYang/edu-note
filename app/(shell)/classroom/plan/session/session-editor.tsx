@@ -75,6 +75,26 @@ function code6(u: { majorNo: number; midNo: number; minorNo: number }): string {
   return String(sixDigitCode(u)).padStart(6, "0");
 }
 
+/** actions.ts parseKeywords 와 동일 규칙(콤마·# 구분, 공백은 단어 내부). */
+function splitKeywords(raw: string): string[] {
+  return raw
+    .split(/[,#]+/)
+    .map((k) => k.trim())
+    .filter((k) => k.length > 0);
+}
+
+/**
+ * 단원 핵심개념 클릭 → 차시 핵심개념 필드에 추가. **같은 차시 내 중복만** 막는다
+ * (parts.includes 체크는 current, 즉 이 행의 값만 본다) — 다른 차시에 같은 핵심개념을
+ * 추가하는 것은 애초에 서로 독립이라 막힌 적이 없다.
+ */
+function addKeyword(current: string, keyword: string): string {
+  const parts = splitKeywords(current);
+  if (parts.includes(keyword)) return current;
+  parts.push(keyword);
+  return parts.join(", ");
+}
+
 /** entries 배치 시그니처(ordinal→unitId|content). 여유차시 시프트 후 remount 키. */
 function entriesSig(s: SubjectSessionView): string {
   return s.entries
@@ -204,9 +224,10 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
       rows: rows.map((r) => ({
         ordinal: r.ordinal,
         content: r.content,
+        // 콤마·# 구분(공백은 구분자 아님) — actions.ts parseKeywords 와 동일 규칙.
         keywords: r.keywords
-          .split(/[,\s]+/)
-          .map((k) => k.replace(/^#/, "").trim())
+          .split(/[,#]+/)
+          .map((k) => k.trim())
           .filter((k) => k.length > 0),
         code: r.code.trim() ? Number(r.code.trim()) : null,
       })),
@@ -360,6 +381,8 @@ function SessionRow({
         ? "6자리 숫자(대2+중2+소2)로 입력하세요."
         : "존재하지 않는 단원 코드입니다."
       : null;
+  // 단원 핵심개념 클릭 시 중복 추가 방지·이미 추가됨 표시용.
+  const rowKeywords = useMemo(() => splitKeywords(row.keywords), [row.keywords]);
   // 여유차시(빈셀) = 단원코드·내용 둘 다 비어 있음. isSlackCell(domain) 동치.
   const isSlack = row.code.trim() === "" && row.content.trim() === "";
 
@@ -418,12 +441,38 @@ function SessionRow({
         {unit && (
           <span className="text-xs text-neutral-500">
             {unit.majorName} &gt; {unit.midName} &gt; {unit.minorName}
-            {unit.keywords.length > 0 && (
-              <span className="ml-1 text-blue-600">#{unit.keywords.join(" #")}</span>
-            )}
           </span>
         )}
       </div>
+      {unit && unit.keywords.length > 0 && (
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+          <span className="text-[10px] text-neutral-400">클릭하면 추가:</span>
+          {unit.keywords.map((kw) => {
+            const already = rowKeywords.includes(kw);
+            return (
+              <button
+                key={kw}
+                type="button"
+                onClick={() => onChange({ keywords: addKeyword(row.keywords, kw) })}
+                disabled={already}
+                title={
+                  already
+                    ? "이미 이 차시의 핵심개념에 있습니다."
+                    : "클릭하면 이 차시의 핵심개념에 추가됩니다."
+                }
+                className={`rounded px-1.5 py-0.5 text-xs ${
+                  already
+                    ? "bg-neutral-100 text-neutral-400"
+                    : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                }`}
+              >
+                #{kw}
+                {already && " ✓"}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {codeError && <p className="mt-1 text-xs text-red-600">{codeError}</p>}
 
       <textarea
@@ -436,7 +485,7 @@ function SessionRow({
       <input
         value={row.keywords}
         onChange={(e) => onChange({ keywords: e.target.value })}
-        placeholder="핵심개념(콤마/공백 구분, #는 자동 제거)"
+        placeholder="핵심개념(콤마·#로 구분, 공백 포함 단어 가능)"
         className="mt-2 w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
       />
     </li>

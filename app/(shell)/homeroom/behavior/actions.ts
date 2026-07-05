@@ -14,11 +14,12 @@ import { activeSchoolYear } from "@/lib/domain/school-year";
 /**
  * 행동특성 기록 서버액션 (교실 2-2 단계5 인접보정). getOwnerId 가드 + 페이지범위
  * revalidate + audit. 학생은 **담임반 학생만** 허용(listHomeroomStudents 멤버십 검증) —
- * 담임 외 학생 기록 거부(AC-O6). 키워드는 콤마/공백 구분 입력을 배열로 정규화한다.
+ * 담임 외 학생 기록 거부(AC-O6). 키워드는 콤마 구분 입력을 배열로 정규화한다(공백은
+ * 구분자가 아니므로 "운동 에너지" 처럼 공백 포함 키워드도 하나로 유지된다).
  */
 function parseKeywords(raw: string): string[] {
   return raw
-    .split(/[,\s]+/)
+    .split(",")
     .map((k) => k.trim())
     .filter((k) => k.length > 0);
 }

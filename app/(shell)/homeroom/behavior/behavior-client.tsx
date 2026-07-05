@@ -117,7 +117,7 @@ export function BehaviorClient({
         <input
           value={keywords}
           onChange={(e) => setKeywords(e.target.value)}
-          placeholder="키워드(콤마/공백 구분)"
+          placeholder="키워드(콤마로 구분, 공백 포함 단어 가능)"
           className="w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
         <Button
@@ -153,7 +153,9 @@ function BehaviorRow({ note }: { note: RecentBehaviorNote }) {
   const [editing, setEditing] = useState(false);
   const [notedOn, setNotedOn] = useState(note.notedOn);
   const [body, setBody] = useState(note.body);
-  const [keywords, setKeywords] = useState(note.keywords.join(" "));
+  // ", " join — parseKeywords 가 콤마 구분(공백은 단어 내부)이므로 재저장 시
+  // 공백 포함 키워드가 하나로 합쳐지지 않도록 표시도 콤마로 되돌린다.
+  const [keywords, setKeywords] = useState(note.keywords.join(", "));
   const [pending, startTransition] = useTransition();
 
   function onSave() {
@@ -196,7 +198,7 @@ function BehaviorRow({ note }: { note: RecentBehaviorNote }) {
         <input
           value={keywords}
           onChange={(e) => setKeywords(e.target.value)}
-          placeholder="키워드(콤마/공백 구분)"
+          placeholder="키워드(콤마로 구분, 공백 포함 단어 가능)"
           className="mt-2 w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
         <div className="mt-2 flex gap-2">

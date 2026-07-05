@@ -10,11 +10,12 @@ import {
 
 /**
  * 관찰/행특 기록 서버액션 (계획 §4 C). getOwnerId 가드 + audit.
- * 키워드는 콤마/공백 구분 입력을 배열로 정규화한다.
+ * 키워드는 콤마 구분 입력을 배열로 정규화한다(공백은 구분자가 아니므로 공백 포함
+ * 키워드도 하나로 유지된다).
  */
 function parseKeywords(raw: string): string[] {
   return raw
-    .split(/[,\s]+/)
+    .split(",")
     .map((k) => k.trim())
     .filter((k) => k.length > 0);
 }

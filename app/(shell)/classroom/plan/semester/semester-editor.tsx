@@ -341,10 +341,13 @@ function UnitRow({
             nameVal={unit?.minorName ?? ""}
           />
         </div>
+        {/* ", " join — parseKeywords 가 콤마/# 구분(공백은 단어 내부)이므로 재저장
+            시 공백 포함 키워드("운동 에너지")가 하나로 합쳐지지 않도록 표시도
+            콤마로 되돌린다. */}
         <input
           name="keywords"
-          defaultValue={(unit?.keywords ?? []).join(" ")}
-          placeholder="핵심개념(콤마/공백 구분, #는 자동 제거)"
+          defaultValue={(unit?.keywords ?? []).join(", ")}
+          placeholder="핵심개념(콤마·#로 구분, 공백 포함 단어 가능)"
           className="w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
         <div className="flex items-center gap-2">

@@ -16,13 +16,14 @@ import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 
 /**
  * 교과 관찰 서버액션 (교실 2-2 단계5). getOwnerId 가드 + 페이지범위 revalidate + audit.
- * 분반은 **필수**(addSubjectObservation 가 null 거부, AC-O1). 키워드는 콤마/공백 구분
- * 입력을 배열로 정규화한다. loadSectionStudents/loadStudentSections 는 client 동적
+ * 분반은 **필수**(addSubjectObservation 가 null 거부, AC-O1). 키워드는 콤마 구분
+ * 입력을 배열로 정규화한다(공백은 구분자가 아니므로 공백 포함 키워드도 하나로 유지).
+ * loadSectionStudents/loadStudentSections 는 client 동적
  * 필터(분반→학생)·자동매칭(학생→수강분반) 토글 입력을 제공한다.
  */
 function parseKeywords(raw: string): string[] {
   return raw
-    .split(/[,\s]+/)
+    .split(",")
     .map((k) => k.trim())
     .filter((k) => k.length > 0);
 }
