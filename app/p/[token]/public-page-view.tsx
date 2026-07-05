@@ -3,6 +3,7 @@ import { useMemo, useState, useTransition } from "react";
 import type {
   PublicPagePayload,
   PublicAttendance2D,
+  PublicAttendanceRecord,
   PublicCounselSlot,
 } from "@/lib/public";
 import {
@@ -25,6 +26,18 @@ function kstWeekday(now: Date = new Date()): number {
   const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
   const dow = kst.getUTCDay(); // 0=일 .. 6=토
   return dow === 0 ? 7 : dow;
+}
+/** KST 기준 이번 주(월요일 시작) 월~금 날짜 "M/D" 맵. 시간표 요일 헤더 표기용. */
+function kstWeekDates(now: Date = new Date()): Record<number, string> {
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const isoDow = kstWeekday(now); // 1=월 .. 7=일
+  const monday = new Date(kst.getTime() - (isoDow - 1) * 24 * 60 * 60 * 1000);
+  const map: Record<number, string> = {};
+  for (let w = 1; w <= 5; w++) {
+    const d = new Date(monday.getTime() + (w - 1) * 24 * 60 * 60 * 1000);
+    map[w] = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+  }
+  return map;
 }
 
 /**
@@ -60,7 +73,10 @@ export function PublicPageView({
       />
       <Timetable token={token} slots={payload.timetable} />
       <Meals meals={payload.meals} />
-      <Attendance2DTable matrix={payload.attendance2D} />
+      <Attendance2DTable
+        matrix={payload.attendance2D}
+        records={payload.attendanceDetail}
+      />
       <CounselSlots token={token} slots={payload.counselSlots} />
 
       {payload.personalMessage && (
@@ -515,6 +531,8 @@ function Timetable({
   }, [slots]);
   // 오늘 요일 열 강조(KST 날짜 경계). 토·일이면 강조 없음(1~5 만 표시).
   const todayWeekday = useMemo(() => kstWeekday(), []);
+  // 요일 헤더에 이번 주(월요일 시작) 날짜 병기 — 접속 시점 기준 자동 최신화.
+  const weekDates = useMemo(() => kstWeekDates(), []);
 
   return (
     <Card title="시간표">
@@ -534,7 +552,21 @@ function Timetable({
                       : "bg-neutral-50"
                   }`}
                 >
-                  {TT_WEEKDAY_LABEL[w]}
+                  <div>
+                    {TT_WEEKDAY_LABEL[w]}
+                    {w === todayWeekday && (
+                      <span className="ml-1 rounded bg-blue-600 px-1 text-[9px] text-white align-middle">
+                        오늘
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className={`text-[10px] ${
+                      w === todayWeekday ? "text-blue-500" : "text-neutral-400"
+                    }`}
+                  >
+                    {weekDates[w]}
+                  </div>
                 </th>
               ))}
             </tr>
@@ -696,9 +728,42 @@ const REASON_COLS: [
   ["etc", "기타"],
 ];
 
-function Attendance2DTable({ matrix }: { matrix: PublicAttendance2D }) {
+/** 2D 매트릭스 키(camel) → 상세 기록 kind(enum) 매핑. */
+const KIND_TO_RECORD_KIND: Record<
+  keyof PublicAttendance2D,
+  PublicAttendanceRecord["kind"]
+> = {
+  late: "late",
+  earlyLeave: "early_leave",
+  absentPeriod: "absent_period",
+  absent: "absent",
+};
+const REASON_LABEL: Record<PublicAttendanceRecord["reason"], string> = {
+  accepted: "인정",
+  illness: "질병",
+  unaccepted: "미인정",
+  etc: "기타",
+};
+
+function Attendance2DTable({
+  matrix,
+  records,
+}: {
+  matrix: PublicAttendance2D;
+  records: PublicAttendanceRecord[];
+}) {
+  // 클릭한 칸(성격×사유). 0 아닌 칸만 열 수 있다.
+  const [sel, setSel] = useState<{
+    kind: keyof PublicAttendance2D;
+    kindLabel: string;
+    reason: keyof PublicAttendance2D["late"];
+  } | null>(null);
+
   return (
     <Card title="출결">
+      <p className="mb-2 text-[11px] text-neutral-400">
+        0이 아닌 칸을 누르면 날짜별 상세를 확인할 수 있어요.
+      </p>
       <table className="w-full border-collapse text-center text-sm">
         <thead>
           <tr>
@@ -719,16 +784,117 @@ function Attendance2DTable({ matrix }: { matrix: PublicAttendance2D }) {
               <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal text-neutral-500">
                 {kindLabel}
               </th>
-              {REASON_COLS.map(([reason]) => (
-                <td key={reason} className="border border-neutral-200 px-2 py-1">
-                  {matrix[kind][reason]}
-                </td>
-              ))}
+              {REASON_COLS.map(([reason]) => {
+                const count = matrix[kind][reason];
+                return (
+                  <td key={reason} className="border border-neutral-200 p-0">
+                    {count > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setSel({ kind, kindLabel, reason })}
+                        className="w-full px-2 py-1 font-normal text-blue-700 underline decoration-dotted underline-offset-2 transition hover:bg-blue-50"
+                        title={`${kindLabel}(${REASON_LABEL[reason]}) 상세 보기`}
+                      >
+                        {count}
+                      </button>
+                    ) : (
+                      <span className="block px-2 py-1 text-neutral-300">
+                        {count}
+                      </span>
+                    )}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
       </table>
+      {sel && (
+        <AttendanceDetailModal
+          kindLabel={sel.kindLabel}
+          reasonLabel={REASON_LABEL[sel.reason]}
+          records={records.filter(
+            (r) =>
+              r.kind === KIND_TO_RECORD_KIND[sel.kind] && r.reason === sel.reason,
+          )}
+          onClose={() => setSel(null)}
+        />
+      )}
     </Card>
+  );
+}
+
+/** "1·3교시" 형태 교시 라벨. 교시 정보 없으면 null. */
+function periodsLabel(periods: number[] | null): string | null {
+  if (!periods || periods.length === 0) return null;
+  return `${[...periods].sort((a, b) => a - b).join("·")}교시`;
+}
+
+/**
+ * 출결 상세 모달: 선택한 성격×사유 칸의 기록을 날짜별로 나열(학생 자가 확인).
+ * 노출 필드는 날짜·교시·사유 카테고리뿐 — 교사 메모(note_field)는 서버부터 미포함.
+ */
+function AttendanceDetailModal({
+  kindLabel,
+  reasonLabel,
+  records,
+  onClose,
+}: {
+  kindLabel: string;
+  reasonLabel: string;
+  records: PublicAttendanceRecord[];
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl bg-card p-5 border border-neutral-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-normal text-neutral-800">
+            {kindLabel} · {reasonLabel}{" "}
+            <span className="text-sm text-neutral-400">{records.length}회</span>
+          </h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded p-1 text-neutral-400 hover:bg-white/10"
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+        </div>
+        <ul className="mt-3 space-y-1.5 text-sm">
+          {records.length === 0 && (
+            <li className="text-xs text-neutral-400">
+              상세 기록을 불러오지 못했습니다. 선생님께 문의해 주세요.
+            </li>
+          )}
+          {records.map((r, i) => (
+            <li
+              key={i}
+              className="flex items-center justify-between rounded border border-neutral-200 px-3 py-2"
+            >
+              <span className="text-neutral-700">{r.date}</span>
+              <span className="text-xs text-neutral-500">
+                {periodsLabel(r.periods) ?? kindLabel}
+                {" · "}
+                {reasonLabel}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-[11px] text-neutral-400">
+          기록이 실제와 다르면 담임 선생님께 확인을 요청하세요.
+        </p>
+      </div>
+    </div>
   );
 }
 

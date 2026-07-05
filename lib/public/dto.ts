@@ -65,6 +65,18 @@ export interface PublicAttendance2D {
   absent: PublicAttendanceReasonCounts; // 결석
 }
 
+/**
+ * 출결 상세 한 건(v8). 학생 본인이 2D 표의 0 아닌 칸을 눌러 "언제 어떤 사유(카테고리)로"
+ * 처리됐는지 확인하는 용도. reason 은 2D 매트릭스와 동일한 **카테고리 enum**만 —
+ * note_field 자유텍스트는 이 타입에 존재하지 않으며 절대 노출하지 않는다.
+ */
+export interface PublicAttendanceRecord {
+  date: string; // YYYY-MM-DD
+  kind: "late" | "early_leave" | "absent_period" | "absent";
+  reason: "accepted" | "illness" | "unaccepted" | "etc";
+  periods: number[] | null; // 해당 교시(지각/조퇴 기점·결과 다중). 결석 등은 null.
+}
+
 /** 학생 개인 메모/일정(QC v6 ⑤). 본인 토큰 스코프 — 모달 CRUD용. id 는 본인 메모 식별자. */
 export interface PublicStudentMemo {
   id: string;
@@ -93,6 +105,7 @@ export interface PublicPagePayload {
   // 개별칸
   attendanceSummary: PublicAttendanceSummary; // 1D(하위호환)
   attendance2D: PublicAttendance2D; // 성격×사유 매트릭스
+  attendanceDetail: PublicAttendanceRecord[]; // 기록별 날짜·성격·사유카테고리·교시(v8)
   counselSlots: PublicCounselSlot[]; // 상담 신청
   studentMemos: PublicStudentMemo[]; // 학생 개인 메모/일정(본인 토큰 스코프). QC v6 ⑤.
   grades: PublicGradeStatus;
@@ -177,6 +190,12 @@ export interface RawPublicPageInput {
   // 출결 원자료 (집계 전용)
   attendance: AttendanceRowForSummary[];
   attendance2D?: PublicAttendance2D;
+  attendanceDetail?: {
+    date: string;
+    kind: string;
+    reason: string;
+    periods?: number[] | null;
+  }[];
   counselSlots?: {
     date: string;
     remaining: number;
@@ -228,6 +247,10 @@ export function buildPublicPagePayload(
     })),
     attendanceSummary: summarizeAttendance(input.attendance),
     attendance2D: input.attendance2D ?? emptyAttendance2D(),
+    // 기록별 상세도 strict 파서를 재사용해 kind/reason 을 enum allowlist 로 강제.
+    attendanceDetail: (input.attendanceDetail ?? [])
+      .map(parseAttendanceRecord)
+      .filter((x): x is PublicAttendanceRecord => x !== null),
     counselSlots: (input.counselSlots ?? []).map((c) => ({
       date: c.date,
       remaining: c.remaining,
@@ -354,6 +377,36 @@ function parseAttendance2D(v: unknown): PublicAttendance2D {
     absent: parseReasonCounts(o.absent),
   };
 }
+const ATTENDANCE_DETAIL_KINDS = [
+  "late",
+  "early_leave",
+  "absent_period",
+  "absent",
+] as const;
+const ATTENDANCE_DETAIL_REASONS = [
+  "accepted",
+  "illness",
+  "unaccepted",
+  "etc",
+] as const;
+/**
+ * 출결 상세 한 건 파서(v8). date + kind/reason **enum allowlist** + periods(숫자만).
+ * noteField 등 다른 키는 어떤 이름이 와도 절대 읽지 않는다.
+ */
+function parseAttendanceRecord(v: unknown): PublicAttendanceRecord | null {
+  const o = rec(v);
+  const date = asString(o.date);
+  const kind = ATTENDANCE_DETAIL_KINDS.find((k) => k === o.kind);
+  const reason = ATTENDANCE_DETAIL_REASONS.find((r) => r === o.reason);
+  if (date === null || kind === undefined || reason === undefined) return null;
+  const periods = Array.isArray(o.periods)
+    ? o.periods.filter(
+        (p): p is number => typeof p === "number" && Number.isFinite(p),
+      )
+    : null;
+  return { date, kind, reason, periods };
+}
+
 function parseCounselSlot(v: unknown): PublicCounselSlot | null {
   const o = rec(v);
   const date = asString(o.date);
@@ -390,6 +443,9 @@ export function parsePublicPagePayload(raw: unknown): PublicPagePayload {
     meals: asArray(o.meals).map(parseMeal).filter((x): x is PublicMeal => x !== null),
     attendanceSummary: parseAttendance(o.attendanceSummary),
     attendance2D: parseAttendance2D(o.attendance2D),
+    attendanceDetail: asArray(o.attendanceDetail)
+      .map(parseAttendanceRecord)
+      .filter((x): x is PublicAttendanceRecord => x !== null),
     counselSlots: asArray(o.counselSlots).map(parseCounselSlot).filter((x): x is PublicCounselSlot => x !== null),
     studentMemos: asArray(o.studentMemos).map(parseStudentMemo).filter((x): x is PublicStudentMemo => x !== null),
     grades: parseGrades(o.grades),

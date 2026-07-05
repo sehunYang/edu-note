@@ -149,6 +149,7 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
     expect(Object.keys(parsed).sort()).toEqual(
       [
         "attendance2D",
+        "attendanceDetail",
         "attendanceSummary",
         "commonNotice",
         "counselSlots",
@@ -256,6 +257,52 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
     expect(parsed.counselSlots).toEqual([
       { date: "2026-06-20", remaining: 2, reserved: false, cancelRequested: false },
       { date: "2026-06-21", remaining: 0, reserved: true, cancelRequested: true },
+    ]);
+  });
+
+  it("attendanceDetail(v8)은 날짜·kind/reason enum·periods 만 통과, noteField 절대 미반영", () => {
+    const parsed = parsePublicPagePayload({
+      attendanceDetail: [
+        {
+          date: "2026-05-12",
+          kind: "late",
+          reason: "illness",
+          periods: [1, 3, "x"], // 숫자 외 항목은 버림
+          noteField: "생리통", // 절대 반영 금지
+        },
+        { date: "2026-05-20", kind: "absent", reason: "accepted" }, // periods 없음 → null
+        { date: "2026-05-21", kind: "hacked", reason: "accepted" }, // kind allowlist 외 → 행 전체 버림
+        { date: "2026-05-22", kind: "late", reason: "자유텍스트사유" }, // reason allowlist 외 → 버림
+        { kind: "late", reason: "etc" }, // date 누락 → 버림
+      ],
+    });
+    assertNoForbidden(parsed);
+    expect(parsed.attendanceDetail).toEqual([
+      { date: "2026-05-12", kind: "late", reason: "illness", periods: [1, 3] },
+      { date: "2026-05-20", kind: "absent", reason: "accepted", periods: null },
+    ]);
+    expect(Object.keys(parsed.attendanceDetail[0]).sort()).toEqual(
+      ["date", "kind", "periods", "reason"].sort(),
+    );
+  });
+
+  it("buildPublicPagePayload 도 attendanceDetail 에 enum allowlist 를 강제한다", () => {
+    const built = buildPublicPagePayload({
+      weekTodos: [],
+      commonNotice: null,
+      timetable: [],
+      meals: [],
+      attendance: [],
+      attendanceDetail: [
+        { date: "2026-05-12", kind: "early_leave", reason: "etc", periods: [5] },
+        { date: "2026-05-13", kind: "unknown", reason: "etc" }, // 버림
+      ],
+      gradesMock: true,
+      grades: [],
+      personalMessage: null,
+    });
+    expect(built.attendanceDetail).toEqual([
+      { date: "2026-05-12", kind: "early_leave", reason: "etc", periods: [5] },
     ]);
   });
 
