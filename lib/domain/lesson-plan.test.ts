@@ -10,8 +10,10 @@ import {
   unshiftSlackCell,
   computeUnitOrdinalSum,
   computeRemainingToExam,
+  layoutUnitsByExamTargets,
   type PlanSlot,
   type ExamSegment,
+  type LayoutUnit,
 } from "./lesson-plan";
 
 /**
@@ -267,5 +269,110 @@ describe("QC v6 US-1 computeRemainingToExam (AC-1.3)", () => {
     });
     expect(r.remainingPeriods).toBe(0); // capacity 1 − 소비 8 → clamp 0
     expect(r.remainingSchoolDays).toBe(0);
+  });
+});
+
+/**
+ * 세부단원 → 차시계획 자동 배치 (수업계획실 수정 2026-07 ②③).
+ * 코드 오름차순 × 최소차시, 1차 목표 '종료 단원' 코드 기준 분할, 초과 시 오류.
+ */
+describe("layoutUnitsByExamTargets", () => {
+  const U = (id: string, code: number, min: number): LayoutUnit => ({
+    id,
+    code,
+    minOrdinals: min,
+  });
+
+  it("분할 없음(마커/종료코드 null) — 코드 오름차순 연속 배치", () => {
+    const r = layoutUnitsByExamTargets({
+      units: [U("b", 10200, 2), U("a", 10100, 1)],
+      totalOrdinals: 5,
+      exam1MarkerOrdinal: null,
+      exam1ToCode: null,
+    });
+    expect(r).toEqual({
+      ok: true,
+      unitIdByOrdinal: ["a", "b", "b", null, null],
+    });
+  });
+
+  it("분할 — 종료코드 이하는 1차 시험 전, 초과는 마커부터", () => {
+    // 마커 5(=시험일 이후 첫 차시). 1차 전 용량 4.
+    const r = layoutUnitsByExamTargets({
+      units: [U("a", 10100, 2), U("b", 10200, 1), U("c", 20100, 2)],
+      totalOrdinals: 7,
+      exam1MarkerOrdinal: 5,
+      exam1ToCode: 10200,
+    });
+    expect(r).toEqual({
+      ok: true,
+      // 1~3 = a,a,b · 4 = 빈(1차 전 여유) · 5~6 = c,c · 7 = 빈
+      unitIdByOrdinal: ["a", "a", "b", null, "c", "c", null],
+    });
+  });
+
+  it("② 전체 최소차시 합 > 총 차시 → 오류", () => {
+    const r = layoutUnitsByExamTargets({
+      units: [U("a", 10100, 3), U("b", 10200, 3)],
+      totalOrdinals: 5,
+      exam1MarkerOrdinal: null,
+      exam1ToCode: null,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("총 차시(5)");
+  });
+
+  it("③ 1차 그룹 합 > 1차 시험 전 차시 → 오류(차단)", () => {
+    const r = layoutUnitsByExamTargets({
+      units: [U("a", 10100, 3), U("b", 10200, 2)],
+      totalOrdinals: 10,
+      exam1MarkerOrdinal: 5, // 1차 전 용량 4 < 5
+      exam1ToCode: 10200,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("1차 시험 전");
+  });
+
+  it("③ 2차 그룹이 마커부터 배치되어 총 차시를 넘으면 → 오류", () => {
+    const r = layoutUnitsByExamTargets({
+      units: [U("a", 10100, 1), U("b", 20100, 3)],
+      totalOrdinals: 5,
+      exam1MarkerOrdinal: 4, // 마커부터 용량 2 < 3
+      exam1ToCode: 10100,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("1차 시험 후");
+  });
+
+  it("총 차시 0/음수 → 배치 불가 오류", () => {
+    const r = layoutUnitsByExamTargets({
+      units: [U("a", 10100, 1)],
+      totalOrdinals: 0,
+      exam1MarkerOrdinal: null,
+      exam1ToCode: null,
+    });
+    expect(r.ok).toBe(false);
+  });
+
+  it("빈 단원 목록 — 전부 빈 차시(ok)", () => {
+    const r = layoutUnitsByExamTargets({
+      units: [],
+      totalOrdinals: 3,
+      exam1MarkerOrdinal: null,
+      exam1ToCode: null,
+    });
+    expect(r).toEqual({ ok: true, unitIdByOrdinal: [null, null, null] });
+  });
+
+  it("최소차시 0/음수/비정수는 1 로 방어, 결정론(입력 불변)", () => {
+    const units = [U("a", 10100, 0), U("b", 10200, -3)];
+    const r = layoutUnitsByExamTargets({
+      units,
+      totalOrdinals: 3,
+      exam1MarkerOrdinal: null,
+      exam1ToCode: null,
+    });
+    expect(r).toEqual({ ok: true, unitIdByOrdinal: ["a", "b", null] });
+    expect(units[0].code).toBe(10100); // 원본 불변
   });
 });

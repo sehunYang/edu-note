@@ -11,11 +11,19 @@ import {
   lookupUnitByCode,
   countOrdinalsPerUnit,
   listLessonUnits,
+  listExamTargets,
+  getPlanView,
+  getSubjectPlanMeta,
+  applyUnitLayout,
   toggleSlackCell,
   untoggleSlackCell,
   writeAudit,
 } from "@/lib/db/queries";
-import { parseSixDigit, validateMinOrdinals } from "@/lib/domain/lesson-unit";
+import { parseSixDigit, validateMinOrdinals, sixDigitCode } from "@/lib/domain/lesson-unit";
+import {
+  layoutUnitsByExamTargets,
+  type LayoutUnit,
+} from "@/lib/domain/lesson-plan";
 
 /**
  * 수업 계획실 서버액션 (교실 2-2 단계2). getOwnerId 가드 + 페이지범위 revalidate + audit.
@@ -39,6 +47,78 @@ export interface PlanActionState {
 }
 
 const OK: PlanActionState = { ok: true };
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * 세부단원 → 차시계획 자동 배치 공통부 (수업계획실 수정 2026-07 ②③④)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+type Db = ReturnType<typeof getDb>;
+
+interface LayoutContext {
+  /** 대표분반 총 차시 수. 0 이면 검증·배치 생략(시간표 미동기화). */
+  totalOrdinals: number;
+  /** 1차 시험 마커 ordinal(시행 여부 ④ 반영, getPlanView 필터 경유). */
+  exam1MarkerOrdinal: number | null;
+  /** 1차 목표진도 '종료 단원' 코드. */
+  exam1ToCode: number | null;
+}
+
+/**
+ * 배치 문맥 수집. 과목의 학년도/학기는 subjects 행에서 직접 읽는다(조회 중인 학기와
+ * 무관하게 과목 자신의 학기 기준 — 결정론). 메타가 없으면 null(배치 생략).
+ */
+async function getLayoutContext(
+  db: Db,
+  ownerId: string,
+  subjectId: string,
+): Promise<LayoutContext | null> {
+  const meta = await getSubjectPlanMeta(db, ownerId, subjectId);
+  if (!meta) return null;
+  const [planView, targets] = await Promise.all([
+    getPlanView(db, ownerId, subjectId, meta.schoolYear, meta.semester),
+    listExamTargets(db, ownerId, subjectId),
+  ]);
+  const marker =
+    planView.ordinals.find((o) => o.examLabel === "1차")?.ordinal ?? null;
+  const exam1ToCode =
+    targets.find((t) => t.examOrdinal === 1)?.unitToCode ?? null;
+  return {
+    totalOrdinals: planView.length,
+    exam1MarkerOrdinal: marker,
+    exam1ToCode,
+  };
+}
+
+/**
+ * 현재 저장된 세부단원으로 자동 배치를 계산·적용한다. dry-run 검증은 호출 측에서
+ * 가상 단원 목록으로 layoutUnitsByExamTargets 를 먼저 돌려 수행한다.
+ */
+async function relayoutSessionPlan(
+  db: Db,
+  ownerId: string,
+  subjectId: string,
+  ctx: LayoutContext,
+): Promise<PlanActionState> {
+  const units = await listLessonUnits(db, ownerId, subjectId);
+  if (units.length === 0) {
+    // 단원이 없으면 배치 전부 해제(빈 계획).
+    await applyUnitLayout(db, ownerId, subjectId, []);
+    return OK;
+  }
+  const res = layoutUnitsByExamTargets({
+    units: units.map((u) => ({
+      id: u.id,
+      code: sixDigitCode(u),
+      minOrdinals: u.minOrdinals,
+    })),
+    totalOrdinals: ctx.totalOrdinals,
+    exam1MarkerOrdinal: ctx.exam1MarkerOrdinal,
+    exam1ToCode: ctx.exam1ToCode,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  await applyUnitLayout(db, ownerId, subjectId, res.unitIdByOrdinal);
+  return OK;
+}
 
 /** 세부단원 저장(추가/수정). 6자리코드 = 대2+중2+소2 (각 0..99). */
 export async function saveLessonUnitAction(
@@ -69,6 +149,28 @@ export async function saveLessonUnitAction(
   }
 
   const db = getDb();
+
+  // ②③ 저장 전 dry-run 검증: (이번 단원을 반영한) 최소차시 합이 총 차시를 넘거나
+  // 1차 시험 전 구간을 넘으면 오류 반환(아무것도 저장하지 않음). 시간표 미동기화
+  // (총 차시 0)면 검증·배치를 생략한다.
+  const ctx = await getLayoutContext(db, ownerId, subjectId);
+  const canLayout = ctx !== null && ctx.totalOrdinals > 0;
+  if (canLayout) {
+    const existing = await listLessonUnits(db, ownerId, subjectId);
+    const code = sixDigitCode({ majorNo, midNo, minorNo });
+    const hypothetical: LayoutUnit[] = existing
+      .filter((u) => sixDigitCode(u) !== code)
+      .map((u) => ({ id: u.id, code: sixDigitCode(u), minOrdinals: u.minOrdinals }));
+    hypothetical.push({ id: "__new__", code, minOrdinals });
+    const dry = layoutUnitsByExamTargets({
+      units: hypothetical,
+      totalOrdinals: ctx.totalOrdinals,
+      exam1MarkerOrdinal: ctx.exam1MarkerOrdinal,
+      exam1ToCode: ctx.exam1ToCode,
+    });
+    if (!dry.ok) return { ok: false, error: dry.error };
+  }
+
   await upsertLessonUnit(db, ownerId, subjectId, {
     majorNo,
     midNo,
@@ -79,12 +181,20 @@ export async function saveLessonUnitAction(
     keywords,
     minOrdinals,
   });
+
+  // ③ 저장된 단원을 차시계획에 자동 배치(내용 텍스트는 위치 유지, 단원 배치만 재생성).
+  if (canLayout) {
+    const layout = await relayoutSessionPlan(db, ownerId, subjectId, ctx);
+    if (!layout.ok) return layout;
+  }
+
   await writeAudit(db, ownerId, "lesson_unit_save", subjectId, {
     majorNo,
     midNo,
     minorNo,
   });
   revalidatePath("/classroom/plan/semester");
+  revalidatePath("/classroom/plan/session");
   return OK;
 }
 
@@ -100,8 +210,17 @@ export async function deleteLessonUnitAction(
 
   const db = getDb();
   await deleteLessonUnit(db, ownerId, unitId);
+
+  // ③ 삭제 후 남은 단원으로 재배치. 삭제는 수요가 줄기만 하므로 차단하지 않고,
+  // 재배치가 불가한 상태(레거시 초과 등)면 배치만 건너뛴다.
+  const ctx = await getLayoutContext(db, ownerId, subjectId);
+  if (ctx !== null && ctx.totalOrdinals > 0) {
+    await relayoutSessionPlan(db, ownerId, subjectId, ctx);
+  }
+
   await writeAudit(db, ownerId, "lesson_unit_delete", subjectId, { unitId });
   revalidatePath("/classroom/plan/semester");
+  revalidatePath("/classroom/plan/session");
   return OK;
 }
 
@@ -129,13 +248,43 @@ export async function saveExamTargetAction(
   }
 
   const db = getDb();
+
+  // ③ 1차 목표진도의 '종료 단원'은 자동 배치의 분할 기준 — 저장 전 dry-run 으로
+  // 새 범위가 1차 시험 전 구간에 들어가는지 검증하고, 통과 시 저장+재배치한다.
+  const ctx = await getLayoutContext(db, ownerId, subjectId);
+  const canLayout = ctx !== null && ctx.totalOrdinals > 0;
+  if (examOrdinal === 1 && canLayout) {
+    const units = await listLessonUnits(db, ownerId, subjectId);
+    const dry = layoutUnitsByExamTargets({
+      units: units.map((u) => ({
+        id: u.id,
+        code: sixDigitCode(u),
+        minOrdinals: u.minOrdinals,
+      })),
+      totalOrdinals: ctx.totalOrdinals,
+      exam1MarkerOrdinal: ctx.exam1MarkerOrdinal,
+      exam1ToCode: toCode,
+    });
+    if (units.length > 0 && !dry.ok) return { ok: false, error: dry.error };
+  }
+
   await upsertExamTarget(db, ownerId, subjectId, examOrdinal, fromCode, toCode);
+
+  if (examOrdinal === 1 && canLayout) {
+    const layout = await relayoutSessionPlan(db, ownerId, subjectId, {
+      ...ctx,
+      exam1ToCode: toCode,
+    });
+    if (!layout.ok) return layout;
+  }
+
   await writeAudit(db, ownerId, "exam_target_save", subjectId, {
     examOrdinal,
     fromCode,
     toCode,
   });
   revalidatePath("/classroom/plan/semester");
+  revalidatePath("/classroom/plan/session");
   return OK;
 }
 

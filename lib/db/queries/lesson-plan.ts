@@ -1,7 +1,7 @@
 import { and, asc, eq, gte, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
-import { courseSections, timetableSlots } from "../schema/classes";
+import { courseSections, subjects, timetableSlots } from "../schema/classes";
 import {
   lessonPlans,
   lessonUnits,
@@ -77,6 +77,49 @@ async function listSectionSlots(
   }));
 }
 
+/**
+ * 과목 계획 메타(학년도/학기 + 지필 시행 여부). 수업계획실 수정 2026-07 ④ —
+ * 세팅실 평가설정에서 안 보는 시험 차수(1=중간/2=기말)는 계획실 전반에서 제외한다.
+ */
+export interface SubjectPlanMeta {
+  schoolYear: number;
+  semester: 1 | 2;
+  jipilMidEnabled: boolean;
+  jipilFinalEnabled: boolean;
+}
+
+export async function getSubjectPlanMeta(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+): Promise<SubjectPlanMeta | null> {
+  const [row] = await db
+    .select({
+      schoolYear: subjects.schoolYear,
+      semester: subjects.semester,
+      jipilMidEnabled: subjects.jipilMidEnabled,
+      jipilFinalEnabled: subjects.jipilFinalEnabled,
+    })
+    .from(subjects)
+    .where(and(eq(subjects.id, subjectId), eq(subjects.ownerId, ownerId)))
+    .limit(1);
+  if (!row) return null;
+  return {
+    schoolYear: row.schoolYear,
+    semester: row.semester === 2 ? 2 : 1,
+    jipilMidEnabled: row.jipilMidEnabled,
+    jipilFinalEnabled: row.jipilFinalEnabled,
+  };
+}
+
+/** 시행 여부 기준 시험 차수 필터(④). 1=중간지필, 2=기말지필. */
+function examOrdinalEnabled(meta: SubjectPlanMeta | null, ordinal: number): boolean {
+  if (!meta) return true; // 메타 조회 실패 시 기존 동작 보존(전부 표시).
+  if (ordinal === 1) return meta.jipilMidEnabled;
+  if (ordinal === 2) return meta.jipilFinalEnabled;
+  return false;
+}
+
 /** 학기 범위 수업일(오름차순). */
 async function listSchoolDays(
   db: DB,
@@ -136,21 +179,26 @@ export async function getPlanView(
   const length = dates.length;
 
   // 시험 마커: 학기 범위의 exam 이벤트(examOrdinal 1/2)를 차시 ordinal 에 매핑.
-  const exams = await db
-    .select({ date: calendarEvents.date, examOrdinal: calendarEvents.examOrdinal })
-    .from(calendarEvents)
-    .where(
-      and(
-        eq(calendarEvents.ownerId, ownerId),
-        eq(calendarEvents.eventKind, "exam"),
-        eq(calendarEvents.examSemester, sem),
-        gte(calendarEvents.date, start),
-        lte(calendarEvents.date, end),
+  // ④ 세팅실 평가설정에서 안 보는 시험 차수(중간/기말 지필 미시행)는 마커 제외.
+  const [exams, meta] = await Promise.all([
+    db
+      .select({ date: calendarEvents.date, examOrdinal: calendarEvents.examOrdinal })
+      .from(calendarEvents)
+      .where(
+        and(
+          eq(calendarEvents.ownerId, ownerId),
+          eq(calendarEvents.eventKind, "exam"),
+          eq(calendarEvents.examSemester, sem),
+          gte(calendarEvents.date, start),
+          lte(calendarEvents.date, end),
+        ),
       ),
-    );
+    getSubjectPlanMeta(db, ownerId, subjectId),
+  ]);
   const examByOrdinal = new Map<number, string>(); // ordinal(차시) → '1차'|'2차'
   for (const ex of exams) {
     if (ex.examOrdinal !== 1 && ex.examOrdinal !== 2) continue;
+    if (!examOrdinalEnabled(meta, ex.examOrdinal)) continue;
     // 시험일 이상인 첫 차시(없으면 마지막 차시).
     let idx = dates.findIndex((d) => d >= ex.date);
     if (idx < 0) idx = dates.length - 1;
@@ -192,21 +240,28 @@ export async function getRemainingToExam(
   const dates = representativeDates(schoolDays, repWeekdays);
 
   // 시험일(차수별) — calendarEvents 단일 진실원(getPlanView 와 동일 필터).
-  const exams = await db
-    .select({ date: calendarEvents.date, examOrdinal: calendarEvents.examOrdinal })
-    .from(calendarEvents)
-    .where(
-      and(
-        eq(calendarEvents.ownerId, ownerId),
-        eq(calendarEvents.eventKind, "exam"),
-        eq(calendarEvents.examSemester, sem),
-        gte(calendarEvents.date, start),
-        lte(calendarEvents.date, end),
+  // ④ 안 보는 시험 차수는 카운터 대상에서도 제외(시행 여부 반영).
+  const [exams, meta] = await Promise.all([
+    db
+      .select({ date: calendarEvents.date, examOrdinal: calendarEvents.examOrdinal })
+      .from(calendarEvents)
+      .where(
+        and(
+          eq(calendarEvents.ownerId, ownerId),
+          eq(calendarEvents.eventKind, "exam"),
+          eq(calendarEvents.examSemester, sem),
+          gte(calendarEvents.date, start),
+          lte(calendarEvents.date, end),
+        ),
       ),
-    );
+    getSubjectPlanMeta(db, ownerId, subjectId),
+  ]);
   const examDateByOrdinal = new Map<number, string>();
   for (const ex of exams) {
-    if (ex.examOrdinal === 1 || ex.examOrdinal === 2) {
+    if (
+      (ex.examOrdinal === 1 || ex.examOrdinal === 2) &&
+      examOrdinalEnabled(meta, ex.examOrdinal)
+    ) {
       examDateByOrdinal.set(ex.examOrdinal, ex.date);
     }
   }
@@ -321,6 +376,51 @@ export async function assignLessonPlanUnit(
         eq(lessonPlans.ordinal, ordinal),
       ),
     );
+}
+
+/**
+ * 세부단원 자동 배치 적용(수업계획실 수정 2026-07 ③). ordinal i+1 의 unitId 를
+ * unitIdByOrdinal[i] 로 재배치한다. **content/keywords 는 절대 건드리지 않는다**
+ * (사용자 결정: 단원 배치만 재생성, 작성한 수업내용은 해당 차시 위치에 유지).
+ * 배열 길이 밖 ordinal 의 기존 행은 unitId 를 null 로 비워 이중 배정을 막는다.
+ */
+export async function applyUnitLayout(
+  db: DB,
+  ownerId: string,
+  subjectId: string,
+  unitIdByOrdinal: (string | null)[],
+): Promise<void> {
+  const rows = await listLessonPlan(db, ownerId, subjectId);
+  const byOrdinal = new Map<number, LessonPlanRow>();
+  for (const r of rows) byOrdinal.set(r.ordinal, r);
+  const maxOrdinal = Math.max(
+    unitIdByOrdinal.length,
+    rows.reduce((m, r) => Math.max(m, r.ordinal), 0),
+  );
+  for (let ordinal = 1; ordinal <= maxOrdinal; ordinal++) {
+    const desired = unitIdByOrdinal[ordinal - 1] ?? null;
+    const existing = byOrdinal.get(ordinal);
+    if (existing) {
+      if (existing.unitId !== desired) {
+        await assignLessonPlanUnit(db, ownerId, subjectId, ordinal, desired);
+      }
+    } else if (desired !== null) {
+      await db
+        .insert(lessonPlans)
+        .values({
+          ownerId,
+          subjectId,
+          ordinal,
+          content: null,
+          keywords: null,
+          unitId: desired,
+        })
+        .onConflictDoUpdate({
+          target: [lessonPlans.subjectId, lessonPlans.ordinal],
+          set: { unitId: desired, updatedAt: new Date() },
+        });
+    }
+  }
 }
 
 /** 차시 1행 삭제. 소유자 본인 행만. */

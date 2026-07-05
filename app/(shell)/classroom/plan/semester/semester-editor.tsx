@@ -104,8 +104,10 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
       <section>
         <h3 className="text-sm font-normal text-neutral-700">세부 단원</h3>
         <p className="mt-1 text-xs text-neutral-400">
-          6자리 코드 = 대단원(2)·중단원(2)·소단원(2). 차시 계획에서 이 코드로 단원을
-          자동 채웁니다.
+          6자리 코드 = 대단원(2)·중단원(2)·소단원(2). 저장하면 코드 오름차순 ×
+          최소차시로 차시 계획에 자동 배치됩니다(1차 시험 목표 진도의 종료 단원까지는
+          1차 시험 전, 나머지는 1차 시험 후). 작성해 둔 차시별 수업내용은 그대로
+          유지됩니다.
         </p>
         <ul className="mt-3 space-y-3">
           {sortedUnits.map((u) => (
@@ -133,8 +135,9 @@ function ExamSegmentSection({ subject }: { subject: SubjectSemesterView }) {
           시험 구간 차시 계획
         </h3>
         <p className="mt-1 text-xs text-neutral-400">
-          세팅실 학사일정에 등록된 시험(1차/2차)이 없습니다. 시험을 등록하면 구간별
-          진행 차시·여유 차시를 계획할 수 있습니다.
+          이 과목이 보는 시험이 없습니다. 세팅실 학사일정에 시험(1차/2차)을 등록하고,
+          수업 관리의 평가설정에서 중간/기말 지필 시행을 체크하면 구간별 진행
+          차시·여유 차시를 계획할 수 있습니다.
         </p>
       </section>
     );
@@ -152,8 +155,10 @@ function ExamSegmentSection({ subject }: { subject: SubjectSemesterView }) {
       </p>
       <ul className="mt-3 space-y-3">
         {subject.examOrdinals.map((ord) => (
+          // key 에 subjectId 포함 — 과목 전환 시 리마운트되어 해당 과목의 저장값으로
+          // 입력이 초기화된다(이전 과목 값 잔존 방지).
           <ExamSegmentRow
-            key={ord}
+            key={`${subject.subjectId}:${ord}`}
             subjectId={subject.subjectId}
             examOrdinal={ord}
             existing={subject.segmentPlans.find((p) => p.examOrdinal === ord)}
@@ -174,6 +179,10 @@ function ExamSegmentRow({
   existing?: SemesterSegmentPlan;
 }) {
   const [state, action] = useActionState(saveExamSegmentPlanAction, INIT);
+  // 제어 입력(①과 동일 이유): 서버액션 완료 시 React 가 비제어 폼을 defaultValue 로
+  // 리셋해 저장 직후 이전 값으로 보이는 문제를 막는다. 초기값 = 저장값.
+  const [planned, setPlanned] = useState(String(existing?.plannedPeriods ?? 0));
+  const [slack, setSlack] = useState(String(existing?.slackPeriods ?? 0));
   return (
     <li className="rounded-lg border border-neutral-200 p-4">
       <form action={action} className="flex flex-wrap items-center gap-2">
@@ -188,7 +197,8 @@ function ExamSegmentRow({
             type="number"
             name="plannedPeriods"
             min={0}
-            defaultValue={existing?.plannedPeriods ?? 0}
+            value={planned}
+            onChange={(e) => setPlanned(e.target.value)}
             className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
           />
         </label>
@@ -198,7 +208,8 @@ function ExamSegmentRow({
             type="number"
             name="slackPeriods"
             min={0}
-            defaultValue={existing?.slackPeriods ?? 0}
+            value={slack}
+            onChange={(e) => setSlack(e.target.value)}
             className="w-20 rounded border border-neutral-300 px-2 py-1 text-sm"
           />
         </label>
@@ -438,8 +449,9 @@ function ExamTargetsSection({
       <section>
         <h3 className="text-sm font-normal text-neutral-700">시험별 목표 진도</h3>
         <p className="mt-1 text-xs text-neutral-400">
-          세팅실 학사일정에 등록된 시험(1차/2차)이 없습니다. 시험을 등록하면 목표
-          진도 범위를 지정할 수 있습니다.
+          이 과목이 보는 시험이 없습니다. 세팅실 학사일정에 시험(1차/2차)을 등록하고,
+          수업 관리의 평가설정에서 중간/기말 지필 시행을 체크하면 목표 진도 범위를
+          지정할 수 있습니다.
         </p>
       </section>
     );
@@ -448,12 +460,14 @@ function ExamTargetsSection({
     <section>
       <h3 className="text-sm font-normal text-neutral-700">시험별 목표 진도</h3>
       <p className="mt-1 text-xs text-neutral-400">
-        시험까지 진행할 소단원 범위(어디~어디)를 지정합니다.
+        시험까지 진행할 소단원 범위(어디~어디)를 지정합니다. 1차 시험의 종료 단원을
+        저장하면 차시 계획의 단원 배치가 1차 시험 전/후로 다시 나뉩니다.
       </p>
       <ul className="mt-3 space-y-3">
         {subject.examOrdinals.map((ord) => (
+          // key 에 subjectId 포함 — 과목 전환 시 리마운트(이전 과목 선택값 잔존 방지, ①).
           <ExamTargetRow
-            key={ord}
+            key={`${subject.subjectId}:${ord}`}
             subjectId={subject.subjectId}
             examOrdinal={ord}
             existing={subject.examTargets.find((t) => t.examOrdinal === ord)}
@@ -477,6 +491,15 @@ function ExamTargetRow({
   units: SemesterUnit[];
 }) {
   const [state, action] = useActionState(saveExamTargetAction, INIT);
+  // ① 저장 유지: 제어 select 로 전환. 서버액션 완료 시 React 가 비제어 폼을
+  // defaultValue(스테일 prop)로 리셋해 "(미지정)"으로 되돌아가던 문제를 없앤다.
+  // 초기값 = 저장값(existing), 이후에는 사용자의 선택이 그대로 유지된다.
+  const [fromSel, setFromSel] = useState(
+    existing?.fromCode != null ? String(existing.fromCode) : "",
+  );
+  const [toSel, setToSel] = useState(
+    existing?.toCode != null ? String(existing.toCode) : "",
+  );
   // AC-1.4 — 저장된 범위를 상시 표시하는 배지(저장 상태 시각 인지). existing 은
   // 저장 후 revalidate 로 갱신되므로 서버 저장값을 그대로 반영한다.
   const codeLabel = (code: number | null): string | null => {
@@ -500,14 +523,16 @@ function ExamTargetRow({
           name="fromCode"
           label="시작 단원"
           units={units}
-          value={existing?.fromCode ?? null}
+          value={fromSel}
+          onChange={setFromSel}
         />
         <span className="text-neutral-400">~</span>
         <UnitSelect
           name="toCode"
           label="종료 단원"
           units={units}
-          value={existing?.toCode ?? null}
+          value={toSel}
+          onChange={setToSel}
         />
         <Button className="px-3 py-1.5 text-sm">
           저장
@@ -534,18 +559,22 @@ function UnitSelect({
   label,
   units,
   value,
+  onChange,
 }: {
   name: string;
   label: string;
   units: SemesterUnit[];
-  value: number | null;
+  /** 제어 값(6자리 코드 문자열, 빈 = 미지정). */
+  value: string;
+  onChange: (v: string) => void;
 }) {
   return (
     <label className="flex items-center gap-1 text-xs text-neutral-500">
       {label}
       <select
         name={name}
-        defaultValue={value === null ? "" : String(value)}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         className="rounded border border-neutral-300 px-2 py-1 text-sm"
       >
         <option value="">(미지정)</option>

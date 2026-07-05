@@ -200,6 +200,118 @@ export function computeRemainingToExam(
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+ * 세부단원 → 차시계획 자동 배치 (수업계획실 수정 2026-07 ③). 순수 함수.
+ *
+ * 규칙: 6자리 코드 오름차순으로 각 단원이 최소차시(minOrdinals)만큼 연속 차시를
+ * 차지한다. 1차 시험 목표진도의 '종료 단원' 코드가 있으면 그 코드 **이하** 단원은
+ * 1차 시험 마커(시험일 이후 첫 차시) 앞까지, 초과 단원은 마커부터 순서대로 배치한다.
+ * 1차 그룹이 시험 전 차시 수를 넘거나 전체가 총 차시를 넘으면 오류(저장 차단).
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/** 배치 대상 단원(코드·최소차시·식별자). */
+export interface LayoutUnit {
+  id: string;
+  /** 6자리 코드(sixDigitCode). 오름차순 배치 기준. */
+  code: number;
+  minOrdinals: number;
+}
+
+export interface UnitLayoutInput {
+  units: LayoutUnit[];
+  /** 차시계획 총 차시 수(대표분반 차시 N). 1 이상이어야 배치 가능. */
+  totalOrdinals: number;
+  /** 1차 시험 마커 ordinal(시험일 이후 첫 차시). null 이면 분할 없음. */
+  exam1MarkerOrdinal: number | null;
+  /** 1차 목표진도 '종료 단원' 코드. null 이면 분할 없음. */
+  exam1ToCode: number | null;
+}
+
+export type UnitLayoutResult =
+  | {
+      ok: true;
+      /** index i → ordinal i+1 에 배치할 unitId(빈 차시는 null). 길이 = totalOrdinals. */
+      unitIdByOrdinal: (string | null)[];
+    }
+  | { ok: false; error: string };
+
+/**
+ * 세부단원 자동 배치(②③ 검증 + 배치). 결정론(입력 동일 → 출력 동일)·원본 불변.
+ *
+ * - 전체 최소차시 합 > totalOrdinals → 오류(② 총 차시 초과).
+ * - 분할 시 1차 그룹(코드 ≤ exam1ToCode) 합 > 마커 앞 차시 수 → 오류(③ 구간 초과).
+ * - 분할 시 2차 그룹이 마커부터 배치되어 totalOrdinals 를 넘으면 → 오류.
+ * - exam1MarkerOrdinal/exam1ToCode 중 하나라도 null 이면 분할 없이 1번 차시부터 연속.
+ */
+export function layoutUnitsByExamTargets(
+  input: UnitLayoutInput,
+): UnitLayoutResult {
+  const { totalOrdinals, exam1MarkerOrdinal, exam1ToCode } = input;
+  if (!Number.isInteger(totalOrdinals) || totalOrdinals < 1) {
+    return { ok: false, error: "총 차시 수가 없어 자동 배치할 수 없습니다." };
+  }
+  const units = [...input.units].sort((a, b) => a.code - b.code);
+  const need = (u: LayoutUnit): number =>
+    Number.isFinite(u.minOrdinals) && u.minOrdinals > 0
+      ? Math.floor(u.minOrdinals)
+      : 1;
+  const totalNeed = units.reduce((s, u) => s + need(u), 0);
+  if (totalNeed > totalOrdinals) {
+    return {
+      ok: false,
+      error: `세부 단원 최소차시 합(${totalNeed})이 이 수업의 총 차시(${totalOrdinals})를 초과합니다.`,
+    };
+  }
+
+  const out: (string | null)[] = Array.from(
+    { length: totalOrdinals },
+    () => null,
+  );
+  const place = (group: LayoutUnit[], startOrdinal: number): number => {
+    let cursor = startOrdinal; // 1-based
+    for (const u of group) {
+      for (let k = 0; k < need(u); k++) {
+        out[cursor - 1] = u.id;
+        cursor += 1;
+      }
+    }
+    return cursor;
+  };
+
+  const split =
+    exam1MarkerOrdinal !== null &&
+    Number.isInteger(exam1MarkerOrdinal) &&
+    exam1MarkerOrdinal >= 1 &&
+    exam1ToCode !== null;
+  if (!split) {
+    place(units, 1);
+    return { ok: true, unitIdByOrdinal: out };
+  }
+
+  const marker = exam1MarkerOrdinal as number;
+  const group1 = units.filter((u) => u.code <= (exam1ToCode as number));
+  const group2 = units.filter((u) => u.code > (exam1ToCode as number));
+  const need1 = group1.reduce((s, u) => s + need(u), 0);
+  const capacity1 = marker - 1; // 마커 차시(시험일 이후 첫 차시) 앞까지.
+  if (need1 > capacity1) {
+    return {
+      ok: false,
+      error: `1차 시험 진도 단원의 최소차시 합(${need1})이 1차 시험 전 차시 수(${capacity1})를 초과합니다.`,
+    };
+  }
+  const need2 = group2.reduce((s, u) => s + need(u), 0);
+  const capacity2 = totalOrdinals - marker + 1; // 마커부터 끝까지.
+  if (need2 > capacity2) {
+    return {
+      ok: false,
+      error: `1차 시험 이후 단원의 최소차시 합(${need2})이 1차 시험 후 차시 수(${capacity2})를 초과합니다.`,
+    };
+  }
+  place(group1, 1);
+  place(group2, marker);
+  return { ok: true, unitIdByOrdinal: out };
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
  * QC v5 c1/c2 — 여유차시(slack) 시프트 도메인. 순수 함수(DB·네트워크 없음).
  *
  * 여유차시 = 내용 없는 빈 차시. ordinal 은 보존하되 unitId/content 가 모두 null 인

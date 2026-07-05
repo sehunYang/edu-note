@@ -6,10 +6,12 @@ import { eq } from "drizzle-orm";
 import * as schema from "../schema";
 import { subjects, courseSections, timetableSlots } from "../schema/classes";
 import { lessonPlans, lessonUnits, examTargets } from "../schema/records";
-import { schoolDayCalendar } from "../schema/misc";
+import { schoolDayCalendar, calendarEvents } from "../schema/misc";
 import {
   getPlanLength,
   getPlanView,
+  getSubjectPlanMeta,
+  applyUnitLayout,
   listLessonPlan,
   upsertLessonPlanEntry,
   deleteLessonPlanEntry,
@@ -25,7 +27,7 @@ import {
   untoggleSlackCell,
 } from "./lesson-plan";
 import { sixDigitCode, validateMinOrdinals } from "@/lib/domain/lesson-unit";
-import { isSlackCell } from "@/lib/domain/lesson-plan";
+import { isSlackCell, layoutUnitsByExamTargets } from "@/lib/domain/lesson-plan";
 
 /**
  * 수업 계획실 실DB 통합 테스트 (교실 2-2 단계2).
@@ -389,5 +391,125 @@ describe.skipIf(!RUN)("QC v5 c1 여유차시 토글 — 비-deferrable unique �
     const after = await listLessonPlan(db3, owner3, sub);
     expect(after.find((p) => p.ordinal === 5)?.content).toBe("e");
     expect(after.find((p) => p.ordinal === 2)?.content).toBe("b");
+  });
+});
+
+/**
+ * 수업계획실 수정 2026-07 ②③④ — 세부단원 자동 배치(applyUnitLayout) +
+ * 시행 여부(jipil enabled)의 시험 마커 반영 실DB 통합.
+ */
+describe.skipIf(!RUN)("세부단원 자동 배치 + 시행 여부 반영", () => {
+  let sql4: ReturnType<typeof postgres>;
+  let db4: PostgresJsDatabase<typeof schema>;
+  const owner4 = randomUUID();
+  const Y = 2099;
+  let sub: string;
+  let uA: string, uB: string, uC: string;
+
+  beforeAll(async () => {
+    sql4 = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    db4 = drizzle(sql4, { schema, casing: "snake_case" });
+
+    const [s] = await db4
+      .insert(subjects)
+      .values({ ownerId: owner4, name: "화학", schoolYear: Y, semester: 1 })
+      .returning({ id: subjects.id });
+    sub = s.id;
+    const [sec] = await db4
+      .insert(courseSections)
+      .values({ ownerId: owner4, subjectId: sub, label: "2-3" })
+      .returning({ id: courseSections.id });
+    // 월(1)·수(3) 슬롯 → 아래 수업일 6개 전부 카운트.
+    await db4.insert(timetableSlots).values([
+      { ownerId: owner4, sectionId: sec.id, weekday: 1, period: 1 },
+      { ownerId: owner4, sectionId: sec.id, weekday: 3, period: 1 },
+    ]);
+    // 수업일: 03-02(월) 03-04(수) 03-09(월) 03-11(수) 03-16(월) 03-18(수) → N=6.
+    await db4.insert(schoolDayCalendar).values(
+      ["2099-03-02", "2099-03-04", "2099-03-09", "2099-03-11", "2099-03-16", "2099-03-18"].map(
+        (date) => ({ ownerId: owner4, date, isSchoolDay: true }),
+      ),
+    );
+    // 1차 시험 03-10 → 마커 = 03-11(ordinal 4). 1차 전 용량 = 3.
+    await db4.insert(calendarEvents).values({
+      ownerId: owner4,
+      date: "2099-03-10",
+      source: "manual",
+      title: "1차 지필",
+      eventKind: "exam",
+      examSemester: 1,
+      examOrdinal: 1,
+    });
+    // 단원 A(010101,최소2) B(010102,최소1) ≤ toCode 010102 → 1차 전. C(020101,최소2) → 1차 후.
+    uA = (await upsertLessonUnit(db4, owner4, sub, {
+      majorNo: 1, midNo: 1, minorNo: 1,
+      majorName: "대1", midName: "중1", minorName: "소1", minOrdinals: 2,
+    })).id;
+    uB = (await upsertLessonUnit(db4, owner4, sub, {
+      majorNo: 1, midNo: 1, minorNo: 2,
+      majorName: "대1", midName: "중1", minorName: "소2", minOrdinals: 1,
+    })).id;
+    uC = (await upsertLessonUnit(db4, owner4, sub, {
+      majorNo: 2, midNo: 1, minorNo: 1,
+      majorName: "대2", midName: "중1", minorName: "소1", minOrdinals: 2,
+    })).id;
+  });
+
+  afterAll(async () => {
+    await db4.delete(lessonPlans).where(eq(lessonPlans.ownerId, owner4));
+    await db4.delete(lessonUnits).where(eq(lessonUnits.ownerId, owner4));
+    await db4.delete(calendarEvents).where(eq(calendarEvents.ownerId, owner4));
+    await db4.delete(timetableSlots).where(eq(timetableSlots.ownerId, owner4));
+    await db4.delete(schoolDayCalendar).where(eq(schoolDayCalendar.ownerId, owner4));
+    await db4.delete(courseSections).where(eq(courseSections.ownerId, owner4));
+    await db4.delete(subjects).where(eq(subjects.ownerId, owner4));
+    await sql4.end();
+  });
+
+  it("③ 마커 산출(1차=ordinal 4) → 분할 배치 적용, 기존 내용 보존", async () => {
+    const view = await getPlanView(db4, owner4, sub, Y, 1);
+    expect(view.length).toBe(6);
+    expect(view.ordinals.find((o) => o.examLabel === "1차")?.ordinal).toBe(4);
+
+    // 기존 작성 내용(ordinal 2) + 스테일 unitId(ordinal 6) 준비.
+    await upsertLessonPlanEntry(db4, owner4, sub, 2, { content: "기존내용", unitId: null });
+    await upsertLessonPlanEntry(db4, owner4, sub, 6, { content: null, unitId: uA });
+
+    const layout = layoutUnitsByExamTargets({
+      units: [
+        { id: uA, code: 10101, minOrdinals: 2 },
+        { id: uB, code: 10102, minOrdinals: 1 },
+        { id: uC, code: 20101, minOrdinals: 2 },
+      ],
+      totalOrdinals: 6,
+      exam1MarkerOrdinal: 4,
+      exam1ToCode: 10102,
+    });
+    expect(layout.ok).toBe(true);
+    if (!layout.ok) return;
+    // A,A,B | (마커4부터) C,C | 6=빈
+    expect(layout.unitIdByOrdinal).toEqual([uA, uA, uB, uC, uC, null]);
+
+    await applyUnitLayout(db4, owner4, sub, layout.unitIdByOrdinal);
+    const rows = await listLessonPlan(db4, owner4, sub);
+    const byOrd = new Map(rows.map((r) => [r.ordinal, r]));
+    expect(byOrd.get(1)?.unitId).toBe(uA);
+    expect(byOrd.get(2)?.unitId).toBe(uA);
+    expect(byOrd.get(2)?.content).toBe("기존내용"); // 내용 텍스트 보존(사용자 결정)
+    expect(byOrd.get(3)?.unitId).toBe(uB);
+    expect(byOrd.get(4)?.unitId).toBe(uC);
+    expect(byOrd.get(5)?.unitId).toBe(uC);
+    expect(byOrd.get(6)?.unitId ?? null).toBeNull(); // 스테일 unitId 해제
+  });
+
+  it("④ 중간지필 미시행이면 1차 마커가 사라진다(getPlanView 필터)", async () => {
+    await db4
+      .update(subjects)
+      .set({ jipilMidEnabled: false })
+      .where(eq(subjects.id, sub));
+    const meta = await getSubjectPlanMeta(db4, owner4, sub);
+    expect(meta).toMatchObject({ jipilMidEnabled: false, jipilFinalEnabled: true });
+    const view = await getPlanView(db4, owner4, sub, Y, 1);
+    expect(view.ordinals.every((o) => o.examLabel !== "1차")).toBe(true);
   });
 });
