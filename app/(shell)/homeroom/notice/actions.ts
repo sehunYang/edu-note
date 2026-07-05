@@ -174,16 +174,17 @@ export async function reorderTeacherNoteAction(
   revalidatePath(PATH);
 }
 
-// ── 할일(공지) — 추가/수정/삭제 (내용 content 포함) ──
+// ── 할일(공지) — 추가/수정/삭제 (내용 content + 학생 공개 여부 isPublic) ──
 export async function addNoticeEventAction(formData: FormData): Promise<void> {
   const ownerId = await getOwnerId();
   const date = String(formData.get("date") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
   const content = String(formData.get("content") ?? "").trim();
+  const isPublic = formData.get("isPublic") === "on"; // 체크박스 — 해제 시 학생 비공개
   if (!date || !title) return;
   const db = getDb();
-  const e = await addNoticeEvent(db, ownerId, date, title, content);
-  await writeAudit(db, ownerId, "notice_upsert", e.id, { date });
+  const e = await addNoticeEvent(db, ownerId, date, title, content, isPublic);
+  await writeAudit(db, ownerId, "notice_upsert", e.id, { date, isPublic });
   revalidatePath(PATH);
 }
 
@@ -195,10 +196,15 @@ export async function updateNoticeEventAction(
   const date = String(formData.get("date") ?? "").trim();
   const title = String(formData.get("title") ?? "").trim();
   const content = String(formData.get("content") ?? "").trim();
+  const isPublic = formData.get("isPublic") === "on";
   if (!id || !date || !title) return;
   const db = getDb();
-  await updateNoticeEvent(db, ownerId, id, date, title, content);
-  await writeAudit(db, ownerId, "notice_upsert", id, { date, kind: "edit" });
+  await updateNoticeEvent(db, ownerId, id, date, title, content, isPublic);
+  await writeAudit(db, ownerId, "notice_upsert", id, {
+    date,
+    kind: "edit",
+    isPublic,
+  });
   revalidatePath(PATH);
 }
 

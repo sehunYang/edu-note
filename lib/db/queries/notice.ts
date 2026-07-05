@@ -290,25 +290,27 @@ export interface NoticeEventRow {
   date: string;
   title: string;
   content: string | null;
+  isPublic: boolean; // 학생 공개 페이지(weekTodos) 노출 여부 (0045)
 }
 
-/** 공지(할일) 추가 — calendar_events(source=manual). */
+/** 공지(할일) 추가 — calendar_events(source=manual). isPublic=false 면 학생 페이지 비노출. */
 export async function addNoticeEvent(
   db: DB,
   ownerId: string,
   date: string,
   title: string,
   content?: string | null,
+  isPublic: boolean = true,
 ): Promise<{ id: string }> {
   const body = content && content.trim() ? content.trim() : null;
   const [row] = await db
     .insert(calendarEvents)
-    .values({ ownerId, date, title, content: body, source: "manual" })
+    .values({ ownerId, date, title, content: body, source: "manual", isPublic })
     .returning({ id: calendarEvents.id });
   return row;
 }
 
-/** 수동 공지 수정 — 제목·날짜·내용(content). 본인 소유 + manual 소스만. */
+/** 수동 공지 수정 — 제목·날짜·내용(content)·학생 공개 여부. 본인 소유 + manual 소스만. */
 export async function updateNoticeEvent(
   db: DB,
   ownerId: string,
@@ -316,11 +318,12 @@ export async function updateNoticeEvent(
   date: string,
   title: string,
   content?: string | null,
+  isPublic: boolean = true,
 ): Promise<void> {
   const body = content && content.trim() ? content.trim() : null;
   await db
     .update(calendarEvents)
-    .set({ date, title, content: body, updatedAt: new Date() })
+    .set({ date, title, content: body, isPublic, updatedAt: new Date() })
     .where(
       and(
         eq(calendarEvents.id, id),
@@ -341,6 +344,7 @@ export async function listNoticeEvents(
       date: calendarEvents.date,
       title: calendarEvents.title,
       content: calendarEvents.content,
+      isPublic: calendarEvents.isPublic,
     })
     .from(calendarEvents)
     .where(

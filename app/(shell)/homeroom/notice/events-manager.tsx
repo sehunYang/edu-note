@@ -63,6 +63,10 @@ export function EventsManager({
           placeholder="내용(선택) — 공개 페이지 본문에 함께 표시"
           className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
         />
+        <label className="flex items-center gap-1.5 text-xs text-neutral-500">
+          <input type="checkbox" name="isPublic" defaultChecked />
+          학생 공개 페이지에 표시
+        </label>
       </form>
 
       {events.length === 0 ? (
@@ -105,6 +109,14 @@ export function EventsManager({
                       placeholder="내용(선택)"
                       className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
                     />
+                    <label className="flex items-center gap-1.5 text-xs text-neutral-500">
+                      <input
+                        type="checkbox"
+                        name="isPublic"
+                        defaultChecked={e.isPublic}
+                      />
+                      학생 공개 페이지에 표시
+                    </label>
                     <div className="flex gap-3">
                       <button className="text-xs text-neutral-700 hover:underline">
                         저장
@@ -134,6 +146,11 @@ export function EventsManager({
                       {e.date}
                     </span>
                     {e.title}
+                    {!e.isPublic && (
+                      <span className="ml-2 text-xs text-amber-600">
+                        (학생 비공개)
+                      </span>
+                    )}
                     {!upcoming && (
                       <span className="ml-2 text-xs text-neutral-300">
                         (지난 항목)

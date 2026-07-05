@@ -7,10 +7,18 @@ import { publicPages } from "../schema/misc";
  * 공개 토큰 페이지 발급/폐기/재발급 쿼리 계층 (계획 §3.2, AC-I).
  *
  * 토큰은 DB 기본값 `encode(gen_random_bytes(16),'hex')`(128bit)로 생성된다(앱이
- * 토큰 문자열을 만들지 않음). 폐기는 revoked_at 마커, 만료는 expires_at. 공개 읽기는
+ * 토큰 문자열을 만들지 않음). 폐기는 revoked_at 마커, 만료는 expires_at — 기본 만료는
+ * 발급일 + 1년(보안점검 2026-07 ④, 0047 DB 기본값과 동일). 공개 읽기는
  * get_public_page(SECURITY DEFINER)만 사용하며 이 계층은 발급/관리(소유자 전용)만 담당.
  */
 type DB = PostgresJsDatabase<typeof schema>;
+
+/** 기본 만료 = 발급 시점 + 1년. 링크 유출 시 피해 기간을 한 학년도 수준으로 제한. */
+function defaultExpiry(): Date {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return d;
+}
 
 export interface IssuedPage {
   id: string;
@@ -22,7 +30,10 @@ export interface IssueOptions {
   expiresAt?: Date | null;
 }
 
-/** 학생에게 새 공개 페이지(토큰)를 발급. 토큰은 DB 가 생성해 반환. */
+/**
+ * 학생에게 새 공개 페이지(토큰)를 발급. 토큰은 DB 가 생성해 반환.
+ * expiresAt 미지정 시 발급일 + 1년(명시적 null 전달 시에만 무기한).
+ */
 export async function issuePublicPage(
   db: DB,
   ownerId: string,
@@ -35,7 +46,7 @@ export async function issuePublicPage(
       ownerId,
       studentYearId,
       teacherMessage: opts.teacherMessage ?? null,
-      expiresAt: opts.expiresAt ?? null,
+      expiresAt: opts.expiresAt !== undefined ? opts.expiresAt : defaultExpiry(),
     })
     .returning({ id: publicPages.id, token: publicPages.token });
   return row;

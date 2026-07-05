@@ -284,6 +284,8 @@ export const calendarEvents = pgTable("calendar_events", {
   examOrdinal: integer("exam_ordinal"),
   // 미분류 자동분류(self_activity fallback) 경고 플래그 (QC v2 2-1 B).
   needsReview: boolean("needs_review").notNull().default(false),
+  // 학생 공개 페이지(weekTodos) 노출 여부 (보안점검 2026-07, 0045). false=교사 내부용.
+  isPublic: boolean("is_public").notNull().default(true),
   ...timestamps(),
 });
 
@@ -330,7 +332,10 @@ export const publicPages = pgTable("public_pages", {
   commonPayload: jsonb("common_payload"),
   teacherMessage: text("teacher_message"),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
-  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  // 기본 만료 = 발급일 + 1년 (보안점검 2026-07, 0047). 앱(issuePublicPage)과 DB 기본값 동일.
+  expiresAt: timestamp("expires_at", { withTimezone: true }).default(
+    sql`now() + interval '1 year'`,
+  ),
   ...timestamps(),
 });
 
