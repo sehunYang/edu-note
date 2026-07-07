@@ -4,13 +4,16 @@ import * as schema from "../schema";
 import {
   schoolDayCalendar,
   calendarEvents,
+  academicVacations,
   mealCache,
   teacherProfile,
 } from "../schema/misc";
 import type { NeisScheduleEntry, NeisMealEntry } from "@/lib/integrations/neis";
 import {
   classifySchedule,
+  deriveVacationSpans,
   type EventKind,
+  type VacationSpan,
 } from "@/lib/domain/calendar-keywords";
 import {
   schoolYearRange,
@@ -97,6 +100,7 @@ export async function syncSchoolCalendar(
       date: e.date,
       title: e.title,
       isSchoolDay: e.isSchoolDay,
+      dayCategory: e.dayCategory,
     })),
   );
   const eventRows = classified.map((c) => ({
@@ -111,6 +115,32 @@ export async function syncSchoolCalendar(
   }));
   if (eventRows.length > 0) {
     await db.insert(calendarEvents).values(eventRows);
+  }
+
+  // 2b) academic_vacations — 방학 구간을 [start,end] 연속 범위로 재생성(주말 포함 밴드용).
+  // deriveVacationSpans 는 dayCategory='방학'/빈 제목 행까지 신호로 쓰므로 filtered 가 아닌
+  // 전체 schedule 을 넘긴다(취약점 보강 — 방학식/개학식 제목 누락에도 견고).
+  await db
+    .delete(academicVacations)
+    .where(
+      and(
+        eq(academicVacations.ownerId, ownerId),
+        gte(academicVacations.startDate, fmt(from)),
+        lte(academicVacations.startDate, fmt(to)),
+      ),
+    );
+  const spans = deriveVacationSpans(
+    schedule.map((e) => ({
+      date: e.date,
+      title: e.title,
+      isSchoolDay: e.isSchoolDay,
+      dayCategory: e.dayCategory,
+    })),
+  );
+  if (spans.length > 0) {
+    await db.insert(academicVacations).values(
+      spans.map((s) => ({ ownerId, startDate: s.start, endDate: s.end })),
+    );
   }
 
   // 3) meal_cache — 날짜별로 묶어 payload upsert
@@ -173,18 +203,28 @@ export async function getUpcomingEvents(
     .limit(limit);
 }
 
+/** 캘린더 표시용 이벤트(event_kind 포함 — 종류별 색상 구분). */
+export interface CalendarEventKindView extends CalendarEventView {
+  eventKind: EventKind;
+}
+
 /**
- * 특정 기간([fromDate, toDate])의 학사일정 전체(제목만). 오늘의 학교 캘린더 월
+ * 특정 기간([fromDate, toDate])의 학사일정 전체(제목+종류). 오늘의 학교 캘린더 월
  * 네비게이션 재조회용(QC v5 c7 B.3) — today+30 고정 대신 조회 중인 월 범위.
+ * event_kind 를 함께 반환해 캘린더에서 종류별 고유 색상으로 표시한다.
  */
 export async function getEventsInRange(
   db: DB,
   ownerId: string,
   fromDate: string,
   toDate: string,
-): Promise<CalendarEventView[]> {
+): Promise<CalendarEventKindView[]> {
   return db
-    .select({ date: calendarEvents.date, title: calendarEvents.title })
+    .select({
+      date: calendarEvents.date,
+      title: calendarEvents.title,
+      eventKind: calendarEvents.eventKind,
+    })
     .from(calendarEvents)
     .where(
       and(
@@ -194,6 +234,33 @@ export async function getEventsInRange(
       ),
     )
     .orderBy(asc(calendarEvents.date));
+}
+
+/**
+ * [fromDate, toDate] 와 겹치는 방학 구간(달력 배경 밴드용). 겨울방학처럼 월/연을
+ * 넘나드는 구간도 잡히도록 겹침 조건(start ≤ to ∧ end ≥ from)으로 조회한다.
+ */
+export async function getVacationSpansInRange(
+  db: DB,
+  ownerId: string,
+  fromDate: string,
+  toDate: string,
+): Promise<VacationSpan[]> {
+  const rows = await db
+    .select({
+      start: academicVacations.startDate,
+      end: academicVacations.endDate,
+    })
+    .from(academicVacations)
+    .where(
+      and(
+        eq(academicVacations.ownerId, ownerId),
+        lte(academicVacations.startDate, toDate),
+        gte(academicVacations.endDate, fromDate),
+      ),
+    )
+    .orderBy(asc(academicVacations.startDate));
+  return rows;
 }
 
 // ── 학사일정 속성(키워드 분류) 조회·보정 (QC v1 C3) ──

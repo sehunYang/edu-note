@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   classifyOne,
   classifySchedule,
+  deriveVacationSpans,
   type ScheduleEntry,
 } from "./calendar-keywords";
 
@@ -228,5 +229,83 @@ describe("classifySchedule — cluster-local 방학 종료 (후속)", () => {
     // 미분류 시퀀스 fallback 도 self_activity(needsReview), etc 아님.
     const res = classifySchedule([entry("2026-09-02", "학생자치회의")]);
     expect(res[0].eventKind).toBe("self_activity");
+  });
+});
+
+describe("deriveVacationSpans — 방학 구간(주말 포함 밴드)", () => {
+  function e(
+    date: string,
+    title: string,
+    dayCategory: string | null = null,
+  ): ScheduleEntry {
+    return { date, title, isSchoolDay: dayCategory === null, dayCategory };
+  }
+
+  it("방학식~개학식: 구간=[방학식, 개학식 전날] 연속 범위(주말 자동 포함)", () => {
+    const spans = deriveVacationSpans([
+      e("2026-07-20", "여름방학식"),
+      e("2026-08-18", "2학기 개학식"),
+    ]);
+    expect(spans).toEqual([{ start: "2026-07-20", end: "2026-08-17" }]);
+  });
+
+  it("취약점 보강 ①: 개학식 누락 → 마지막 방학 신호일까지(제목만 있어도)", () => {
+    const spans = deriveVacationSpans([
+      e("2026-07-20", "여름방학식"),
+      e("2026-08-10", "방학중 보충수업"),
+    ]);
+    expect(spans).toEqual([{ start: "2026-07-20", end: "2026-08-10" }]);
+  });
+
+  it("취약점 보강 ②: 방학식/개학식 제목 없이 dayCategory='방학'만으로도 구간 도출", () => {
+    const spans = deriveVacationSpans([
+      e("2026-07-21", "", "방학"),
+      e("2026-07-22", "도서관 개방", "방학"),
+      e("2026-07-24", "", "방학"),
+    ]);
+    // 시작=첫 방학 신호, 종료=마지막 방학 신호(사이 주말은 렌더 시 범위로 포함).
+    expect(spans).toEqual([{ start: "2026-07-21", end: "2026-07-24" }]);
+  });
+
+  it("취약점 보강 ③: dayCategory 방학 + 개학식 조합 → 개학 전날까지", () => {
+    const spans = deriveVacationSpans([
+      e("2026-12-24", "겨울방학식"),
+      e("2026-12-28", "", "방학"),
+      e("2027-02-01", "2027 개학식"),
+    ]);
+    expect(spans).toEqual([{ start: "2026-12-24", end: "2027-01-31" }]);
+  });
+
+  it("방학 중 학교 가동 신호(positive)는 구간 종료 — 마지막 방학일까지만", () => {
+    const spans = deriveVacationSpans([
+      e("2026-07-20", "여름방학식"),
+      e("2026-08-01", "여름 동아리 캠프"), // club(positive) → 종료
+    ]);
+    expect(spans).toEqual([{ start: "2026-07-20", end: "2026-07-20" }]);
+  });
+
+  it("두 방학(여름·겨울)은 별개 구간으로 분리", () => {
+    const spans = deriveVacationSpans([
+      e("2026-07-20", "여름방학식"),
+      e("2026-08-18", "개학식"),
+      e("2026-12-24", "겨울방학식"),
+      e("2027-02-02", "개학식"),
+    ]);
+    expect(spans).toEqual([
+      { start: "2026-07-20", end: "2026-08-17" },
+      { start: "2026-12-24", end: "2027-02-01" },
+    ]);
+  });
+
+  it("방학 신호 없으면 빈 배열", () => {
+    expect(deriveVacationSpans([e("2026-05-01", "중간고사")])).toEqual([]);
+  });
+
+  it("입력 순서 무관(정렬)", () => {
+    const spans = deriveVacationSpans([
+      e("2026-08-18", "개학식"),
+      e("2026-07-20", "여름방학식"),
+    ]);
+    expect(spans).toEqual([{ start: "2026-07-20", end: "2026-08-17" }]);
   });
 });

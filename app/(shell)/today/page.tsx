@@ -6,6 +6,7 @@ import {
   getTeacherTimetable,
   getMealsInRange,
   getEventsInRange,
+  getVacationSpansInRange,
   listSectionsWithProgress,
   collectNudges,
   listPendingReportTiers,
@@ -58,6 +59,7 @@ export default async function TodayPage() {
     noticeEvents,
     googleStatus,
     googleEvents,
+    vacationSpans,
   ] = await Promise.all([
     getTeacherTimetable(db, ownerId, year, semester),
     getEventsInRange(db, ownerId, monthFrom, monthTo),
@@ -71,6 +73,7 @@ export default async function TodayPage() {
     listNoticeEvents(db, ownerId),
     getGoogleConnectionStatusAction(),
     fetchGoogleEventsInRange(monthFrom, monthTo),
+    getVacationSpansInRange(db, ownerId, monthFrom, monthTo),
   ]);
 
   const todaySlots = todaySlotsFor(allSlots, weekday);
@@ -114,7 +117,11 @@ export default async function TodayPage() {
 
         {/* 학사일정 캘린더 — 월 범위 조회 + 상담 오버레이 + 날짜 메모(B.3/B.4) */}
         <EventsCalendar
-          events={monthEvents.map((e) => ({ date: e.date, title: e.title }))}
+          events={monthEvents.map((e) => ({
+            date: e.date,
+            title: e.title,
+            eventKind: e.eventKind,
+          }))}
           counsel={monthReservations.map((c) => ({
             date: c.date,
             studentLabel: c.studentLabel,
@@ -122,6 +129,7 @@ export default async function TodayPage() {
           memos={monthMemos}
           googleEvents={googleEvents}
           googleSyncError={googleStatus.connected ? googleStatus.lastError : null}
+          vacationSpans={vacationSpans}
         />
 
         {/* 공지 위젯 — 한마디 스와이프 + 할일·공지(내용 포함) (AC-7.10) */}

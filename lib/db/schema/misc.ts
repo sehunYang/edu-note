@@ -324,6 +324,21 @@ export const schoolDayCalendar = pgTable(
   (t) => [unique("uq_school_day_calendar").on(t.ownerId, t.date)],
 );
 
+// 방학 구간(달력 배경 밴드용, 0050). NEIS 동기화 시 deriveVacationSpans 결과를 [start,end]
+// 연속 범위로 저장 — 방학식~개학식 사이 NEIS 행이 없는 날(주말 포함)도 월간 캘린더에서
+// 연속 음영. 개별 일자 이벤트로 저장하지 않아 보정 목록(calendar_events)을 오염시키지 않는다.
+export const academicVacations = pgTable(
+  "academic_vacations",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date").notNull(),
+    ...timestamps(),
+  },
+  (t) => [index("idx_academic_vacations_owner").on(t.ownerId, t.startDate)],
+);
+
 // 성적 (Phase1 목업 — 스키마만). 공개 페이지는 목업일 때 '준비중'.
 export const grades = pgTable("grades", {
   id: pk(),

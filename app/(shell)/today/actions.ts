@@ -27,6 +27,7 @@ import {
   updateTodayMemo,
   deleteTodayMemo,
   getEventsInRange,
+  getVacationSpansInRange,
   listHomeroomReservationsInRange,
   writeAudit,
   getGoogleConnection,
@@ -35,6 +36,7 @@ import {
   type TodayMemoRow,
   type GoogleConnectionRow,
 } from "@/lib/db/queries";
+import type { EventKind, VacationSpan } from "@/lib/domain/calendar-keywords";
 
 /**
  * 오늘의 학교 서버액션 (QC v5 c7 B.3/B.4). 패턴: getOwnerId → 쿼리 → writeAudit →
@@ -149,13 +151,14 @@ export async function fetchGoogleEventsInRange(
 }
 
 export interface CalendarRangeData {
-  events: { date: string; title: string }[];
+  events: { date: string; title: string; eventKind: EventKind }[];
   counsel: { date: string; studentLabel: string }[];
   memos: TodayMemoRow[];
   googleEvents: GoogleEventDisplayItem[];
+  vacationSpans: VacationSpan[];
 }
 
-/** 월 네비게이션 시 해당 월 범위([from, to])의 학사일정·상담·메모·구글일정을 재조회(B.3/B.4). */
+/** 월 네비게이션 시 해당 월 범위([from, to])의 학사일정·상담·메모·구글일정·방학구간을 재조회(B.3/B.4). */
 export async function fetchCalendarRange(
   from: string,
   to: string,
@@ -163,20 +166,27 @@ export async function fetchCalendarRange(
   const ownerId = await getOwnerId();
   const db = getDb();
   const year = new Date().getFullYear();
-  const [events, reservations, memos, googleEvents] = await Promise.all([
-    getEventsInRange(db, ownerId, from, to),
-    listHomeroomReservationsInRange(db, ownerId, year, from, to),
-    listTodayMemosInRange(db, ownerId, from, to),
-    fetchGoogleEventsInRange(from, to),
-  ]);
+  const [events, reservations, memos, googleEvents, vacationSpans] =
+    await Promise.all([
+      getEventsInRange(db, ownerId, from, to),
+      listHomeroomReservationsInRange(db, ownerId, year, from, to),
+      listTodayMemosInRange(db, ownerId, from, to),
+      fetchGoogleEventsInRange(from, to),
+      getVacationSpansInRange(db, ownerId, from, to),
+    ]);
   return {
-    events: events.map((e) => ({ date: e.date, title: e.title })),
+    events: events.map((e) => ({
+      date: e.date,
+      title: e.title,
+      eventKind: e.eventKind,
+    })),
     counsel: reservations.map((c) => ({
       date: c.date,
       studentLabel: c.studentLabel,
     })),
     memos,
     googleEvents,
+    vacationSpans,
   };
 }
 

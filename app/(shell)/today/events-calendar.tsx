@@ -9,6 +9,11 @@ import {
 } from "./actions";
 import type { TodayMemoRow } from "@/lib/db/queries";
 import type { GoogleEventDisplayItem } from "@/lib/domain/google-event";
+import type { EventKind, VacationSpan } from "@/lib/domain/calendar-keywords";
+import {
+  EVENT_KIND_CHIP,
+  VACATION_BAND_BG,
+} from "@/lib/domain/event-kind-display";
 import { Button } from "@/app/ui/button";
 
 /**
@@ -24,10 +29,16 @@ import { Button } from "@/app/ui/button";
 export interface CalendarEventItem {
   date: string; // YYYY-MM-DD
   title: string;
+  eventKind: EventKind; // 종류별 고유 색상
 }
 export interface CalendarCounselItem {
   date: string; // YYYY-MM-DD
   studentLabel: string;
+}
+/** 캘린더 칸에 표시할 이벤트(제목+종류). */
+interface DayEvent {
+  title: string;
+  eventKind: EventKind;
 }
 
 function kstToday(now: Date = new Date()): string {
@@ -54,6 +65,7 @@ export function EventsCalendar({
   memos: initialMemos = [],
   googleEvents: initialGoogleEvents = [],
   googleSyncError = null,
+  vacationSpans: initialVacationSpans = [],
 }: {
   events: CalendarEventItem[];
   counsel: CalendarCounselItem[];
@@ -61,6 +73,8 @@ export function EventsCalendar({
   /** 구글 캘린더 → 읽기 전용 표시(우리가 push한 항목은 서버에서 이미 제외됨). */
   googleEvents?: GoogleEventDisplayItem[];
   googleSyncError?: string | null;
+  /** 방학 구간 — 구간 내 모든 날(주말 포함)을 배경 밴드로 음영. */
+  vacationSpans?: VacationSpan[];
 }) {
   const todayStr = useMemo(() => kstToday(), []);
   const [ty, tm] = useMemo(() => {
@@ -75,6 +89,8 @@ export function EventsCalendar({
   const [memos, setMemos] = useState<TodayMemoRow[]>(initialMemos);
   const [googleEvents, setGoogleEvents] =
     useState<GoogleEventDisplayItem[]>(initialGoogleEvents);
+  const [vacationSpans, setVacationSpans] =
+    useState<VacationSpan[]>(initialVacationSpans);
   const [loading, startLoad] = useTransition();
 
   // 초기 월(=오늘 월)은 props 를 그대로 쓰고, 그 이후 월 변경 시에만 재조회한다.
@@ -91,6 +107,7 @@ export function EventsCalendar({
       setCounsel(data.counsel);
       setMemos(data.memos);
       setGoogleEvents(data.googleEvents);
+      setVacationSpans(data.vacationSpans);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month.year, month.month]);
@@ -99,14 +116,20 @@ export function EventsCalendar({
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const eventsByDate = useMemo(() => {
-    const map = new Map<string, string[]>();
+    const map = new Map<string, DayEvent[]>();
     for (const e of events) {
       const arr = map.get(e.date) ?? [];
-      arr.push(e.title);
+      arr.push({ title: e.title, eventKind: e.eventKind });
       map.set(e.date, arr);
     }
     return map;
   }, [events]);
+
+  /** 방학 구간(양끝 포함) 안의 날짜인지 — 주말 포함 밴드 음영용. */
+  const isVacationDate = useMemo(() => {
+    return (dateStr: string) =>
+      vacationSpans.some((s) => s.start <= dateStr && dateStr <= s.end);
+  }, [vacationSpans]);
 
   const counselByDate = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -201,16 +224,19 @@ export function EventsCalendar({
           const memoCount = memoCountByDate.get(dateStr) ?? 0;
           const gEvents = googleEventsByDate.get(dateStr) ?? [];
           const isToday = dateStr === todayStr;
+          const isVac = isVacationDate(dateStr);
+          // 배경: 오늘 > 방학 밴드 > 기본. 방학 구간은 주말 포함 연속 음영.
+          const cellBg = isToday
+            ? "border-blue-400 bg-blue-50 font-normal"
+            : isVac
+              ? `border-amber-200 ${VACATION_BAND_BG}`
+              : "border-neutral-100";
           return (
             <button
               key={dateStr}
               type="button"
               onClick={() => setSelectedDate(dateStr)}
-              className={`min-h-[3.5rem] rounded border p-1 text-left transition hover:border-blue-300 hover:bg-blue-50/40 ${
-                isToday
-                  ? "border-blue-400 bg-blue-50 font-normal"
-                  : "border-neutral-100"
-              }`}
+              className={`min-h-[3.5rem] rounded border p-1 text-left transition hover:border-blue-300 hover:bg-blue-50/40 ${cellBg}`}
             >
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-neutral-500">{d}</span>
@@ -220,13 +246,13 @@ export function EventsCalendar({
                   </span>
                 )}
               </div>
-              {evs.map((title, j) => (
+              {evs.map((e, j) => (
                 <div
                   key={`ev${j}`}
-                  title={title}
-                  className="mt-0.5 truncate rounded bg-neutral-200 px-1 text-[10px] text-neutral-700"
+                  title={e.title}
+                  className={`mt-0.5 truncate rounded px-1 text-[10px] ${EVENT_KIND_CHIP[e.eventKind]}`}
                 >
-                  {title}
+                  {e.title}
                 </div>
               ))}
               {cs.map((label, j) => (
@@ -279,7 +305,7 @@ function DayDetailModal({
   onMemosChanged,
 }: {
   date: string;
-  events: string[];
+  events: DayEvent[];
   counsel: string[];
   /** 구글 캘린더 읽기 전용 표시(수정·삭제 불가 — 편집은 구글에서). */
   googleEvents?: GoogleEventDisplayItem[];
@@ -367,12 +393,12 @@ function DayDetailModal({
 
         {(events.length > 0 || counsel.length > 0 || googleEvents.length > 0) && (
           <div className="mt-3 space-y-1 text-sm">
-            {events.map((t, i) => (
+            {events.map((e, i) => (
               <div
                 key={`ev${i}`}
-                className="rounded bg-neutral-100 px-2 py-1 text-neutral-700"
+                className={`rounded px-2 py-1 ${EVENT_KIND_CHIP[e.eventKind]}`}
               >
-                {t}
+                {e.title}
               </div>
             ))}
             {counsel.map((c, i) => (

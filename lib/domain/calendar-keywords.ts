@@ -52,6 +52,17 @@ function isExam(t: string): boolean {
 }
 
 /**
+ * 방학 신호 판정(견고성 보강). 제목에 '방학'이 있거나, NEIS 수업일 구분
+ * (SBTR_DD_SC_NM=dayCategory)에 '방학'이 있으면 방학 신호로 본다. 학교가 방학식/개학식
+ * 제목을 등록하지 않아도 NEIS 자체 일자 구분으로 구간을 잡을 수 있게 한다.
+ */
+function isVacationSignal(e: ScheduleEntry): boolean {
+  if (/방학/.test(normalize(e.title))) return true;
+  if (e.dayCategory && /방학/.test(e.dayCategory)) return true;
+  return false;
+}
+
+/**
  * 제목 키워드 단건 분류. 컨텍스트(방학구간·비수업일·날짜)는 classifySchedule 가 처리한다.
  * 분류 불가(미분류) 시 null.
  */
@@ -80,6 +91,8 @@ export interface ScheduleEntry {
   date: string; // YYYY-MM-DD
   title: string;
   isSchoolDay: boolean; // NEIS 수업일 여부(false=비수업일)
+  /** NEIS 수업일 구분 원본(SBTR_DD_SC_NM). '방학' 포함 시 방학 신호(견고성 보강). */
+  dayCategory?: string | null;
 }
 
 export interface ClassifiedEvent {
@@ -117,8 +130,8 @@ export function classifySchedule(entries: ScheduleEntry[]): ClassifiedEvent[] {
   );
   const n = sorted.length;
 
-  // 사전계산(컨텍스트 무관 부분).
-  const isVac = sorted.map((e) => /방학/.test(normalize(e.title)));
+  // 사전계산(컨텍스트 무관 부분). 방학 신호는 제목+dayCategory 종합(견고성 보강).
+  const isVac = sorted.map(isVacationSignal);
   const isReopen = sorted.map((e) => /개학/.test(normalize(e.title)));
   const base = sorted.map((e) => classifyOne(e.title));
 
@@ -196,4 +209,79 @@ export function classifySchedule(entries: ScheduleEntry[]): ClassifiedEvent[] {
  */
 export function classifyEvent(title: string): EventClassification {
   return classifyOne(title) ?? { eventKind: "self_activity" };
+}
+
+/** 방학 구간(달력 배경 밴드용) — [start, end] 연속 날짜 범위(양끝 포함). */
+export interface VacationSpan {
+  start: string; // YYYY-MM-DD (포함)
+  end: string; // YYYY-MM-DD (포함)
+}
+
+/** YYYY-MM-DD 하루 전(UTC 결정론). */
+function prevCalendarDay(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * 방학 구간을 **연속 달력 범위**로 도출(주말 포함 밴드 표시용, 취약점 보강).
+ *
+ * classifySchedule 의 Phase 1 과 동일한 클러스터 로직이되, 개별 이벤트 마스크가 아니라
+ * [시작일, 종료일] 날짜 범위를 반환한다. 범위가 연속이므로 방학식~개학식 사이에 NEIS 행이
+ * 없는 날(특히 주말)도 렌더 시 자동으로 방학으로 음영된다.
+ *
+ * - 시작 = 방학 신호(제목 '방학' ∨ dayCategory '방학') opener 의 날짜.
+ * - 종료 = 개학('개학' 제목) 만나면 **개학 전날**(달력 하루 전, 직전 주말 포함),
+ *   개학이 없으면 마지막 방학 신호일. → 개학식 누락/방학식 누락에도 최대한 견고.
+ * - 방학 중 학교 가동 신호(exam/club 등 positive 분류)는 클러스터를 종료(교사 보정 전제).
+ */
+export function deriveVacationSpans(entries: ScheduleEntry[]): VacationSpan[] {
+  const sorted = [...entries].sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+  );
+  const n = sorted.length;
+  const isVac = sorted.map(isVacationSignal);
+  const isReopen = sorted.map((e) => /개학/.test(normalize(e.title)));
+  const base = sorted.map((e) => classifyOne(e.title));
+
+  const spans: VacationSpan[] = [];
+  let i = 0;
+  while (i < n) {
+    if (!isVac[i]) {
+      i += 1;
+      continue;
+    }
+    let lastVac = i;
+    let breakKind: "reopen" | "positive" | "end" = "end";
+    let breakIdx = n;
+    for (let j = i + 1; j < n; j++) {
+      if (isReopen[j]) {
+        breakKind = "reopen";
+        breakIdx = j;
+        break;
+      }
+      if (isVac[j]) {
+        lastVac = j;
+        continue;
+      }
+      if (base[j] !== null) {
+        breakKind = "positive";
+        breakIdx = j;
+        break;
+      }
+      // 중립(base null) → tentative, 계속 스캔
+    }
+    const endIdx = breakKind === "reopen" ? breakIdx - 1 : lastVac;
+    const start = sorted[i].date;
+    // 개학이면 개학 전날까지(직전 주말 포함), 아니면 마지막 방학 신호일까지.
+    const end =
+      breakKind === "reopen"
+        ? prevCalendarDay(sorted[breakIdx].date)
+        : sorted[lastVac].date;
+    // 방어: 종료가 시작보다 앞서면(개학이 방학식 당일/직후) 단일일 구간으로.
+    spans.push({ start, end: end < start ? start : end });
+    i = endIdx + 1;
+  }
+  return spans;
 }

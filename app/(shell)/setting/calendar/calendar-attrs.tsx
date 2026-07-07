@@ -10,21 +10,15 @@ import {
 } from "../actions";
 import type { CalendarEventAttrView } from "@/lib/db/queries";
 import type { EventKind } from "@/lib/domain/calendar-keywords";
+import {
+  EVENT_KIND_LABEL,
+  EVENT_KIND_CHIP,
+} from "@/lib/domain/event-kind-display";
 import { Button } from "@/app/ui/button";
 
 const PAGE_SIZE = 20;
 
-const KIND_LABEL: Record<EventKind, string> = {
-  exam: "지필평가",
-  mock_exam: "수능·모의고사",
-  vacation: "방학",
-  holiday: "휴업일",
-  club: "동아리",
-  self_activity: "자율활동",
-  career_activity: "진로활동",
-  etc: "기타",
-};
-const KINDS = Object.keys(KIND_LABEL) as EventKind[];
+const KINDS = Object.keys(EVENT_KIND_LABEL) as EventKind[];
 
 interface Draft {
   eventKind: EventKind;
@@ -165,6 +159,12 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
                   <span className="w-24 shrink-0 text-xs text-neutral-500">
                     {e.date}
                   </span>
+                  <span
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] ${EVENT_KIND_CHIP[d.eventKind]}`}
+                    title={`캘린더 색상: ${EVENT_KIND_LABEL[d.eventKind]}`}
+                  >
+                    {EVENT_KIND_LABEL[d.eventKind]}
+                  </span>
                   <span className="min-w-0 flex-1 truncate">
                     {e.needsReview && (
                       <span className="mr-1 text-amber-600">⚠</span>
@@ -180,7 +180,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
                   >
                     {KINDS.map((k) => (
                       <option key={k} value={k}>
-                        {KIND_LABEL[k]}
+                        {EVENT_KIND_LABEL[k]}
                       </option>
                     ))}
                   </select>
