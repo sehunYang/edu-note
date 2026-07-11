@@ -217,6 +217,11 @@ export interface VacationSpan {
   end: string; // YYYY-MM-DD (포함)
 }
 
+/** date 가 spans 중 하나에 포함되는지(양끝 포함, YYYY-MM-DD 문자열 비교). */
+export function isDateInVacationSpans(date: string, spans: VacationSpan[]): boolean {
+  return spans.some((s) => s.start <= date && date <= s.end);
+}
+
 /** YYYY-MM-DD 하루 전(UTC 결정론). */
 function prevCalendarDay(date: string): string {
   const d = new Date(`${date}T00:00:00Z`);

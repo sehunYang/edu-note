@@ -12,6 +12,7 @@ import type { NeisScheduleEntry, NeisMealEntry } from "@/lib/integrations/neis";
 import {
   classifySchedule,
   deriveVacationSpans,
+  isDateInVacationSpans,
   type EventKind,
   type VacationSpan,
 } from "@/lib/domain/calendar-keywords";
@@ -26,7 +27,8 @@ import {
  * 캘린더 sync 쿼리 계층 (계획 §3.3 E, §4 E). NEIS 학사일정·급식을
  * school_day_calendar(수업일 단일 진실원)·calendar_events·meal_cache 로 멱등 upsert.
  *
- * 수업일 판정: 평일(월~금) ∧ NEIS 비수업일(공휴일/휴업일 등) 아님. 주말·휴업일=비수업일.
+ * 수업일 판정: 평일(월~금) ∧ NEIS 비수업일(공휴일/휴업일 등) 아님 ∧ 방학 구간(deriveVacationSpans)
+ * 아님. 주말·휴업일·방학=비수업일(방학식~개학식 사이 NEIS 행 없는 평일도 비수업일로 취급).
  */
 type DB = PostgresJsDatabase<typeof schema>;
 
@@ -58,8 +60,16 @@ export async function syncSchoolCalendar(
   const nonSchoolDates = new Set(
     schedule.filter((e) => !e.isSchoolDay).map((e) => e.date),
   );
+  const spans = deriveVacationSpans(
+    schedule.map((e) => ({
+      date: e.date,
+      title: e.title,
+      isSchoolDay: e.isSchoolDay,
+      dayCategory: e.dayCategory,
+    })),
+  );
 
-  // 1) school_day_calendar — 범위 전체 일자 생성(평일∧비휴일=수업일)
+  // 1) school_day_calendar — 범위 전체 일자 생성(평일∧비휴일∧비방학=수업일)
   const dayRows: { ownerId: string; date: string; isSchoolDay: boolean }[] = [];
   const from = ymdToDate(fromYmd);
   const to = ymdToDate(toYmd);
@@ -67,7 +77,10 @@ export async function syncSchoolCalendar(
     const date = fmt(d);
     const weekday = d.getUTCDay(); // 0=일 .. 6=토
     const isSchoolDay =
-      weekday >= 1 && weekday <= 5 && !nonSchoolDates.has(date);
+      weekday >= 1 &&
+      weekday <= 5 &&
+      !nonSchoolDates.has(date) &&
+      !isDateInVacationSpans(date, spans);
     dayRows.push({ ownerId, date, isSchoolDay });
   }
   if (dayRows.length > 0) {
@@ -118,8 +131,8 @@ export async function syncSchoolCalendar(
   }
 
   // 2b) academic_vacations — 방학 구간을 [start,end] 연속 범위로 재생성(주말 포함 밴드용).
-  // deriveVacationSpans 는 dayCategory='방학'/빈 제목 행까지 신호로 쓰므로 filtered 가 아닌
-  // 전체 schedule 을 넘긴다(취약점 보강 — 방학식/개학식 제목 누락에도 견고).
+  // spans 는 위에서 이미 전체 schedule 기준으로 계산됨(1번 isSchoolDay 판정과 공유,
+  // dayCategory='방학'/빈 제목 행까지 신호로 반영 — 방학식/개학식 제목 누락에도 견고).
   await db
     .delete(academicVacations)
     .where(
@@ -129,14 +142,6 @@ export async function syncSchoolCalendar(
         lte(academicVacations.startDate, fmt(to)),
       ),
     );
-  const spans = deriveVacationSpans(
-    schedule.map((e) => ({
-      date: e.date,
-      title: e.title,
-      isSchoolDay: e.isSchoolDay,
-      dayCategory: e.dayCategory,
-    })),
-  );
   if (spans.length > 0) {
     await db.insert(academicVacations).values(
       spans.map((s) => ({ ownerId, startDate: s.start, endDate: s.end })),

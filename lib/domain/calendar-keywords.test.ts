@@ -3,6 +3,7 @@ import {
   classifyOne,
   classifySchedule,
   deriveVacationSpans,
+  isDateInVacationSpans,
   type ScheduleEntry,
 } from "./calendar-keywords";
 
@@ -307,5 +308,32 @@ describe("deriveVacationSpans — 방학 구간(주말 포함 밴드)", () => {
       e("2026-07-20", "여름방학식"),
     ]);
     expect(spans).toEqual([{ start: "2026-07-20", end: "2026-08-17" }]);
+  });
+});
+
+describe("isDateInVacationSpans — 방학 구간 포함 판정", () => {
+  const spans = [
+    { start: "2026-07-20", end: "2026-08-17" },
+    { start: "2026-12-24", end: "2027-02-01" },
+  ];
+
+  it("구간 내부 날짜 → true", () => {
+    expect(isDateInVacationSpans("2026-07-25", spans)).toBe(true);
+    expect(isDateInVacationSpans("2027-01-15", spans)).toBe(true);
+  });
+
+  it("구간 이전/이후 날짜 → false", () => {
+    expect(isDateInVacationSpans("2026-07-19", spans)).toBe(false);
+    expect(isDateInVacationSpans("2026-08-18", spans)).toBe(false);
+    expect(isDateInVacationSpans("2027-02-02", spans)).toBe(false);
+  });
+
+  it("경계일(시작/종료 당일)은 포함(양끝 inclusive)", () => {
+    expect(isDateInVacationSpans("2026-07-20", spans)).toBe(true);
+    expect(isDateInVacationSpans("2026-08-17", spans)).toBe(true);
+  });
+
+  it("빈 배열이면 항상 false", () => {
+    expect(isDateInVacationSpans("2026-07-25", [])).toBe(false);
   });
 });

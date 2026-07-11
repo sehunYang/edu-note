@@ -207,6 +207,19 @@ describe.skipIf(!RUN_DB)("학사일정 context-aware 분류·보정 — 합성 s
     });
     // 토요휴업일은 생성하지 않음(AC-B7)
     expect(byTitle["토요휴업일"]).toBeUndefined();
+
+    // 방학 구간 내 NEIS 행이 전혀 없는 평일(2026-07-21 화요일, 방학식~개학식 사이)도
+    // isSchoolDay=false 여야 함 — school_day_calendar.isSchoolDay 판정에 방학 span 반영.
+    const noRowWeekday = await db2
+      .select({ isSchoolDay: schoolDayCalendar.isSchoolDay })
+      .from(schoolDayCalendar)
+      .where(
+        and(
+          eq(schoolDayCalendar.ownerId, owner2),
+          eq(schoolDayCalendar.date, "2026-07-21"),
+        ),
+      );
+    expect(noRowWeekday[0]?.isSchoolDay).toBe(false);
   });
 
   it("일괄 저장: 다건 보정 + needsReview 일괄 해제(AC-B9)", async () => {
