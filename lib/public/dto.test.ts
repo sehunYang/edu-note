@@ -106,9 +106,9 @@ describe("buildPublicPagePayload — 골든 페이로드", () => {
     ]);
   });
 
-  it("weekTodos 는 title·at 만", () => {
+  it("weekTodos 는 title·at·eventKind(누락 시 null) 만", () => {
     expect(payload.weekTodos).toEqual([
-      { title: "수행평가 안내", at: "2026-06-08T09:00:00Z" },
+      { title: "수행평가 안내", at: "2026-06-08T09:00:00Z", eventKind: null },
     ]);
   });
 
@@ -161,6 +161,7 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
         "studentMemos",
         "studentName",
         "timetable",
+        "vacationSpans",
         "weekTodos",
       ].sort(),
     );
@@ -257,6 +258,68 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
     expect(parsed.counselSlots).toEqual([
       { date: "2026-06-20", remaining: 2, reserved: false, cancelRequested: false },
       { date: "2026-06-21", remaining: 0, reserved: true, cancelRequested: true },
+    ]);
+  });
+
+  it("weekTodos.eventKind(v9)은 EventKind 8종 + 'counsel' allowlist, 미지값은 null", () => {
+    const parsed = parsePublicPagePayload({
+      weekTodos: [
+        { title: "미지값", at: "2026-06-08T09:00:00Z", eventKind: "hacker" },
+        { title: "지필", at: "2026-06-09T09:00:00Z", eventKind: "exam" },
+        { title: "상담", at: "2026-06-10T09:00:00Z", eventKind: "counsel" },
+        { title: "누락", at: "2026-06-11T09:00:00Z" },
+      ],
+    });
+    assertNoForbidden(parsed);
+    expect(parsed.weekTodos).toEqual([
+      { title: "미지값", at: "2026-06-08T09:00:00Z", eventKind: null },
+      { title: "지필", at: "2026-06-09T09:00:00Z", eventKind: "exam" },
+      { title: "상담", at: "2026-06-10T09:00:00Z", eventKind: "counsel" },
+      { title: "누락", at: "2026-06-11T09:00:00Z", eventKind: null },
+    ]);
+  });
+
+  it("vacationSpans(v9)은 start/end 문자열 쌍만 통과, 이상값은 drop", () => {
+    const parsed = parsePublicPagePayload({
+      vacationSpans: [
+        { start: "2026-07-25", end: "2026-08-17" },
+        { start: "2026-12-24", end: 42 }, // end 비문자열 → drop
+        { start: null, end: "2026-01-01" }, // start 비문자열 → drop
+        {}, // 둘 다 누락 → drop
+      ],
+    });
+    assertNoForbidden(parsed);
+    expect(parsed.vacationSpans).toEqual([
+      { start: "2026-07-25", end: "2026-08-17" },
+    ]);
+  });
+
+  it("buildPublicPagePayload 도 weekTodos.eventKind·vacationSpans 를 동일 계약으로 반영", () => {
+    const built = buildPublicPagePayload({
+      weekTodos: [
+        { title: "지필", at: "2026-06-09T09:00:00Z", eventKind: "exam" },
+        { title: "미지값", at: "2026-06-08T09:00:00Z", eventKind: "hacker" },
+        { title: "누락", at: "2026-06-11T09:00:00Z" },
+      ],
+      commonNotice: null,
+      timetable: [],
+      meals: [],
+      attendance: [],
+      gradesMock: true,
+      grades: [],
+      personalMessage: null,
+      vacationSpans: [
+        { start: "2026-07-25", end: "2026-08-17" },
+        { start: "2026-12-24", end: 42 as unknown as string },
+      ],
+    });
+    expect(built.weekTodos).toEqual([
+      { title: "지필", at: "2026-06-09T09:00:00Z", eventKind: "exam" },
+      { title: "미지값", at: "2026-06-08T09:00:00Z", eventKind: null },
+      { title: "누락", at: "2026-06-11T09:00:00Z", eventKind: null },
+    ]);
+    expect(built.vacationSpans).toEqual([
+      { start: "2026-07-25", end: "2026-08-17" },
     ]);
   });
 

@@ -7,11 +7,23 @@
  * 구성되어, 미래에 입력에 키가 추가돼도 출력에 새지 않는다.
  */
 import type { AttendanceKind } from "@/lib/domain/types";
+import type { EventKind } from "@/lib/domain/calendar-keywords";
 
 // ── 공통칸 ──
+/**
+ * eventKind: calendar_events.event_kind(EventKind) 또는 상담예약 고정 리터럴 'counsel'.
+ * 미지값/누락 시 null(구버전 호환 — 색상 없는 기본 칩으로 렌더).
+ */
 export interface PublicWeekTodo {
   title: string;
   at: string; // ISO 일시
+  eventKind: EventKind | "counsel" | null;
+}
+
+/** 방학 구간(v9) — academic_vacations(0050) 기반. 학생페이지 캘린더 배경 밴드용. */
+export interface PublicVacationSpan {
+  start: string; // YYYY-MM-DD (포함)
+  end: string; // YYYY-MM-DD (포함)
 }
 export interface PublicTimetableSlot {
   weekday: number; // 1=월 .. 7=일
@@ -110,6 +122,7 @@ export interface PublicPagePayload {
   studentMemos: PublicStudentMemo[]; // 학생 개인 메모/일정(본인 토큰 스코프). QC v6 ⑤.
   grades: PublicGradeStatus;
   personalMessage: string | null; // 교사 개별 메시지
+  vacationSpans: PublicVacationSpan[]; // 방학 구간(v9) — 배경 밴드용
 }
 
 /** 페이지 상태 — 라우트가 404/410 으로 매핑. */
@@ -175,7 +188,7 @@ export function summarizeAttendance(
 export interface RawPublicPageInput {
   studentName?: string | null;
   // common (room 등 추가 필드가 와도 무시)
-  weekTodos: { title: string; at: string }[];
+  weekTodos: { title: string; at: string; eventKind?: string | null }[];
   commonNotice: string | null;
   notices?: string[];
   individualNotices?: string[];
@@ -207,6 +220,7 @@ export interface RawPublicPageInput {
   gradesMock: boolean;
   grades: { subjectName: string; rank: number | null; grade5: number | null; achievement: string | null }[];
   personalMessage: string | null;
+  vacationSpans?: { start: string; end: string }[];
 }
 
 function emptyReasonCounts(): PublicAttendanceReasonCounts {
@@ -226,7 +240,11 @@ export function buildPublicPagePayload(
 ): PublicPagePayload {
   return {
     studentName: input.studentName ?? null,
-    weekTodos: input.weekTodos.map((t) => ({ title: t.title, at: t.at })),
+    weekTodos: input.weekTodos.map((t) => ({
+      title: t.title,
+      at: t.at,
+      eventKind: parseEventKind(t.eventKind),
+    })),
     commonNotice: input.commonNotice,
     notices: (input.notices ?? []).filter((n): n is string => typeof n === "string"),
     individualNotices: (input.individualNotices ?? []).filter(
@@ -274,6 +292,9 @@ export function buildPublicPagePayload(
           })),
         },
     personalMessage: input.personalMessage,
+    vacationSpans: (input.vacationSpans ?? [])
+      .map(parseVacationSpan)
+      .filter((x): x is PublicVacationSpan => x !== null),
   };
 }
 
@@ -297,12 +318,35 @@ function rec(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
 }
 
+const EVENT_KIND_VALUES = [
+  "exam",
+  "mock_exam",
+  "vacation",
+  "holiday",
+  "club",
+  "self_activity",
+  "career_activity",
+  "etc",
+  "counsel",
+] as const;
+/** weekTodos.eventKind allowlist 파서(v9). 8개 EventKind + 'counsel' 외 값/누락 → null. */
+function parseEventKind(v: unknown): EventKind | "counsel" | null {
+  return EVENT_KIND_VALUES.find((k) => k === v) ?? null;
+}
 function parseTodo(v: unknown): PublicWeekTodo | null {
   const o = rec(v);
   const title = asString(o.title);
   const at = asString(o.at);
   if (title === null || at === null) return null;
-  return { title, at };
+  return { title, at, eventKind: parseEventKind(o.eventKind) };
+}
+/** 방학 구간 파서(v9). start/end 가 문자열이 아니면 항목 drop. */
+function parseVacationSpan(v: unknown): PublicVacationSpan | null {
+  const o = rec(v);
+  const start = asString(o.start);
+  const end = asString(o.end);
+  if (start === null || end === null) return null;
+  return { start, end };
 }
 function parseSlot(v: unknown): PublicTimetableSlot | null {
   const o = rec(v);
@@ -450,6 +494,9 @@ export function parsePublicPagePayload(raw: unknown): PublicPagePayload {
     studentMemos: asArray(o.studentMemos).map(parseStudentMemo).filter((x): x is PublicStudentMemo => x !== null),
     grades: parseGrades(o.grades),
     personalMessage: asString(o.personalMessage),
+    vacationSpans: asArray(o.vacationSpans)
+      .map(parseVacationSpan)
+      .filter((x): x is PublicVacationSpan => x !== null),
   };
 }
 

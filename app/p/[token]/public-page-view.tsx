@@ -5,6 +5,7 @@ import type {
   PublicAttendance2D,
   PublicAttendanceRecord,
   PublicCounselSlot,
+  PublicVacationSpan,
 } from "@/lib/public";
 import {
   saveElectiveAction,
@@ -14,7 +15,31 @@ import {
   deleteStudentMemoAction,
 } from "./actions";
 import type { PublicStudentMemo } from "@/lib/public";
+import type { EventKind } from "@/lib/domain/calendar-keywords";
+import {
+  EVENT_KIND_CHIP,
+  VACATION_BAND_BG,
+} from "@/lib/domain/event-kind-display";
 import { Button } from "@/app/ui/button";
+
+/** 캘린더 칸/모달에 표시할 학사일정 항목(제목 + 종류). 상담 예약은 "counsel"(green), 미분류는 null. */
+interface DayEvent {
+  title: string;
+  eventKind: EventKind | "counsel" | null;
+}
+
+/**
+ * 학사일정 칩 색상(오늘의학교 캘린더와 동일 팔레트). nullClass 로 호출부별
+ * 기존 기본 배경(캘린더 칸 vs 모달 목록)을 그대로 유지한다.
+ */
+function eventChipClass(
+  eventKind: EventKind | "counsel" | null,
+  nullClass: string = "bg-neutral-200 text-neutral-700",
+): string {
+  if (eventKind === "counsel") return "bg-green-100 text-green-700";
+  if (eventKind === null) return nullClass;
+  return EVENT_KIND_CHIP[eventKind];
+}
 
 /** KST(UTC+9) 기준 오늘 날짜(YYYY-MM-DD). 12시간 고정이 아닌 날짜 경계로 산출. */
 function kstToday(now: Date = new Date()): string {
@@ -70,6 +95,7 @@ export function PublicPageView({
         token={token}
         todos={payload.weekTodos}
         memos={payload.studentMemos}
+        vacationSpans={payload.vacationSpans}
       />
       <Timetable token={token} slots={payload.timetable} />
       <Meals meals={payload.meals} />
@@ -192,10 +218,13 @@ function CalendarSection({
   token,
   todos,
   memos,
+  vacationSpans,
 }: {
   token: string;
   todos: PublicPagePayload["weekTodos"];
   memos: PublicStudentMemo[];
+  /** 방학 구간 — 구간 내 모든 날(주말 포함)을 배경 밴드로 음영(오늘의학교와 동일). */
+  vacationSpans: PublicVacationSpan[];
 }) {
   // 오늘 강조는 KST 날짜 경계 기준(12시간 고정 아님 — 날짜가 바뀌면 자동 갱신).
   const todayStr = useMemo(() => kstToday(), []);
@@ -210,17 +239,23 @@ function CalendarSection({
   // QC v6 ⑤: 날짜 클릭 → 모달(그날 학사일정·개인 메모 CRUD).
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // 날짜(YYYY-MM-DD) → 제목 목록.
+  // 날짜(YYYY-MM-DD) → 학사일정 항목(제목+종류) 목록.
   const byDate = useMemo(() => {
-    const map = new Map<string, string[]>();
+    const map = new Map<string, DayEvent[]>();
     for (const t of todos) {
       const key = t.at.slice(0, 10);
       const arr = map.get(key) ?? [];
-      arr.push(t.title);
+      arr.push({ title: t.title, eventKind: t.eventKind });
       map.set(key, arr);
     }
     return map;
   }, [todos]);
+
+  /** 방학 구간(양끝 포함) 안의 날짜인지 — 주말 포함 밴드 음영용(오늘의학교와 동일 규칙). */
+  const isVacationDate = useMemo(() => {
+    return (dateStr: string) =>
+      vacationSpans.some((s) => s.start <= dateStr && dateStr <= s.end);
+  }, [vacationSpans]);
 
   // 날짜 → 개인 메모 목록(본인 토큰 스코프).
   const memosByDate = useMemo(() => {
@@ -285,16 +320,19 @@ function CalendarSection({
           const events = byDate.get(dateStr) ?? [];
           const dayMemos = memosByDate.get(dateStr) ?? [];
           const isToday = dateStr === todayStr;
+          const isVac = isVacationDate(dateStr);
+          // 배경: 오늘 > 방학 밴드 > 기본(오늘의학교와 동일 우선순위).
+          const cellBg = isToday
+            ? "border-blue-400 bg-blue-50 font-normal"
+            : isVac
+              ? `border-amber-200 ${VACATION_BAND_BG}`
+              : "border-neutral-100";
           return (
             <button
               key={dateStr}
               type="button"
               onClick={() => setSelectedDate(dateStr)}
-              className={`min-h-[3.25rem] rounded border p-1 text-left transition hover:border-blue-400 ${
-                isToday
-                  ? "border-blue-400 bg-blue-50 font-normal"
-                  : "border-neutral-100"
-              }`}
+              className={`min-h-[3.25rem] rounded border p-1 text-left transition hover:border-blue-400 ${cellBg}`}
             >
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-neutral-500">{d}</span>
@@ -302,13 +340,13 @@ function CalendarSection({
                   <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
                 )}
               </div>
-              {events.map((title, j) => (
+              {events.map((e, j) => (
                 <div
                   key={j}
-                  title={title}
-                  className="mt-0.5 truncate rounded bg-neutral-200 px-1 text-[10px] text-neutral-700"
+                  title={e.title}
+                  className={`mt-0.5 truncate rounded px-1 text-[10px] ${eventChipClass(e.eventKind)}`}
                 >
-                  {title}
+                  {e.title}
                 </div>
               ))}
             </button>
@@ -342,7 +380,7 @@ function DayDetailModal({
 }: {
   token: string;
   date: string;
-  events: string[];
+  events: DayEvent[];
   memos: PublicStudentMemo[];
   onClose: () => void;
 }) {
@@ -410,8 +448,11 @@ function DayDetailModal({
             <h4 className="text-xs font-normal text-neutral-500">학사일정</h4>
             <ul className="mt-1 space-y-1 text-sm">
               {events.map((e, i) => (
-                <li key={i} className="rounded bg-neutral-100 px-2 py-1 text-neutral-700">
-                  {e}
+                <li
+                  key={i}
+                  className={`rounded px-2 py-1 ${eventChipClass(e.eventKind, "bg-neutral-100 text-neutral-700")}`}
+                >
+                  {e.title}
                 </li>
               ))}
             </ul>
