@@ -1,77 +1,28 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import type {
-  PublicPagePayload,
-  PublicAttendance2D,
-  PublicAttendanceRecord,
-  PublicCounselSlot,
-  PublicVacationSpan,
-  PublicNotice,
-} from "@/lib/public";
-import {
-  saveElectiveAction,
-  reserveCounselAction,
-  requestCounselCancelAction,
-  saveStudentMemoAction,
-  deleteStudentMemoAction,
-  markNoticeReadAction,
-} from "./actions";
-import type { PublicStudentMemo } from "@/lib/public";
-import type { EventKind } from "@/lib/domain/calendar-keywords";
-import {
-  EVENT_KIND_CHIP,
-  VACATION_BAND_BG,
-} from "@/lib/domain/event-kind-display";
-import { Button } from "@/app/ui/button";
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import type { PublicPagePayload } from "@/lib/public";
+import { HomeTab } from "./_components/home-tab";
+import { ScheduleTab } from "./_components/schedule-tab";
+import { TimetableTab } from "./_components/timetable-tab";
+import { RecordsTab } from "./_components/records-tab";
+import { TabBar, type TabId } from "./_components/tab-bar";
 
-/** 캘린더 칸/모달에 표시할 학사일정 항목(제목 + 종류). 상담 예약은 "counsel"(green), 미분류는 null. */
-interface DayEvent {
-  title: string;
-  eventKind: EventKind | "counsel" | null;
+const VALID_TABS: TabId[] = ["home", "schedule", "timetable", "records"];
+
+function normalizeTab(value: string | null): TabId {
+  return (VALID_TABS as string[]).includes(value ?? "") ? (value as TabId) : "home";
 }
 
 /**
- * 학사일정 칩 색상(오늘의학교 캘린더와 동일 팔레트). nullClass 로 호출부별
- * 기존 기본 배경(캘린더 칸 vs 모달 목록)을 그대로 유지한다.
- */
-function eventChipClass(
-  eventKind: EventKind | "counsel" | null,
-  nullClass: string = "bg-neutral-200 text-neutral-700",
-): string {
-  if (eventKind === "counsel") return "bg-green-100 text-green-700";
-  if (eventKind === null) return nullClass;
-  return EVENT_KIND_CHIP[eventKind];
-}
-
-/** KST(UTC+9) 기준 오늘 날짜(YYYY-MM-DD). 12시간 고정이 아닌 날짜 경계로 산출. */
-function kstToday(now: Date = new Date()): string {
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  return kst.toISOString().slice(0, 10);
-}
-/** KST 기준 오늘의 요일(1=월 .. 7=일). 시간표 열 강조용. */
-function kstWeekday(now: Date = new Date()): number {
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  const dow = kst.getUTCDay(); // 0=일 .. 6=토
-  return dow === 0 ? 7 : dow;
-}
-/** KST 기준 이번 주(월요일 시작) 월~금 날짜 "M/D" 맵. 시간표 요일 헤더 표기용. */
-function kstWeekDates(now: Date = new Date()): Record<number, string> {
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  const isoDow = kstWeekday(now); // 1=월 .. 7=일
-  const monday = new Date(kst.getTime() - (isoDow - 1) * 24 * 60 * 60 * 1000);
-  const map: Record<number, string> = {};
-  for (let w = 1; w <= 5; w++) {
-    const d = new Date(monday.getTime() + (w - 1) * 24 * 60 * 60 * 1000);
-    map[w] = `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
-  }
-  return map;
-}
-
-/**
- * 공개 학생 안내 페이지 클라이언트 뷰 (QC v3 Part B, US-B13, AC-12.1~12.8).
+ * 공개 학생 안내 페이지 클라이언트 뷰 (public-page-mobile-v2). 4탭 셸(홈/일정/시간표/
+ * 나의기록) — 탭 상태는 `useState`(source of truth) + 초기값 `useSearchParams()` +
+ * 변경 시 `history.replaceState`로 URL만 동기화한다. 이 페이지는 `force-dynamic`
+ * (page.tsx)이라 `router.replace`를 쓰면 탭 전환마다 RSC 페이로드가 재요청된다 —
+ * 그 재페치를 피하려고 History API를 직접 쓴다.
  *
  * 모든 데이터는 allowlist DTO(get_public_page → parsePublicPagePayload) 로 사전집계된 값.
- * 쓰기(선택과목 자가매핑·상담신청)는 토큰 스코프 서버액션으로만 수행한다.
+ * 쓰기(선택과목 자가매핑·상담신청·메모 CRUD 등)는 토큰 스코프 서버액션으로만 수행한다.
  */
 export function PublicPageView({
   token,
@@ -80,8 +31,18 @@ export function PublicPageView({
   token: string;
   payload: PublicPagePayload;
 }) {
+  const search = useSearchParams();
+  const [tab, setTab] = useState<TabId>(() => normalizeTab(search.get("tab")));
+
+  function selectTab(next: TabId) {
+    setTab(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", next);
+    window.history.replaceState(null, "", url);
+  }
+
   return (
-    <main className="mx-auto max-w-2xl px-6 py-10 space-y-8">
+    <div className="mx-auto max-w-2xl px-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-6">
       <header>
         <h1 className="text-2xl font-normal tracking-tight">
           {payload.studentName ? `${payload.studentName} 학생 안내 페이지` : "학생 안내 페이지"}
@@ -91,92 +52,37 @@ export function PublicPageView({
         </p>
       </header>
 
-      <Notices
-        token={token}
-        notices={payload.notices}
-        commonNotice={payload.commonNotice}
-      />
-      <IndividualNotices token={token} notices={payload.individualNotices} />
-      <CalendarSection
-        token={token}
-        todos={payload.weekTodos}
-        memos={payload.studentMemos}
-        vacationSpans={payload.vacationSpans}
-      />
-      <Timetable token={token} slots={payload.timetable} />
-      <Meals meals={payload.meals} />
-      <Attendance2DTable
-        matrix={payload.attendance2D}
-        records={payload.attendanceDetail}
-      />
-      <CounselSlots token={token} slots={payload.counselSlots} />
-    </main>
+      <div key={tab} className="mt-6 animate-fade-in-up space-y-4">
+        {tab === "home" && (
+          <HomeTab
+            token={token}
+            payload={payload}
+            onNavigateTimetable={() => selectTab("timetable")}
+            onNavigateSchedule={() => selectTab("schedule")}
+          />
+        )}
+        {tab === "schedule" && (
+          <ScheduleTab
+            token={token}
+            todos={payload.weekTodos}
+            memos={payload.studentMemos}
+            vacationSpans={payload.vacationSpans}
+          />
+        )}
+        {tab === "timetable" && (
+          <TimetableTab token={token} slots={payload.timetable} meals={payload.meals} />
+        )}
+        {tab === "records" && (
+          <RecordsTab
+            token={token}
+            matrix={payload.attendance2D}
+            records={payload.attendanceDetail}
+            counselSlots={payload.counselSlots}
+          />
+        )}
+      </div>
+
+      <TabBar active={tab} onSelect={selectTab} />
+    </div>
   );
 }
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-lg border border-neutral-200 p-4">
-      <h2 className="text-sm font-normal text-neutral-700">{title}</h2>
-      <div className="mt-2">{children}</div>
-    </section>
-  );
-}
-
-// ── 교사 한마디/개별 공지 게시일 메타(날짜 + New 배지) ──────────────────────
-/**
- * 공지 게시일 라벨(KST "M월 D일"). postedAt = teacher_notes.updated_at → 수정 시 수정일 표시.
- * postedAt(ISO) 이 없거나 파싱 불가하면 null(레거시/누락 안전).
- */
-function noticeDateLabel(postedAt: string | null): string | null {
-  if (!postedAt) return null;
-  const t = new Date(postedAt);
-  if (Number.isNaN(t.getTime())) return null;
-  const kst = new Date(t.getTime() + 9 * 60 * 60 * 1000);
-  return `${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일`;
-}
-
-/**
- * 공지 게시일 + New 배지(교사 한마디·개별 공지 공용). New 는 이 학생이 현재 게시본을
- * 아직 안 읽었을 때만(unread) 표시 — 열람하면 다음 방문부터 사라지고, 교사가 수정하면 재노출.
- */
-function NoticeMeta({
-  postedAt,
-  unread,
-}: {
-  postedAt: string | null;
-  unread: boolean;
-}) {
-  const label = noticeDateLabel(postedAt);
-  if (!label && !unread) return null;
-  return (
-    <span className="flex items-center gap-1.5">
-      {unread && (
-        <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-normal leading-none text-white">
-          New
-        </span>
-      )}
-      {label && <span className="text-[11px] text-neutral-400">{label}</span>}
-    </span>
-  );
-}
-
-/**
- * 현재 보고 있는 공지를 '읽음' 처리(v12). 미읽음(unread)이고 id 가 있는 공지가 화면에
- * 나타나면 토큰 스코프 액션으로 읽음 기록(fire-and-forget — revalidate 없이 다음 방문에 반영).
- * 세션 내 중복 호출은 ref 로 방지.
- */
-function useMarkNoticeReadOnView(
-  token: string,
-  item: PublicNotice | undefined,
-) {
-  const firedRef = useRef<Set<string>>(new Set());
-  const id = item?.id ?? null;
-  const unread = item?.unread ?? false;
-  useEffect(() => {
-    if (!id || !unread || firedRef.current.has(id)) return;
-    firedRef.current.add(id);
-    void markNoticeReadAction(token, id);
-  }, [token, id, unread]);
-}
-
