@@ -13,7 +13,7 @@ export function GlassHeader() {
   const title = pageTitle(pathname);
 
   return (
-    <header className="sticky top-0 z-40 flex h-14 items-center border-b border-hairline bg-canvas/70 px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-40 flex h-14 items-center border-b border-hairline bg-canvas/70 px-6 backdrop-blur-md print:hidden">
       <h2 className="truncate text-sm font-medium tracking-tight text-white">
         {title}
       </h2>

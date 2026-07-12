@@ -2,15 +2,16 @@ import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { listStudents } from "@/lib/db/queries";
-import { PrintButton } from "./print-button";
+import { PrintButton } from "../print-button";
 
 export const dynamic = "force-dynamic";
 
 /**
- * 인쇄실 (계획 §4 Phase2-K-2). 학생 명렬표를 인쇄/PDF 로 저장.
+ * 명렬표 인쇄 (계획 §4 Phase2-K-2, AD-4 Option C). 학생 명렬표를 인쇄/PDF 로 저장.
+ * 셸 밖 라우트(크롬 무탑재) — `app/(shell)/print/page.tsx`(인쇄실 홈)에서 이동.
  * 화면 컨트롤은 `print:hidden`, 표는 인쇄 친화적 레이아웃으로 렌더.
  */
-export default async function PrintPage() {
+export default async function PrintRosterPage() {
   const ownerId = await getOwnerId();
   const db = getDb();
   const year = new Date().getFullYear();
@@ -22,8 +23,8 @@ export default async function PrintPage() {
         <h1 className="text-2xl font-normal tracking-tight">인쇄실 ({year})</h1>
         <div className="flex items-center gap-4">
           <PrintButton />
-          <Link href="/" className="text-sm text-neutral-500 hover:underline">
-            ← 홈
+          <Link href="/print" className="text-sm text-neutral-500 hover:underline">
+            ← 인쇄실
           </Link>
         </div>
       </div>

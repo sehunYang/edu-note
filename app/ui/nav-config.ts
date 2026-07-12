@@ -1,6 +1,6 @@
 /**
  * 앱 셸 내비게이션 구성 (Stage 3-1). 사이드바·글래스 헤더·하단 탭바가 공유하는
- * 단일 소스다. 8개 공간과 하위 탭 라벨은 각 실 layout.tsx의 TABS 배열을 그대로
+ * 단일 소스다. 9개 공간과 하위 탭 라벨은 각 실 layout.tsx의 TABS 배열을 그대로
  * 이관해 하드코딩했다(공개 번들 격리 유지 — lib import 금지). 실 레이아웃의 탭이
  * 바뀌면 이 파일도 함께 갱신해야 한다.
  */
@@ -56,6 +56,7 @@ export const SPACES: Space[] = [
   },
   { href: "/setting", label: "세팅실", icon: "⚙️" },
   { href: "/stats", label: "통계", icon: "📊" },
+  { href: "/print", label: "인쇄실", icon: "🖨️" },
   { href: "/staffroom", label: "교무실", icon: "🗂️" },
 ];
 

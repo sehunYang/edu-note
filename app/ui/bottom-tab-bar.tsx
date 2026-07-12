@@ -41,7 +41,7 @@ export function BottomTabBar() {
           role="dialog"
           aria-modal="true"
           aria-label="더보기 메뉴"
-          className="fixed inset-0 z-50 md:hidden"
+          className="fixed inset-0 z-50 print:hidden md:hidden"
         >
           <button
             type="button"
@@ -79,7 +79,7 @@ export function BottomTabBar() {
 
       <nav
         aria-label="하단 내비게이션"
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-hairline bg-canvas/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-hairline bg-canvas/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md print:hidden md:hidden"
       >
         {PRIMARY.map((item) => {
           const space = spaceByHref(item.href);

@@ -18,7 +18,7 @@ import {
 } from "../schema/records";
 import { addSubjectObservation } from "./observations";
 import { upsertPerformanceScores, upsertJipilScores } from "./grades";
-import { getStudentReport } from "./student-report";
+import { getStudentReport, getStudentReportsForSection } from "./student-report";
 
 /**
  * 학생 분석 보고서 실DB 통합 테스트 (교실 2-2 단계6).
@@ -182,5 +182,48 @@ describe.skipIf(!RUN)("학생 분석 보고서", () => {
   it("미존재 학생/분반 → null", async () => {
     const bad = await getStudentReport(db, owner, randomUUID(), sectionId, YEAR, 1);
     expect(bad).toBeNull();
+  });
+
+  it("배치(getStudentReportsForSection)가 단건(getStudentReport) N회 호출과 완전히 동일한 결과를 산출한다 — 특히 sectionRank", async () => {
+    const batch = await getStudentReportsForSection(db, owner, sectionId, YEAR, 1);
+    expect(batch).toHaveLength(3);
+
+    for (const studentYearId of [sHigh, sMid, sLow]) {
+      const single = await getStudentReport(
+        db,
+        owner,
+        studentYearId,
+        sectionId,
+        YEAR,
+        1,
+      );
+      const fromBatch = batch.find(
+        (r) => r.profile.studentYearId === studentYearId,
+      );
+      expect(single).not.toBeNull();
+      expect(fromBatch).not.toBeUndefined();
+      // 단건과 배치가 필드 단위로 완전 동일해야 한다(코호트 필터링이 배치에서도
+      // 분반 enrollments 로 올바르게 좁혀졌는지의 결정적 증거 — sectionRank 특히 중요).
+      expect(fromBatch).toEqual(single);
+    }
+
+    // 배치 결과에서도 high/mid/low 3분위가 단건과 동일하게 분리됨을 재확인.
+    const high = batch.find((r) => r.profile.studentYearId === sHigh)!;
+    const mid = batch.find((r) => r.profile.studentYearId === sMid)!;
+    const low = batch.find((r) => r.profile.studentYearId === sLow)!;
+    expect(high.flags.sectionRank).toBe("high");
+    expect(mid.flags.sectionRank).toBe("mid");
+    expect(low.flags.sectionRank).toBe("low");
+  });
+
+  it("미존재 분반 → 빈 배열", async () => {
+    const rows = await getStudentReportsForSection(
+      db,
+      owner,
+      randomUUID(),
+      YEAR,
+      1,
+    );
+    expect(rows).toEqual([]);
   });
 });
