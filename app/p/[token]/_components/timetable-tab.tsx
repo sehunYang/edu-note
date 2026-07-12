@@ -3,7 +3,7 @@ import { useMemo, useState, useTransition } from "react";
 import type { PublicPagePayload } from "@/lib/public";
 import { saveElectiveAction } from "../actions";
 import { Button } from "@/app/ui/button";
-import { Card, TT_WEEKDAYS, TT_WEEKDAY_LABEL, TT_PERIODS, kstWeekday, kstWeekDates } from "../_shared";
+import { Card, TT_WEEKDAYS, TT_WEEKDAY_LABEL, TT_PERIODS, kstWeekday } from "../_shared";
 
 export function TimetableTab({
   token,
@@ -22,7 +22,7 @@ export function TimetableTab({
   );
 }
 
-// ── 시간표(월~금 × 1~7교시) ─────────────────────────────────────────────────
+// ── 시간표(선택 요일 일간 뷰) ────────────────────────────────────────────────
 function Timetable({
   token,
   slots,
@@ -35,73 +35,55 @@ function Timetable({
     for (const s of slots) map.set(`${s.weekday}::${s.period}`, s);
     return map;
   }, [slots]);
-  // 오늘 요일 열 강조(KST 날짜 경계). 토·일이면 강조 없음(1~5 만 표시).
+  // 오늘 요일(KST 날짜 경계). 시간표에는 월~금 데이터만 있으므로 토·일이면 월요일 기본 선택.
   const todayWeekday = useMemo(() => kstWeekday(), []);
-  // 요일 헤더에 이번 주(월요일 시작) 날짜 병기 — 접속 시점 기준 자동 최신화.
-  const weekDates = useMemo(() => kstWeekDates(), []);
+  const [weekday, setWeekday] = useState<number>(() =>
+    todayWeekday >= 6 ? 1 : todayWeekday,
+  );
 
   return (
     <Card title="시간표">
       {slots.length === 0 ? (
         <p className="text-sm text-neutral-400">등록된 시간표가 없습니다.</p>
       ) : (
-        <table className="w-full table-fixed border-collapse text-center text-xs">
-          <thead>
-            <tr>
-              <th className="w-8 border border-neutral-200 bg-neutral-50 py-1" />
-              {TT_WEEKDAYS.map((w) => (
-                <th
-                  key={w}
-                  className={`border border-neutral-200 py-1 font-normal ${
-                    w === todayWeekday
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-neutral-50"
-                  }`}
-                >
-                  <div>
-                    {TT_WEEKDAY_LABEL[w]}
-                    {w === todayWeekday && (
-                      <span className="ml-1 rounded bg-blue-600 px-1 text-[9px] text-white align-middle">
-                        오늘
-                      </span>
+        <>
+          <div className="flex gap-1.5">
+            {TT_WEEKDAYS.map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => setWeekday(w)}
+                className={`min-h-[44px] flex-1 rounded-lg px-3 text-sm ${
+                  w === weekday
+                    ? "bg-blue-100 text-blue-700"
+                    : "text-neutral-500"
+                }`}
+              >
+                {TT_WEEKDAY_LABEL[w]}
+                {w === todayWeekday && (
+                  <span className="mx-auto mt-0.5 block h-1 w-1 rounded-full bg-blue-500" />
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 divide-y divide-hairline">
+            {TT_PERIODS.map((p) => {
+              const slot = byCell.get(`${weekday}::${p}`);
+              return (
+                <div key={p} className="flex min-h-[44px] items-center gap-3 py-1">
+                  <span className="w-6 shrink-0 text-sm text-neutral-400">{p}</span>
+                  <div className="flex-1">
+                    {slot ? (
+                      <TimetableCell token={token} slot={slot} />
+                    ) : (
+                      <span className="text-sm text-neutral-300">-</span>
                     )}
                   </div>
-                  <div
-                    className={`text-[10px] ${
-                      w === todayWeekday ? "text-blue-500" : "text-neutral-400"
-                    }`}
-                  >
-                    {weekDates[w]}
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {TT_PERIODS.map((p) => (
-              <tr key={p}>
-                <th className="border border-neutral-200 bg-neutral-50 py-1 font-normal text-neutral-400">
-                  {p}
-                </th>
-                {TT_WEEKDAYS.map((w) => {
-                  const slot = byCell.get(`${w}::${p}`);
-                  return (
-                    <td
-                      key={w}
-                      className={`h-10 border border-neutral-200 align-middle ${
-                        w === todayWeekday ? "bg-blue-50" : ""
-                      }`}
-                    >
-                      {slot ? (
-                        <TimetableCell token={token} slot={slot} />
-                      ) : null}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </Card>
   );
@@ -121,9 +103,9 @@ function TimetableCell({
 
   if (slot.isFixed) {
     // 공통과목: 짙은 회색 텍스트
-    return <span className="text-neutral-700">{slot.subjectName}</span>;
+    return <span className="text-sm text-neutral-700">{slot.subjectName}</span>;
   }
-  // 선택과목 칸: 매핑값 있으면 표시, 없으면 '선택과목' + 토글.
+  // 선택과목 행: 매핑값 있으면 표시, 없으면 '선택과목' + 토글.
   // AC-6.1: 선택과목은 항상 파란 계열(공통과목 text-neutral-700 과 시각적 구분).
   const label = slot.electiveMapped ?? "선택과목";
 
@@ -139,11 +121,11 @@ function TimetableCell({
   }
 
   return (
-    <div className="px-0.5">
+    <div>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full truncate rounded px-1 py-0.5 ${
+        className={`min-h-[44px] w-full truncate rounded px-1 text-left text-sm ${
           slot.electiveMapped
             ? "text-blue-700"
             : "text-blue-600 underline decoration-dotted"
@@ -153,66 +135,76 @@ function TimetableCell({
         {label}
       </button>
       {open && (
-        <div className="mt-1 space-y-1">
+        <div className="space-y-1 pb-2">
           <input
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="과목명"
-            className="w-full rounded border border-neutral-300 px-1 py-0.5 text-[11px]"
+            className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
           />
           <Button
             type="button"
             loading={pending}
             onClick={submit}
-            className="w-full px-1 py-0.5 text-[11px]"
+            className="min-h-[44px] w-full px-1 text-sm"
           >
             저장
           </Button>
-          {err && <p className="text-[10px] text-red-600">{err}</p>}
+          {err && <p className="text-xs text-red-600">{err}</p>}
         </div>
       )}
     </div>
   );
 }
 
-// ── 급식(당일) — 메뉴/영양/칼로리 표 (QC v6 ⑤: 영양 중앙·칼로리 마지막 열) ────
+// ── 급식(당일) — 메뉴 리스트 + 칼로리 배지 + 영양정보 접기 ────────────────────
 function Meals({ meals }: { meals: PublicPagePayload["meals"] }) {
   return (
     <Card title="오늘 급식">
       {meals.length === 0 ? (
         <p className="text-sm text-neutral-400">오늘 급식 정보가 없습니다.</p>
       ) : (
-        <table className="w-full border-collapse text-left text-sm">
-          <thead>
-            <tr>
-              <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal">
-                메뉴
-              </th>
-              <th className="w-40 border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal">
-                영양
-              </th>
-              <th className="w-20 border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal">
-                칼로리
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {meals.map((m, i) => (
-              <tr key={i}>
-                <td className="border border-neutral-200 px-2 py-1 align-top whitespace-pre-line">
-                  {m.menu}
-                </td>
-                <td className="border border-neutral-200 px-2 py-1 align-top whitespace-pre-line text-xs text-neutral-600">
-                  {m.ntrInfo ?? "-"}
-                </td>
-                <td className="border border-neutral-200 px-2 py-1 align-top text-neutral-600">
-                  {m.calInfo ?? "-"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="space-y-3">
+          {meals.map((m, i) => (
+            <MealCard key={m.date ?? i} meal={m} />
+          ))}
+        </div>
       )}
     </Card>
+  );
+}
+
+function MealCard({ meal }: { meal: PublicPagePayload["meals"][number] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-hairline p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-neutral-400">{meal.date}</span>
+        {meal.calInfo && (
+          <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
+            {meal.calInfo}
+          </span>
+        )}
+      </div>
+      <p className="mt-2 whitespace-pre-line text-sm">{meal.menu}</p>
+      {meal.ntrInfo && (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="mt-2 min-h-[44px] text-xs text-neutral-500 underline decoration-dotted"
+          >
+            영양정보 {open ? "숨기기" : "보기"}
+          </button>
+          <div className={`accordion ${open ? "accordion-open" : ""}`}>
+            <div>
+              <p className="whitespace-pre-line pt-1 text-xs text-neutral-500">
+                {meal.ntrInfo}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
