@@ -43,7 +43,7 @@ function Notices({
               <Button
                 type="button"
                 onClick={() => setIdx((cur - 1 + items.length) % items.length)}
-                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-xl leading-none"
               >
                 ‹
               </Button>
@@ -53,7 +53,7 @@ function Notices({
               <Button
                 type="button"
                 onClick={() => setIdx((cur + 1) % items.length)}
-                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-xl leading-none"
               >
                 ›
               </Button>
@@ -90,7 +90,7 @@ function IndividualNotices({
               <button
                 type="button"
                 onClick={() => setIdx((cur - 1 + notices.length) % notices.length)}
-                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded border border-amber-300 hover:bg-white/10"
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded border border-amber-300 text-xl leading-none hover:bg-white/10"
               >
                 ‹
               </button>
@@ -100,7 +100,7 @@ function IndividualNotices({
               <button
                 type="button"
                 onClick={() => setIdx((cur + 1) % notices.length)}
-                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded border border-amber-300 hover:bg-white/10"
+                className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center rounded border border-amber-300 text-xl leading-none hover:bg-white/10"
               >
                 ›
               </button>
