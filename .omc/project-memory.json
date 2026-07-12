@@ -47,7 +47,7 @@
     "runtime": null
   },
   "build": {
-    "buildCommand": "npm run build 2>&1 | tail -12",
+    "buildCommand": "cd \"C:\\Users\\Sehun\\Desktop\\Private Files\\Dev\\Edu_Note\\.claude\\worktrees\\agent-ac096198664d97956\" && npx tsc --noEmit 2>&1 | grep -i \"public-page-view\" | head -20",
     "testCommand": "DB_URL=\"$(grep -m1 '^DATABASE_URL=' .env.local | cut -d= -f2- | tr -d '\"')\" && NEIS_KEY=\"$(grep -m1 '^NEIS_API_KEY=' .env.local | cut -d= -f2- | tr -d '\"')\" && DATABASE_URL=\"$DB_URL\" NEIS_API_KEY=\"$NEIS_KEY\" RUN_DB_ITEST=1 npx vitest run 2>&1 | tail -12",
     "lintCommand": "npm run lint",
     "devCommand": "npm run dev",

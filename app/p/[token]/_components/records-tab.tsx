@@ -53,19 +53,26 @@ function Attendance2DTable({
     reason: keyof PublicAttendance2D["late"];
   } | null>(null);
 
+  // 노출 필드는 날짜·교시·사유 카테고리뿐 — 교사 메모(note_field)는 서버부터 미포함.
+  const detailRecords = sel
+    ? records.filter(
+        (r) => r.kind === KIND_TO_RECORD_KIND[sel.kind] && r.reason === sel.reason,
+      )
+    : [];
+
   return (
     <Card title="출결">
-      <p className="mb-2 text-[11px] text-neutral-400">
+      <p className="mb-2 text-xs text-neutral-400">
         0이 아닌 칸을 누르면 날짜별 상세를 확인할 수 있어요.
       </p>
       <table className="w-full border-collapse text-center text-sm">
         <thead>
           <tr>
-            <th className="border border-neutral-200 bg-neutral-50 px-2 py-1" />
+            <th className="border border-neutral-200 bg-neutral-50 px-3 py-3" />
             {REASON_COLS.map(([, label]) => (
               <th
                 key={label}
-                className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal"
+                className="border border-neutral-200 bg-neutral-50 px-3 py-3 font-normal"
               >
                 {label}
               </th>
@@ -75,7 +82,7 @@ function Attendance2DTable({
         <tbody>
           {KIND_ROWS.map(([kind, kindLabel]) => (
             <tr key={kind}>
-              <th className="border border-neutral-200 bg-neutral-50 px-2 py-1 font-normal text-neutral-500">
+              <th className="border border-neutral-200 bg-neutral-50 px-3 py-3 font-normal text-neutral-500">
                 {kindLabel}
               </th>
               {REASON_COLS.map(([reason]) => {
@@ -86,13 +93,13 @@ function Attendance2DTable({
                       <button
                         type="button"
                         onClick={() => setSel({ kind, kindLabel, reason })}
-                        className="w-full px-2 py-1 font-normal text-blue-700 underline decoration-dotted underline-offset-2 transition hover:bg-blue-50"
+                        className="w-full px-3 py-3 text-sm font-normal text-blue-700 underline decoration-dotted underline-offset-2 transition hover:bg-blue-50"
                         title={`${kindLabel}(${REASON_LABEL[reason]}) 상세 보기`}
                       >
                         {count}
                       </button>
                     ) : (
-                      <span className="block px-2 py-1 text-neutral-300">
+                      <span className="block px-3 py-3 text-sm text-neutral-300">
                         {count}
                       </span>
                     )}
@@ -103,86 +110,55 @@ function Attendance2DTable({
           ))}
         </tbody>
       </table>
-      {sel && (
-        <AttendanceDetailModal
-          kindLabel={sel.kindLabel}
-          reasonLabel={REASON_LABEL[sel.reason]}
-          records={records.filter(
-            (r) =>
-              r.kind === KIND_TO_RECORD_KIND[sel.kind] && r.reason === sel.reason,
+      {/* 출결 상세: 모달 대신 표 아래 인라인 패널(.accordion 계약 — 항상 마운트,
+          단일 자식 래퍼, 내부 콘텐츠만 조건부 렌더). */}
+      <div className={`accordion mt-2 ${sel ? "accordion-open" : ""}`}>
+        <div>
+          {sel && (
+            <div className="pt-1">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-normal text-neutral-800">
+                  {sel.kindLabel} · {REASON_LABEL[sel.reason]}{" "}
+                  <span className="text-sm text-neutral-400">
+                    {detailRecords.length}회
+                  </span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setSel(null)}
+                  className="inline-flex min-h-[44px] items-center text-xs text-neutral-400 hover:text-neutral-200"
+                >
+                  닫기
+                </button>
+              </div>
+              <ul className="mt-2 space-y-1.5 text-sm">
+                {detailRecords.length === 0 && (
+                  <li className="text-xs text-neutral-400">
+                    상세 기록을 불러오지 못했습니다. 선생님께 문의해 주세요.
+                  </li>
+                )}
+                {detailRecords.map((r, i) => (
+                  <li
+                    key={i}
+                    className="flex items-center justify-between rounded border border-neutral-200 px-3 py-2"
+                  >
+                    <span className="text-neutral-700">{r.date}</span>
+                    <span className="text-xs text-neutral-500">
+                      {periodsLabel(r.periods) ?? sel.kindLabel}
+                      {" · "}
+                      {REASON_LABEL[sel.reason]}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-neutral-400">
+                기록이 실제와 다르면 담임 선생님께 확인을 요청하세요.
+              </p>
+            </div>
           )}
-          onClose={() => setSel(null)}
-        />
-      )}
-    </Card>
-  );
-}
-
-/**
- * 출결 상세 모달: 선택한 성격×사유 칸의 기록을 날짜별로 나열(학생 자가 확인).
- * 노출 필드는 날짜·교시·사유 카테고리뿐 — 교사 메모(note_field)는 서버부터 미포함.
- */
-function AttendanceDetailModal({
-  kindLabel,
-  reasonLabel,
-  records,
-  onClose,
-}: {
-  kindLabel: string;
-  reasonLabel: string;
-  records: PublicAttendanceRecord[];
-  onClose: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-    >
-      <div
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl bg-card p-5 border border-neutral-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h3 className="font-normal text-neutral-800">
-            {kindLabel} · {reasonLabel}{" "}
-            <span className="text-sm text-neutral-400">{records.length}회</span>
-          </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded p-1 text-neutral-400 hover:bg-white/10"
-            aria-label="닫기"
-          >
-            ✕
-          </button>
         </div>
-        <ul className="mt-3 space-y-1.5 text-sm">
-          {records.length === 0 && (
-            <li className="text-xs text-neutral-400">
-              상세 기록을 불러오지 못했습니다. 선생님께 문의해 주세요.
-            </li>
-          )}
-          {records.map((r, i) => (
-            <li
-              key={i}
-              className="flex items-center justify-between rounded border border-neutral-200 px-3 py-2"
-            >
-              <span className="text-neutral-700">{r.date}</span>
-              <span className="text-xs text-neutral-500">
-                {periodsLabel(r.periods) ?? kindLabel}
-                {" · "}
-                {reasonLabel}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-[11px] text-neutral-400">
-          기록이 실제와 다르면 담임 선생님께 확인을 요청하세요.
-        </p>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -236,14 +212,14 @@ function CounselSlotRow({
   }
 
   return (
-    <li className="flex items-center justify-between gap-2 rounded border border-neutral-100 px-3 py-2">
+    <li className="flex min-h-[44px] items-center justify-between gap-2 rounded border border-neutral-100 px-3 py-2">
       <span>
         {slot.date}{" "}
         <span className="text-xs text-neutral-400">잔여 {slot.remaining}</span>
       </span>
       {slot.reserved ? (
         <span className="flex items-center gap-2">
-          {err && <span className="text-[11px] text-red-600">{err}</span>}
+          {err && <span className="text-xs text-red-600">{err}</span>}
           <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
             신청됨
           </span>
@@ -256,7 +232,7 @@ function CounselSlotRow({
               type="button"
               disabled={pending}
               onClick={requestCancel}
-              className="px-2 py-0.5 text-xs disabled:opacity-40"
+              className="min-h-[44px] px-4 text-xs disabled:opacity-40"
             >
               {pending ? "요청…" : "취소 요청"}
             </Button>
@@ -264,12 +240,12 @@ function CounselSlotRow({
         </span>
       ) : (
         <span className="flex items-center gap-2">
-          {err && <span className="text-[11px] text-red-600">{err}</span>}
+          {err && <span className="text-xs text-red-600">{err}</span>}
           <Button
             type="button"
             disabled={pending || slot.remaining <= 0}
             onClick={reserve}
-            className="px-2 py-0.5 text-xs disabled:opacity-40"
+            className="min-h-[44px] px-4 text-xs disabled:opacity-40"
           >
             {pending ? "신청…" : "신청"}
           </Button>
