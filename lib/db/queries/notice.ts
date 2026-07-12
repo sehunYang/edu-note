@@ -230,7 +230,11 @@ export async function updateTeacherNote(
   }
 }
 
-/** 교사 한마디 순서 변경(본인 소유만). */
+/**
+ * 교사 한마디 순서 변경(본인 소유만).
+ * ⚠ updatedAt 은 일부러 건드리지 않는다 — 순서 변경은 '내용 수정'이 아니므로,
+ * 학생 페이지의 공지 게시일 표시·New 배지(updated_at 기준)가 재정렬만으로 갱신되면 안 된다.
+ */
 export async function reorderTeacherNote(
   db: DB,
   ownerId: string,
@@ -239,7 +243,7 @@ export async function reorderTeacherNote(
 ): Promise<void> {
   await db
     .update(teacherNotes)
-    .set({ sortOrder, updatedAt: new Date() })
+    .set({ sortOrder })
     .where(and(eq(teacherNotes.id, id), eq(teacherNotes.ownerId, ownerId)));
 }
 

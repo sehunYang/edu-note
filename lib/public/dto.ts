@@ -39,13 +39,15 @@ export interface PublicMeal {
   ntrInfo: string | null; // 영양정보(NTR_INFO) — 표로 분리 표시. v4.
 }
 /**
- * 교사 한마디/개별 공지 한 건(v10). body(본문) + createdAt(교사 입력 ISO 일시).
- * createdAt 은 학생 페이지에서 "언제 올라온 공지인지" 표시 + 최근(2일 이내) New 배지용.
- * 레거시(v9 이하 문자열 배열)·누락 시 createdAt=null 로 파싱(구버전 호환).
+ * 교사 한마디/개별 공지 한 건(v10~). body(본문) + postedAt(게시 ISO 일시).
+ * postedAt = teacher_notes.updated_at(v11~) — 내용 수정 시 갱신되어 게시일이 수정일로
+ * 표시되고 최근(2일 이내) New 배지가 다시 뜬다(순서 변경은 미갱신).
+ * 학생 페이지에서 "언제 올라온/수정된 공지인지" 표시 + New 넛지용.
+ * 레거시(v9 이하 문자열 배열)·누락 시 postedAt=null 로 파싱(구버전 호환).
  */
 export interface PublicNotice {
   body: string;
-  createdAt: string | null; // ISO 일시(teacher_notes.created_at). 레거시/누락 시 null.
+  postedAt: string | null; // ISO 일시(teacher_notes.updated_at). 레거시/누락 시 null.
 }
 
 // ── 개별칸 ──
@@ -119,8 +121,8 @@ export interface PublicPagePayload {
   // 공통칸
   weekTodos: PublicWeekTodo[];
   commonNotice: string | null; // 교사 한마디(단일, 하위호환 — body 문자열)
-  notices: PublicNotice[]; // 다중 교사 한마디(전체 공개 — 스와이프). v10: {body,createdAt}
-  individualNotices: PublicNotice[]; // 이 학생 대상 개별 공지(전체 공지와 병렬). v4 AC-5.3, v10 createdAt
+  notices: PublicNotice[]; // 다중 교사 한마디(전체 공개 — 스와이프). v10~: {body,postedAt}
+  individualNotices: PublicNotice[]; // 이 학생 대상 개별 공지(전체 공지와 병렬). v4 AC-5.3, v10~ postedAt
   timetable: PublicTimetableSlot[];
   meals: PublicMeal[];
   // 개별칸
@@ -199,9 +201,9 @@ export interface RawPublicPageInput {
   // common (room 등 추가 필드가 와도 무시)
   weekTodos: { title: string; at: string; eventKind?: string | null }[];
   commonNotice: string | null;
-  // v10: 문자열(레거시) 또는 { body, createdAt } 객체 모두 수용(파서가 정규화).
-  notices?: (string | { body: string; createdAt?: string | null })[];
-  individualNotices?: (string | { body: string; createdAt?: string | null })[];
+  // v10~: 문자열(레거시) 또는 { body, postedAt } 객체 모두 수용(파서가 정규화).
+  notices?: (string | { body: string; postedAt?: string | null })[];
+  individualNotices?: (string | { body: string; postedAt?: string | null })[];
   timetable: {
     weekday: number;
     period: number;
@@ -324,15 +326,15 @@ function rec(v: unknown): Record<string, unknown> {
 }
 
 /**
- * 공지 한 건 파서(v10). 문자열(레거시 v9 이하) → { body, createdAt:null },
- * 객체 → { body, createdAt }(둘 다 명시 필드만). body 가 없으면 항목 drop.
+ * 공지 한 건 파서(v10~). 문자열(레거시 v9 이하) → { body, postedAt:null },
+ * 객체 → { body, postedAt }(둘 다 명시 필드만). body 가 없으면 항목 drop.
  */
 function parseNotice(v: unknown): PublicNotice | null {
-  if (typeof v === "string") return { body: v, createdAt: null };
+  if (typeof v === "string") return { body: v, postedAt: null };
   const o = rec(v);
   const body = asString(o.body);
   if (body === null) return null;
-  return { body, createdAt: asString(o.createdAt) };
+  return { body, postedAt: asString(o.postedAt) };
 }
 function parseNoticeArray(v: unknown): PublicNotice[] {
   return asArray(v)

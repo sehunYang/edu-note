@@ -127,28 +127,29 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-// ── 교사 한마디/개별 공지 입력일 메타(날짜 + New 배지) ──────────────────────
+// ── 교사 한마디/개별 공지 게시일 메타(날짜 + New 배지) ──────────────────────
 /**
- * 공지 입력일 라벨(KST "M월 D일") + 최근(2일 이내) New 여부 계산.
- * createdAt(ISO) 이 없거나 파싱 불가하면 라벨·배지 모두 없음(레거시/누락 안전).
+ * 공지 게시일 라벨(KST "M월 D일") + 최근(2일 이내) New 여부 계산.
+ * postedAt = teacher_notes.updated_at → 내용 수정 시 갱신되어 수정일 표시·New 재노출.
+ * postedAt(ISO) 이 없거나 파싱 불가하면 라벨·배지 모두 없음(레거시/누락 안전).
  */
-function noticeMeta(createdAt: string | null): {
+function noticeMeta(postedAt: string | null): {
   label: string | null;
   isNew: boolean;
 } {
-  if (!createdAt) return { label: null, isNew: false };
-  const t = new Date(createdAt);
+  if (!postedAt) return { label: null, isNew: false };
+  const t = new Date(postedAt);
   if (Number.isNaN(t.getTime())) return { label: null, isNew: false };
   const kst = new Date(t.getTime() + 9 * 60 * 60 * 1000);
   const label = `${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일`;
-  // 올라온지 2일(48시간) 이내면 New 넛지.
+  // 게시(작성·수정)한지 2일(48시간) 이내면 New 넛지.
   const isNew = Date.now() - t.getTime() <= 2 * 24 * 60 * 60 * 1000;
   return { label, isNew };
 }
 
-/** 공지 입력일 + New 배지(교사 한마디·개별 공지 공용). 표시할 게 없으면 아무것도 렌더 안 함. */
-function NoticeMeta({ createdAt }: { createdAt: string | null }) {
-  const { label, isNew } = noticeMeta(createdAt);
+/** 공지 게시일 + New 배지(교사 한마디·개별 공지 공용). 표시할 게 없으면 아무것도 렌더 안 함. */
+function NoticeMeta({ postedAt }: { postedAt: string | null }) {
+  const { label, isNew } = noticeMeta(postedAt);
   if (!label && !isNew) return null;
   return (
     <span className="flex items-center gap-1.5">
@@ -170,12 +171,12 @@ function Notices({
   notices: PublicNotice[];
   commonNotice: string | null;
 }) {
-  // notices 우선, 비면 commonNotice 단일 폴백(레거시 — 입력일 없음).
+  // notices 우선, 비면 commonNotice 단일 폴백(레거시 — 게시일 없음).
   const items: PublicNotice[] =
     notices.length > 0
       ? notices
       : commonNotice
-        ? [{ body: commonNotice, createdAt: null }]
+        ? [{ body: commonNotice, postedAt: null }]
         : [];
   const [idx, setIdx] = useState(0);
   if (items.length === 0) return null;
@@ -186,7 +187,7 @@ function Notices({
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-normal text-neutral-500">교사 한마디</h2>
         <div className="flex items-center gap-2">
-          <NoticeMeta createdAt={item.createdAt} />
+          <NoticeMeta postedAt={item.postedAt} />
           {items.length > 1 && (
             <div className="flex items-center gap-2 text-xs text-neutral-400">
               <Button
@@ -226,7 +227,7 @@ function IndividualNotices({ notices }: { notices: PublicNotice[] }) {
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-normal text-amber-600">개별 공지</h2>
         <div className="flex items-center gap-2">
-          <NoticeMeta createdAt={item.createdAt} />
+          <NoticeMeta postedAt={item.postedAt} />
           {notices.length > 1 && (
             <div className="flex items-center gap-2 text-xs text-amber-500">
               <button
