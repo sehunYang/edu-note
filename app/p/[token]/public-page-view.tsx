@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type {
   PublicPagePayload,
   PublicAttendance2D,
@@ -14,6 +14,7 @@ import {
   requestCounselCancelAction,
   saveStudentMemoAction,
   deleteStudentMemoAction,
+  markNoticeReadAction,
 } from "./actions";
 import type { PublicStudentMemo } from "@/lib/public";
 import type { EventKind } from "@/lib/domain/calendar-keywords";
@@ -90,8 +91,12 @@ export function PublicPageView({
         </p>
       </header>
 
-      <Notices notices={payload.notices} commonNotice={payload.commonNotice} />
-      <IndividualNotices notices={payload.individualNotices} />
+      <Notices
+        token={token}
+        notices={payload.notices}
+        commonNotice={payload.commonNotice}
+      />
+      <IndividualNotices token={token} notices={payload.individualNotices} />
       <CalendarSection
         token={token}
         todos={payload.weekTodos}
@@ -129,31 +134,33 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 
 // ── 교사 한마디/개별 공지 게시일 메타(날짜 + New 배지) ──────────────────────
 /**
- * 공지 게시일 라벨(KST "M월 D일") + 최근(2일 이내) New 여부 계산.
- * postedAt = teacher_notes.updated_at → 내용 수정 시 갱신되어 수정일 표시·New 재노출.
- * postedAt(ISO) 이 없거나 파싱 불가하면 라벨·배지 모두 없음(레거시/누락 안전).
+ * 공지 게시일 라벨(KST "M월 D일"). postedAt = teacher_notes.updated_at → 수정 시 수정일 표시.
+ * postedAt(ISO) 이 없거나 파싱 불가하면 null(레거시/누락 안전).
  */
-function noticeMeta(postedAt: string | null): {
-  label: string | null;
-  isNew: boolean;
-} {
-  if (!postedAt) return { label: null, isNew: false };
+function noticeDateLabel(postedAt: string | null): string | null {
+  if (!postedAt) return null;
   const t = new Date(postedAt);
-  if (Number.isNaN(t.getTime())) return { label: null, isNew: false };
+  if (Number.isNaN(t.getTime())) return null;
   const kst = new Date(t.getTime() + 9 * 60 * 60 * 1000);
-  const label = `${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일`;
-  // 게시(작성·수정)한지 2일(48시간) 이내면 New 넛지.
-  const isNew = Date.now() - t.getTime() <= 2 * 24 * 60 * 60 * 1000;
-  return { label, isNew };
+  return `${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일`;
 }
 
-/** 공지 게시일 + New 배지(교사 한마디·개별 공지 공용). 표시할 게 없으면 아무것도 렌더 안 함. */
-function NoticeMeta({ postedAt }: { postedAt: string | null }) {
-  const { label, isNew } = noticeMeta(postedAt);
-  if (!label && !isNew) return null;
+/**
+ * 공지 게시일 + New 배지(교사 한마디·개별 공지 공용). New 는 이 학생이 현재 게시본을
+ * 아직 안 읽었을 때만(unread) 표시 — 열람하면 다음 방문부터 사라지고, 교사가 수정하면 재노출.
+ */
+function NoticeMeta({
+  postedAt,
+  unread,
+}: {
+  postedAt: string | null;
+  unread: boolean;
+}) {
+  const label = noticeDateLabel(postedAt);
+  if (!label && !unread) return null;
   return (
     <span className="flex items-center gap-1.5">
-      {isNew && (
+      {unread && (
         <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-normal leading-none text-white">
           New
         </span>
@@ -163,31 +170,53 @@ function NoticeMeta({ postedAt }: { postedAt: string | null }) {
   );
 }
 
+/**
+ * 현재 보고 있는 공지를 '읽음' 처리(v12). 미읽음(unread)이고 id 가 있는 공지가 화면에
+ * 나타나면 토큰 스코프 액션으로 읽음 기록(fire-and-forget — revalidate 없이 다음 방문에 반영).
+ * 세션 내 중복 호출은 ref 로 방지.
+ */
+function useMarkNoticeReadOnView(
+  token: string,
+  item: PublicNotice | undefined,
+) {
+  const firedRef = useRef<Set<string>>(new Set());
+  const id = item?.id ?? null;
+  const unread = item?.unread ?? false;
+  useEffect(() => {
+    if (!id || !unread || firedRef.current.has(id)) return;
+    firedRef.current.add(id);
+    void markNoticeReadAction(token, id);
+  }, [token, id, unread]);
+}
+
 // ── 다중 교사 한마디(스와이프) ──────────────────────────────────────────────
 function Notices({
+  token,
   notices,
   commonNotice,
 }: {
+  token: string;
   notices: PublicNotice[];
   commonNotice: string | null;
 }) {
-  // notices 우선, 비면 commonNotice 단일 폴백(레거시 — 게시일 없음).
+  // notices 우선, 비면 commonNotice 단일 폴백(레거시 — 게시일·New 없음).
   const items: PublicNotice[] =
     notices.length > 0
       ? notices
       : commonNotice
-        ? [{ body: commonNotice, postedAt: null }]
+        ? [{ id: null, body: commonNotice, postedAt: null, unread: false }]
         : [];
   const [idx, setIdx] = useState(0);
-  if (items.length === 0) return null;
-  const cur = Math.min(idx, items.length - 1);
+  const cur = items.length > 0 ? Math.min(idx, items.length - 1) : 0;
   const item = items[cur];
+  useMarkNoticeReadOnView(token, item);
+  if (items.length === 0) return null;
   return (
     <section className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-normal text-neutral-500">교사 한마디</h2>
         <div className="flex items-center gap-2">
-          <NoticeMeta postedAt={item.postedAt} />
+          <NoticeMeta postedAt={item.postedAt} unread={item.unread} />
           {items.length > 1 && (
             <div className="flex items-center gap-2 text-xs text-neutral-400">
               <Button
@@ -217,17 +246,24 @@ function Notices({
 }
 
 // ── 개별 공지(이 학생 대상 — 전체 공지처럼 한 건씩 스와이프 분리, QC v6 ④) ────
-function IndividualNotices({ notices }: { notices: PublicNotice[] }) {
+function IndividualNotices({
+  token,
+  notices,
+}: {
+  token: string;
+  notices: PublicNotice[];
+}) {
   const [idx, setIdx] = useState(0);
-  if (notices.length === 0) return null;
-  const cur = Math.min(idx, notices.length - 1);
+  const cur = notices.length > 0 ? Math.min(idx, notices.length - 1) : 0;
   const item = notices[cur];
+  useMarkNoticeReadOnView(token, item);
+  if (notices.length === 0) return null;
   return (
     <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-normal text-amber-600">개별 공지</h2>
         <div className="flex items-center gap-2">
-          <NoticeMeta postedAt={item.postedAt} />
+          <NoticeMeta postedAt={item.postedAt} unread={item.unread} />
           {notices.length > 1 && (
             <div className="flex items-center gap-2 text-xs text-amber-500">
               <button

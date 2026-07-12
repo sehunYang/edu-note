@@ -113,15 +113,17 @@ describe.skipIf(!RUN)("공지실 — 공개 페이지 공통 안내", () => {
     ]);
     const issued = await issuePublicPage(db, owner, studentYearId);
 
-    const rows = await sql<{ get_public_page: { state: string; payload?: { commonNotice: string | null; notices: { body: string; postedAt: string }[]; weekTodos: { title: string }[] } } }[]>`
+    const rows = await sql<{ get_public_page: { state: string; payload?: { commonNotice: string | null; notices: { id: string; body: string; postedAt: string; unread: boolean }[]; weekTodos: { title: string }[] } } }[]>`
       select get_public_page(${issued.token}) as get_public_page
     `;
     const result = rows[0].get_public_page;
     expect(result.state).toBe("ok");
     expect(result.payload?.commonNotice).toBe("공개용 한마디");
-    // v11: notices 는 { body, postedAt(=updated_at) } 객체 배열
+    // v12: notices 는 { id, body, postedAt(=updated_at), unread } 객체 배열
     expect(result.payload?.notices.map((n) => n.body)).toContain("공개용 한마디");
     expect(result.payload?.notices.every((n) => typeof n.postedAt === "string")).toBe(true);
+    // 읽음 기록이 없으니 unread=true(New)
+    expect(result.payload?.notices.every((n) => n.unread === true)).toBe(true);
     const titles = (result.payload?.weekTodos ?? []).map((t) => t.title);
     expect(titles).toContain("다가오는 공지");
     expect(titles).not.toContain("먼 미래 공지"); // +93일 창 밖

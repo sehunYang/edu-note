@@ -39,16 +39,26 @@ export interface PublicMeal {
   ntrInfo: string | null; // 영양정보(NTR_INFO) — 표로 분리 표시. v4.
 }
 /**
- * 교사 한마디/개별 공지 한 건(v10~). body(본문) + postedAt(게시 ISO 일시).
- * postedAt = teacher_notes.updated_at(v11~) — 내용 수정 시 갱신되어 게시일이 수정일로
- * 표시되고 최근(2일 이내) New 배지가 다시 뜬다(순서 변경은 미갱신).
- * 학생 페이지에서 "언제 올라온/수정된 공지인지" 표시 + New 넛지용.
- * 레거시(v9 이하 문자열 배열)·누락 시 postedAt=null 로 파싱(구버전 호환).
+ * 교사 한마디/개별 공지 한 건(v10~). body(본문) + postedAt(게시 ISO 일시) + unread(미읽음).
+ * postedAt = teacher_notes.updated_at(v11~) — 내용 수정 시 갱신되어 게시일이 수정일로 표시.
+ * unread(v12~) = 이 학생이 현재 게시본을 아직 안 읽음 → New 배지. 학생이 열람하면
+ * markNoticeRead 로 읽음 처리되고, 교사가 다시 수정하면 자동으로 unread=true 로 복귀.
+ * id 는 읽음 처리 호출용 식별자(teacher_notes.id). 레거시/누락 시 id=null·unread=false·
+ * postedAt=null 로 안전 파싱(구버전 호환 — New/읽음처리 비활성).
  */
 export interface PublicNotice {
+  id: string | null; // teacher_notes.id — 읽음 처리용. 레거시/누락 시 null.
   body: string;
   postedAt: string | null; // ISO 일시(teacher_notes.updated_at). 레거시/누락 시 null.
+  unread: boolean; // 이 학생 미읽음(New 배지). 레거시/누락 시 false.
 }
+/** 빌더/파서 입력의 공지 객체 형태(모든 필드 선택 — 파서가 기본값 보강). */
+type NoticeInput = {
+  id?: string | null;
+  body: string;
+  postedAt?: string | null;
+  unread?: boolean;
+};
 
 // ── 개별칸 ──
 /** 성격별 횟수 집계 + 미제출 신고서 유무. 원자료 행 절대 미포함. */
@@ -201,9 +211,9 @@ export interface RawPublicPageInput {
   // common (room 등 추가 필드가 와도 무시)
   weekTodos: { title: string; at: string; eventKind?: string | null }[];
   commonNotice: string | null;
-  // v10~: 문자열(레거시) 또는 { body, postedAt } 객체 모두 수용(파서가 정규화).
-  notices?: (string | { body: string; postedAt?: string | null })[];
-  individualNotices?: (string | { body: string; postedAt?: string | null })[];
+  // v10~: 문자열(레거시) 또는 { id, body, postedAt, unread } 객체 모두 수용(파서가 정규화).
+  notices?: (string | NoticeInput)[];
+  individualNotices?: (string | NoticeInput)[];
   timetable: {
     weekday: number;
     period: number;
@@ -326,15 +336,21 @@ function rec(v: unknown): Record<string, unknown> {
 }
 
 /**
- * 공지 한 건 파서(v10~). 문자열(레거시 v9 이하) → { body, postedAt:null },
- * 객체 → { body, postedAt }(둘 다 명시 필드만). body 가 없으면 항목 drop.
+ * 공지 한 건 파서(v10~). 문자열(레거시 v9 이하) → { id:null, body, postedAt:null, unread:false },
+ * 객체 → { id, body, postedAt, unread }(명시 필드만). body 가 없으면 항목 drop.
  */
 function parseNotice(v: unknown): PublicNotice | null {
-  if (typeof v === "string") return { body: v, postedAt: null };
+  if (typeof v === "string")
+    return { id: null, body: v, postedAt: null, unread: false };
   const o = rec(v);
   const body = asString(o.body);
   if (body === null) return null;
-  return { body, postedAt: asString(o.postedAt) };
+  return {
+    id: asString(o.id),
+    body,
+    postedAt: asString(o.postedAt),
+    unread: o.unread === true,
+  };
 }
 function parseNoticeArray(v: unknown): PublicNotice[] {
   return asArray(v)

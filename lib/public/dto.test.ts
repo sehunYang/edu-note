@@ -220,14 +220,14 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
     const parsed = parsePublicPagePayload(raw);
     assertNoForbidden(parsed);
     expect(parsed.studentName).toBe("홍길동");
-    // v10~: notices 는 { body, postedAt } 객체 배열. 레거시 문자열 입력은 postedAt=null.
+    // v10~: notices 는 { id, body, postedAt, unread } 객체. 레거시 문자열 → id/postedAt null·unread false.
     expect(parsed.notices).toEqual([
-      { body: "한마디1", postedAt: null },
-      { body: "한마디2", postedAt: null },
+      { id: null, body: "한마디1", postedAt: null, unread: false },
+      { id: null, body: "한마디2", postedAt: null, unread: false },
     ]);
     expect(parsed.individualNotices).toEqual([
-      { body: "개별공지1", postedAt: null },
-      { body: "개별공지2", postedAt: null },
+      { id: null, body: "개별공지1", postedAt: null, unread: false },
+      { id: null, body: "개별공지2", postedAt: null, unread: false },
     ]);
     expect(parsed.meals[0]).toEqual({
       date: "2026-06-20",
@@ -330,25 +330,29 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
     ]);
   });
 
-  it("notices(v10~)는 {body,postedAt} 객체·레거시 문자열 모두 파싱, body 없으면 drop", () => {
+  it("notices(v12)는 {id,body,postedAt,unread} 객체·레거시 문자열 모두 파싱, body 없으면 drop", () => {
     const parsed = parsePublicPagePayload({
       notices: [
-        { body: "객체공지", postedAt: "2026-07-10T00:00:00Z" },
-        "레거시문자열", // v9 이하 호환 → postedAt null
+        { id: "n1", body: "미읽음공지", postedAt: "2026-07-10T00:00:00Z", unread: true },
+        { id: "n2", body: "읽은공지", postedAt: "2026-07-09T00:00:00Z", unread: false },
+        "레거시문자열", // v9 이하 호환 → id/postedAt null, unread false
         { postedAt: "2026-07-10T00:00:00Z" }, // body 누락 → drop
-        { body: "숫자postedAt", postedAt: 42 }, // postedAt 비문자열 → null
+        { body: "숫자postedAt", postedAt: 42, unread: "yes" }, // postedAt 비문자열→null, unread 비true→false
         7, // 문자열/객체 아님 → drop
       ],
-      individualNotices: [{ body: "개별", postedAt: "2026-07-11T00:00:00Z" }],
+      individualNotices: [
+        { id: "i1", body: "개별", postedAt: "2026-07-11T00:00:00Z", unread: true },
+      ],
     });
     assertNoForbidden(parsed);
     expect(parsed.notices).toEqual([
-      { body: "객체공지", postedAt: "2026-07-10T00:00:00Z" },
-      { body: "레거시문자열", postedAt: null },
-      { body: "숫자postedAt", postedAt: null },
+      { id: "n1", body: "미읽음공지", postedAt: "2026-07-10T00:00:00Z", unread: true },
+      { id: "n2", body: "읽은공지", postedAt: "2026-07-09T00:00:00Z", unread: false },
+      { id: null, body: "레거시문자열", postedAt: null, unread: false },
+      { id: null, body: "숫자postedAt", postedAt: null, unread: false },
     ]);
     expect(parsed.individualNotices).toEqual([
-      { body: "개별", postedAt: "2026-07-11T00:00:00Z" },
+      { id: "i1", body: "개별", postedAt: "2026-07-11T00:00:00Z", unread: true },
     ]);
   });
 

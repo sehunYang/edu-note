@@ -6,6 +6,7 @@ import {
   requestCounselCancel,
   saveStudentMemo,
   deleteStudentMemo,
+  markNoticeRead,
   type StudentWriteResult,
 } from "@/lib/public/student-write";
 
@@ -56,6 +57,18 @@ export async function saveStudentMemoAction(
   const res = await saveStudentMemo(token, date, body, id);
   if (res.ok) revalidatePath(`/p/${token}`);
   return res;
+}
+
+/**
+ * 공지 읽음 처리(v12). 학생이 공지를 열람하면 호출해 New 배지를 끈다.
+ * revalidate 하지 않는다 — 스와이프 중 조회마다 fire-and-forget 로 호출되므로
+ * 재렌더로 카드가 리셋되면 안 된다(효과는 다음 방문 시 반영).
+ */
+export async function markNoticeReadAction(
+  token: string,
+  noteId: string,
+): Promise<StudentWriteResult> {
+  return markNoticeRead(token, noteId);
 }
 
 /** 학생 개인 메모 삭제. QC v6 ⑤. */

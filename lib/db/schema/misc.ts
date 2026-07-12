@@ -190,6 +190,25 @@ export const teacherNoteTargets = pgTable(
   (t) => [unique("uq_teacher_note_targets").on(t.noteId, t.studentYearId)],
 );
 
+// 학생별 공지 읽음 상태(v12) — 학생 페이지 New 배지용. (student_year_id, note_id) 유일.
+// readAt = 마지막으로 읽은 시각. get_public_page 는 readAt >= teacher_notes.updated_at 이면
+// '읽음'으로 판정 → 교사가 공지를 수정(updated_at 갱신)하면 다시 미읽음(New)이 된다. 0054.
+export const studentNoticeReads = pgTable(
+  "student_notice_reads",
+  {
+    id: pk(),
+    studentYearId: uuid("student_year_id")
+      .notNull()
+      .references(() => studentYears.id, { onDelete: "cascade" }),
+    noteId: uuid("note_id")
+      .notNull()
+      .references(() => teacherNotes.id, { onDelete: "cascade" }),
+    readAt: timestamp("read_at", { withTimezone: true }).notNull().defaultNow(),
+    ...timestamps(),
+  },
+  (t) => [unique("uq_student_notice_reads").on(t.studentYearId, t.noteId)],
+);
+
 // 고정반 수업 설정(컴시간 학년파싱 기반, 미체크=선택과목). 0023.
 export const fixedClassSettings = pgTable(
   "fixed_class_settings",

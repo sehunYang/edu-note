@@ -290,6 +290,50 @@ export async function saveStudentMemo(
   }
 }
 
+/**
+ * 공지 읽음 처리(토큰 스코프, v12). 이 학생이 해당 공지를 본 시각을 기록해 학생 페이지
+ * New 배지를 끈다. (student_year_id, note_id) upsert 로 read_at=now 갱신 →
+ * 교사가 나중에 공지를 수정(updated_at 갱신)하면 read_at < updated_at 이 되어 다시 New.
+ * note 는 반드시 이 토큰 owner 소유 공지여야 한다(타 owner/없는 id 는 조용히 무시).
+ * 감사로그는 남기지 않는다(조회 시마다 호출되는 고빈도 경로).
+ */
+export async function markNoticeRead(
+  token: string,
+  noteId: string,
+): Promise<StudentWriteResult> {
+  if (!noteId) return { ok: false, message: "대상이 지정되지 않았습니다." };
+  const db = publicDb();
+  const resolved = await resolveToken(db, token);
+  if (!resolved) return { ok: false, message: "유효하지 않은 링크입니다." };
+  try {
+    // owner 스코프 확인 — 이 교사 소유의 공지만 읽음 처리(없거나 타 owner 면 no-op).
+    const note = await db
+      .select({ id: schema.teacherNotes.id })
+      .from(schema.teacherNotes)
+      .where(
+        and(
+          eq(schema.teacherNotes.id, noteId),
+          eq(schema.teacherNotes.ownerId, resolved.ownerId),
+        ),
+      )
+      .limit(1);
+    if (!note[0]) return { ok: true }; // 없는/타owner 공지는 조용히 무시(오류 아님)
+    await db
+      .insert(schema.studentNoticeReads)
+      .values({ studentYearId: resolved.studentYearId, noteId })
+      .onConflictDoUpdate({
+        target: [
+          schema.studentNoticeReads.studentYearId,
+          schema.studentNoticeReads.noteId,
+        ],
+        set: { readAt: new Date(), updatedAt: new Date() },
+      });
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "읽음 처리에 실패했습니다." };
+  }
+}
+
 /** 메모 삭제(토큰 스코프). (id, student_year_id) 조건으로 본인 메모만 삭제. */
 export async function deleteStudentMemo(
   token: string,
