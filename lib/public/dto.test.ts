@@ -220,8 +220,15 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
     const parsed = parsePublicPagePayload(raw);
     assertNoForbidden(parsed);
     expect(parsed.studentName).toBe("홍길동");
-    expect(parsed.notices).toEqual(["한마디1", "한마디2"]);
-    expect(parsed.individualNotices).toEqual(["개별공지1", "개별공지2"]);
+    // v10: notices 는 { body, createdAt } 객체 배열. 레거시 문자열 입력은 createdAt=null.
+    expect(parsed.notices).toEqual([
+      { body: "한마디1", createdAt: null },
+      { body: "한마디2", createdAt: null },
+    ]);
+    expect(parsed.individualNotices).toEqual([
+      { body: "개별공지1", createdAt: null },
+      { body: "개별공지2", createdAt: null },
+    ]);
     expect(parsed.meals[0]).toEqual({
       date: "2026-06-20",
       menu: "비빔밥",
@@ -320,6 +327,28 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
     ]);
     expect(built.vacationSpans).toEqual([
       { start: "2026-07-25", end: "2026-08-17" },
+    ]);
+  });
+
+  it("notices(v10)는 {body,createdAt} 객체·레거시 문자열 모두 파싱, body 없으면 drop", () => {
+    const parsed = parsePublicPagePayload({
+      notices: [
+        { body: "객체공지", createdAt: "2026-07-10T00:00:00Z" },
+        "레거시문자열", // v9 이하 호환 → createdAt null
+        { createdAt: "2026-07-10T00:00:00Z" }, // body 누락 → drop
+        { body: "숫자createdAt", createdAt: 42 }, // createdAt 비문자열 → null
+        7, // 문자열/객체 아님 → drop
+      ],
+      individualNotices: [{ body: "개별", createdAt: "2026-07-11T00:00:00Z" }],
+    });
+    assertNoForbidden(parsed);
+    expect(parsed.notices).toEqual([
+      { body: "객체공지", createdAt: "2026-07-10T00:00:00Z" },
+      { body: "레거시문자열", createdAt: null },
+      { body: "숫자createdAt", createdAt: null },
+    ]);
+    expect(parsed.individualNotices).toEqual([
+      { body: "개별", createdAt: "2026-07-11T00:00:00Z" },
     ]);
   });
 

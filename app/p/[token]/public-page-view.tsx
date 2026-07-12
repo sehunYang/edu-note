@@ -6,6 +6,7 @@ import type {
   PublicAttendanceRecord,
   PublicCounselSlot,
   PublicVacationSpan,
+  PublicNotice,
 } from "@/lib/public";
 import {
   saveElectiveAction,
@@ -126,82 +127,130 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
+// ── 교사 한마디/개별 공지 입력일 메타(날짜 + New 배지) ──────────────────────
+/**
+ * 공지 입력일 라벨(KST "M월 D일") + 최근(2일 이내) New 여부 계산.
+ * createdAt(ISO) 이 없거나 파싱 불가하면 라벨·배지 모두 없음(레거시/누락 안전).
+ */
+function noticeMeta(createdAt: string | null): {
+  label: string | null;
+  isNew: boolean;
+} {
+  if (!createdAt) return { label: null, isNew: false };
+  const t = new Date(createdAt);
+  if (Number.isNaN(t.getTime())) return { label: null, isNew: false };
+  const kst = new Date(t.getTime() + 9 * 60 * 60 * 1000);
+  const label = `${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일`;
+  // 올라온지 2일(48시간) 이내면 New 넛지.
+  const isNew = Date.now() - t.getTime() <= 2 * 24 * 60 * 60 * 1000;
+  return { label, isNew };
+}
+
+/** 공지 입력일 + New 배지(교사 한마디·개별 공지 공용). 표시할 게 없으면 아무것도 렌더 안 함. */
+function NoticeMeta({ createdAt }: { createdAt: string | null }) {
+  const { label, isNew } = noticeMeta(createdAt);
+  if (!label && !isNew) return null;
+  return (
+    <span className="flex items-center gap-1.5">
+      {isNew && (
+        <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-normal leading-none text-white">
+          New
+        </span>
+      )}
+      {label && <span className="text-[11px] text-neutral-400">{label}</span>}
+    </span>
+  );
+}
+
 // ── 다중 교사 한마디(스와이프) ──────────────────────────────────────────────
 function Notices({
   notices,
   commonNotice,
 }: {
-  notices: string[];
+  notices: PublicNotice[];
   commonNotice: string | null;
 }) {
-  // notices 우선, 비면 commonNotice 단일 폴백.
-  const items = notices.length > 0 ? notices : commonNotice ? [commonNotice] : [];
+  // notices 우선, 비면 commonNotice 단일 폴백(레거시 — 입력일 없음).
+  const items: PublicNotice[] =
+    notices.length > 0
+      ? notices
+      : commonNotice
+        ? [{ body: commonNotice, createdAt: null }]
+        : [];
   const [idx, setIdx] = useState(0);
   if (items.length === 0) return null;
   const cur = Math.min(idx, items.length - 1);
+  const item = items[cur];
   return (
     <section className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-normal text-neutral-500">교사 한마디</h2>
-        {items.length > 1 && (
-          <div className="flex items-center gap-2 text-xs text-neutral-400">
-            <Button
-              type="button"
-              onClick={() => setIdx((cur - 1 + items.length) % items.length)}
-              className="px-2 py-0.5"
-            >
-              ‹
-            </Button>
-            <span>
-              {cur + 1}/{items.length}
-            </span>
-            <Button
-              type="button"
-              onClick={() => setIdx((cur + 1) % items.length)}
-              className="px-2 py-0.5"
-            >
-              ›
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <NoticeMeta createdAt={item.createdAt} />
+          {items.length > 1 && (
+            <div className="flex items-center gap-2 text-xs text-neutral-400">
+              <Button
+                type="button"
+                onClick={() => setIdx((cur - 1 + items.length) % items.length)}
+                className="px-2 py-0.5"
+              >
+                ‹
+              </Button>
+              <span>
+                {cur + 1}/{items.length}
+              </span>
+              <Button
+                type="button"
+                onClick={() => setIdx((cur + 1) % items.length)}
+                className="px-2 py-0.5"
+              >
+                ›
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
-      <p className="mt-2 whitespace-pre-line text-sm">{items[cur]}</p>
+      <p className="mt-2 whitespace-pre-line text-sm">{item.body}</p>
     </section>
   );
 }
 
 // ── 개별 공지(이 학생 대상 — 전체 공지처럼 한 건씩 스와이프 분리, QC v6 ④) ────
-function IndividualNotices({ notices }: { notices: string[] }) {
+function IndividualNotices({ notices }: { notices: PublicNotice[] }) {
   const [idx, setIdx] = useState(0);
   if (notices.length === 0) return null;
   const cur = Math.min(idx, notices.length - 1);
+  const item = notices[cur];
   return (
     <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-normal text-amber-600">개별 공지</h2>
-        {notices.length > 1 && (
-          <div className="flex items-center gap-2 text-xs text-amber-500">
-            <button
-              type="button"
-              onClick={() => setIdx((cur - 1 + notices.length) % notices.length)}
-              className="rounded border border-amber-300 px-2 py-0.5 hover:bg-white/10"
-            >
-              ‹
-            </button>
-            <span>
-              {cur + 1}/{notices.length}
-            </span>
-            <button
-              type="button"
-              onClick={() => setIdx((cur + 1) % notices.length)}
-              className="rounded border border-amber-300 px-2 py-0.5 hover:bg-white/10"
-            >
-              ›
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <NoticeMeta createdAt={item.createdAt} />
+          {notices.length > 1 && (
+            <div className="flex items-center gap-2 text-xs text-amber-500">
+              <button
+                type="button"
+                onClick={() => setIdx((cur - 1 + notices.length) % notices.length)}
+                className="rounded border border-amber-300 px-2 py-0.5 hover:bg-white/10"
+              >
+                ‹
+              </button>
+              <span>
+                {cur + 1}/{notices.length}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIdx((cur + 1) % notices.length)}
+                className="rounded border border-amber-300 px-2 py-0.5 hover:bg-white/10"
+              >
+                ›
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-      <p className="mt-2 whitespace-pre-line text-sm">{notices[cur]}</p>
+      <p className="mt-2 whitespace-pre-line text-sm">{item.body}</p>
     </section>
   );
 }

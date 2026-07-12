@@ -148,10 +148,10 @@ describe.skipIf(!RUN)("get_public_page v4 — 계약(US-6)", () => {
     expect(tgtRes.state).toBe("ok");
     const tp = parsePublicPagePayload(tgtRes.payload);
 
-    // (c) 개별 공지 병렬
-    expect(tp.notices).toContain("전체 공지 A");
-    expect(tp.notices).not.toContain("개별 공지 X");
-    expect(tp.individualNotices).toEqual(["개별 공지 X"]);
+    // (c) 개별 공지 병렬 — v10: notices 는 { body, createdAt } 객체 배열
+    expect(tp.notices.map((n) => n.body)).toContain("전체 공지 A");
+    expect(tp.notices.map((n) => n.body)).not.toContain("개별 공지 X");
+    expect(tp.individualNotices.map((n) => n.body)).toEqual(["개별 공지 X"]);
 
     // (b) 급식 분리 필드
     const meal = tp.meals.find((m) => m.date === today());
@@ -169,7 +169,7 @@ describe.skipIf(!RUN)("get_public_page v4 — 계약(US-6)", () => {
     const oth = await issuePublicPage(db, owner, syOther);
     const othRes = await callPage(oth.token);
     const op = parsePublicPagePayload(othRes.payload);
-    expect(op.notices).toContain("전체 공지 A");
+    expect(op.notices.map((n) => n.body)).toContain("전체 공지 A");
     expect(op.individualNotices).toEqual([]);
   });
 

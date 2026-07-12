@@ -38,6 +38,15 @@ export interface PublicMeal {
   calInfo: string | null; // 칼로리(CAL_INFO) — 표로 분리 표시. v4.
   ntrInfo: string | null; // 영양정보(NTR_INFO) — 표로 분리 표시. v4.
 }
+/**
+ * 교사 한마디/개별 공지 한 건(v10). body(본문) + createdAt(교사 입력 ISO 일시).
+ * createdAt 은 학생 페이지에서 "언제 올라온 공지인지" 표시 + 최근(2일 이내) New 배지용.
+ * 레거시(v9 이하 문자열 배열)·누락 시 createdAt=null 로 파싱(구버전 호환).
+ */
+export interface PublicNotice {
+  body: string;
+  createdAt: string | null; // ISO 일시(teacher_notes.created_at). 레거시/누락 시 null.
+}
 
 // ── 개별칸 ──
 /** 성격별 횟수 집계 + 미제출 신고서 유무. 원자료 행 절대 미포함. */
@@ -109,9 +118,9 @@ export interface PublicPagePayload {
   studentName: string | null; // 학생 본인 이름(본인 페이지 — 노출 OK)
   // 공통칸
   weekTodos: PublicWeekTodo[];
-  commonNotice: string | null; // 교사 한마디(단일, 하위호환)
-  notices: string[]; // 다중 교사 한마디(전체 공개 — 스와이프)
-  individualNotices: string[]; // 이 학생 대상 개별 공지(전체 공지와 병렬 표시). v4 AC-5.3.
+  commonNotice: string | null; // 교사 한마디(단일, 하위호환 — body 문자열)
+  notices: PublicNotice[]; // 다중 교사 한마디(전체 공개 — 스와이프). v10: {body,createdAt}
+  individualNotices: PublicNotice[]; // 이 학생 대상 개별 공지(전체 공지와 병렬). v4 AC-5.3, v10 createdAt
   timetable: PublicTimetableSlot[];
   meals: PublicMeal[];
   // 개별칸
@@ -190,8 +199,9 @@ export interface RawPublicPageInput {
   // common (room 등 추가 필드가 와도 무시)
   weekTodos: { title: string; at: string; eventKind?: string | null }[];
   commonNotice: string | null;
-  notices?: string[];
-  individualNotices?: string[];
+  // v10: 문자열(레거시) 또는 { body, createdAt } 객체 모두 수용(파서가 정규화).
+  notices?: (string | { body: string; createdAt?: string | null })[];
+  individualNotices?: (string | { body: string; createdAt?: string | null })[];
   timetable: {
     weekday: number;
     period: number;
@@ -246,10 +256,8 @@ export function buildPublicPagePayload(
       eventKind: parseEventKind(t.eventKind),
     })),
     commonNotice: input.commonNotice,
-    notices: (input.notices ?? []).filter((n): n is string => typeof n === "string"),
-    individualNotices: (input.individualNotices ?? []).filter(
-      (n): n is string => typeof n === "string",
-    ),
+    notices: parseNoticeArray(input.notices),
+    individualNotices: parseNoticeArray(input.individualNotices),
     timetable: input.timetable.map((s) => ({
       weekday: s.weekday,
       period: s.period,
@@ -311,11 +319,25 @@ function asNumber(v: unknown): number | null {
 function asArray(v: unknown): unknown[] {
   return Array.isArray(v) ? v : [];
 }
-function parseStringArray(v: unknown): string[] {
-  return asArray(v).filter((x): x is string => typeof x === "string");
-}
 function rec(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+}
+
+/**
+ * 공지 한 건 파서(v10). 문자열(레거시 v9 이하) → { body, createdAt:null },
+ * 객체 → { body, createdAt }(둘 다 명시 필드만). body 가 없으면 항목 drop.
+ */
+function parseNotice(v: unknown): PublicNotice | null {
+  if (typeof v === "string") return { body: v, createdAt: null };
+  const o = rec(v);
+  const body = asString(o.body);
+  if (body === null) return null;
+  return { body, createdAt: asString(o.createdAt) };
+}
+function parseNoticeArray(v: unknown): PublicNotice[] {
+  return asArray(v)
+    .map(parseNotice)
+    .filter((x): x is PublicNotice => x !== null);
 }
 
 const EVENT_KIND_VALUES = [
@@ -481,8 +503,8 @@ export function parsePublicPagePayload(raw: unknown): PublicPagePayload {
     studentName: asString(o.studentName),
     weekTodos: asArray(o.weekTodos).map(parseTodo).filter((x): x is PublicWeekTodo => x !== null),
     commonNotice: asString(o.commonNotice),
-    notices: parseStringArray(o.notices),
-    individualNotices: parseStringArray(o.individualNotices),
+    notices: parseNoticeArray(o.notices),
+    individualNotices: parseNoticeArray(o.individualNotices),
     timetable: asArray(o.timetable).map(parseSlot).filter((x): x is PublicTimetableSlot => x !== null),
     meals: asArray(o.meals).map(parseMeal).filter((x): x is PublicMeal => x !== null),
     attendanceSummary: parseAttendance(o.attendanceSummary),
