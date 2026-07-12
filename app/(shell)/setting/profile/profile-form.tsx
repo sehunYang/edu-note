@@ -59,13 +59,13 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
           학교명을 한 번만 입력하면 NEIS(학사일정)와 컴시간(시간표) 식별자를 함께
           찾습니다. 못 찾아도 수동 입력으로 진행할 수 있습니다.
         </p>
-        <form action={resolve} className="mt-3 flex gap-2">
+        <form action={resolve} className="mt-3 flex flex-wrap gap-2">
           <input
             name="schoolName"
             value={schoolName}
             onChange={(e) => setSchoolName(e.target.value)}
             placeholder="예: 인천해송고등학교"
-            className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
+            className="min-w-0 flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
           />
           <Button
             type="submit"

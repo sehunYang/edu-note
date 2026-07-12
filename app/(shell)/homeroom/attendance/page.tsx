@@ -213,7 +213,7 @@ export default async function AttendancePage({
           <h2 className="mt-4 text-sm font-normal text-neutral-700">
             {month} 출결 {monthRows.length}건
           </h2>
-          <EditableAttendanceTable rows={monthRows} withDate />
+          <EditableAttendanceTable rows={monthRows} withDate navLinks />
         </section>
       )}
 

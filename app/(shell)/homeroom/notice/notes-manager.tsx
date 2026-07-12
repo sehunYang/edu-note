@@ -72,12 +72,12 @@ export function NotesManager({
                       className="space-y-2"
                     >
                       <input type="hidden" name="id" value={n.id} />
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         <input
                           name="body"
                           defaultValue={n.body}
                           required
-                          className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
+                          className="min-w-0 flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
                         />
                         <button className="text-xs text-neutral-700 hover:underline">
                           저장
@@ -154,12 +154,12 @@ function AllNoticeForm() {
       <p className="mt-0.5 text-[11px] text-neutral-400">
         모든 학생에게 공통으로 노출됩니다.
       </p>
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         <input
           name="body"
           required
           placeholder="전체 공지 내용"
-          className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
+          className="min-w-0 flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
         <Button className="px-3 py-1.5 text-sm">
           추가
@@ -196,12 +196,12 @@ function IndividualNoticeForm({ students }: { students: NoteStudentOption[] }) {
         <input key={id} type="hidden" name="studentYearIds" value={id} />
       ))}
 
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex flex-wrap gap-2">
         <input
           name="body"
           required
           placeholder="개별 공지 내용"
-          className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
+          className="min-w-0 flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
         <Button
           disabled={selected.length === 0}

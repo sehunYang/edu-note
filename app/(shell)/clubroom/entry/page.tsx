@@ -103,7 +103,7 @@ export default async function ClubroomEntryPage() {
                     <form
                       key={m.id}
                       action={saveOverrideAction}
-                      className="flex flex-wrap items-center gap-2"
+                      className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
                     >
                       <input
                         type="hidden"
@@ -118,16 +118,16 @@ export default async function ClubroomEntryPage() {
                       {rec && (
                         <input type="hidden" name="recordId" value={rec.id} />
                       )}
-                      <span className="w-32 shrink-0 text-sm text-neutral-600">
+                      <span className="w-full text-sm text-neutral-600 sm:w-32 sm:shrink-0">
                         {m.sid} {m.name}
                       </span>
                       <input
                         name="body"
                         defaultValue={overrideByStudent.get(m.studentYearId) ?? ""}
                         placeholder="개별 메모(선택)"
-                        className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
+                        className="w-full min-w-0 rounded border border-neutral-300 px-2 py-1 text-sm sm:w-auto sm:flex-1"
                       />
-                      <Button className="px-3 py-1 text-sm">
+                      <Button className="w-full px-3 py-1 text-sm sm:w-auto">
                         저장
                       </Button>
                     </form>

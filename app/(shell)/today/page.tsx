@@ -14,6 +14,7 @@ import {
   listTodayMemosInRange,
   listTeacherNotes,
   listNoticeEvents,
+  listTodayLessons,
 } from "@/lib/db/queries";
 import { TodayNudgeModal } from "./nudge-modal";
 import { NudgeBanner } from "../nudge-banner";
@@ -23,6 +24,7 @@ import { getGoogleConnectionStatusAction } from "../setting/profile/google-calen
 import { NoticeWidget } from "./notice-widget";
 import { TimetableWidget } from "./timetable-widget";
 import { MealsWidget } from "./meals-widget";
+import { TodayLessonsCard } from "./today-lessons-card";
 import { kstToday, readMeals, todaySlotsFor } from "./today-lib";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +62,7 @@ export default async function TodayPage() {
     googleStatus,
     googleEvents,
     vacationSpans,
+    todayLessons,
   ] = await Promise.all([
     getTeacherTimetable(db, ownerId, year, semester),
     getEventsInRange(db, ownerId, monthFrom, monthTo),
@@ -74,6 +77,7 @@ export default async function TodayPage() {
     getGoogleConnectionStatusAction(),
     fetchGoogleEventsInRange(monthFrom, monthTo),
     getVacationSpansInRange(db, ownerId, monthFrom, monthTo),
+    listTodayLessons(db, ownerId, date, weekday, year, semester),
   ]);
 
   const todaySlots = todaySlotsFor(allSlots, weekday);
@@ -109,6 +113,9 @@ export default async function TodayPage() {
       <NudgeBanner nudges={nudges} />
 
       <div className="stagger mt-6 grid gap-6 md:grid-cols-2">
+        {/* 오늘 수업 — 차시 체크(진척도 실반영, QC v7 comp1 AC-1.1~1.4) */}
+        <TodayLessonsCard lessons={todayLessons} date={date} className="md:col-span-2" />
+
         {/* 오늘 시간표 — 수업마다 색상 + 시간(AC-7.7) */}
         <TimetableWidget todaySlots={todaySlots} />
 

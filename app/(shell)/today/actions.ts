@@ -33,6 +33,7 @@ import {
   getGoogleConnection,
   cacheAccessToken,
   setGoogleSyncError,
+  setTodaySessionStatus,
   type TodayMemoRow,
   type GoogleConnectionRow,
 } from "@/lib/db/queries";
@@ -283,4 +284,17 @@ export async function deleteMemoAction(
   await writeAudit(db, ownerId, "today_memo_delete", id, null);
   revalidatePath("/today");
   return listTodayMemos(db, ownerId, date);
+}
+
+/** 오늘 수업 카드 체크/해제(QC v7 comp1, AC-1.2/1.3). 시수관리에도 즉시 반영. */
+export async function toggleTodaySessionAction(
+  sectionId: string,
+  date: string,
+  done: boolean,
+): Promise<void> {
+  const ownerId = await getOwnerId();
+  const db = getDb();
+  await setTodaySessionStatus(db, ownerId, sectionId, date, done ? "done" : "planned");
+  revalidatePath("/today");
+  revalidatePath("/sessions");
 }

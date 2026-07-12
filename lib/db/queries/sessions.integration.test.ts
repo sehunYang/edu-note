@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import * as schema from "../schema";
 import {
   subjects,
@@ -10,6 +10,7 @@ import {
   classSessions,
   timetableSlots,
 } from "../schema/classes";
+import { lessonPlans } from "../schema/records";
 import { schoolDayCalendar } from "../schema/misc";
 import {
   setSubjectExamBoundary,
@@ -17,7 +18,10 @@ import {
   setSessionStatus,
   listSectionsWithProgress,
   getSectionSessions,
+  listTodayLessons,
+  setTodaySessionStatus,
 } from "./sessions";
+import { getPlanForSession } from "./progress";
 
 /**
  * 시수(차시) 실DB 통합 테스트. 동적 미래 날짜로 시간에 안정적.
@@ -120,5 +124,104 @@ describe.skipIf(!RUN)("시수 — 차시 생성/완료/잔여", () => {
     const sessions = await getSectionSessions(db, owner, sectionId);
     expect(sessions).toHaveLength(expectedTargets.size); // 중복 없음
     expect(sessions.filter((s) => s.status === "done")).toHaveLength(1); // 보존
+  });
+});
+
+describe.skipIf(!RUN)("오늘 수업 카드 — listTodayLessons/setTodaySessionStatus (QC v7 comp1)", () => {
+  let sql2: ReturnType<typeof postgres>;
+  let db2: PostgresJsDatabase<typeof schema>;
+  const owner2 = randomUUID();
+  let subjectId2: string;
+  let sectionId2: string;
+  const todayWeekday = (() => {
+    const d = new Date(todayStr + "T00:00:00Z").getUTCDay(); // 0=일..6=토
+    return d === 0 ? 7 : d; // kstToday() 규약: 1=월..7=일
+  })();
+
+  beforeAll(async () => {
+    sql2 = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+    db2 = drizzle(sql2, { schema, casing: "snake_case" });
+
+    [{ id: subjectId2 }] = await db2
+      .insert(subjects)
+      .values({ ownerId: owner2, schoolYear: YEAR, semester: 1, name: "수학" })
+      .returning({ id: subjects.id });
+    [{ id: sectionId2 }] = await db2
+      .insert(courseSections)
+      .values({ ownerId: owner2, subjectId: subjectId2, label: "3-1" })
+      .returning({ id: courseSections.id });
+    await db2.insert(timetableSlots).values({
+      ownerId: owner2,
+      sectionId: sectionId2,
+      weekday: todayWeekday,
+      period: 2,
+      source: "comcigan",
+    });
+    // 오늘 이전 차시 2개(과거, done) + 오늘 차시 1개(planned) → 오늘 행의 날짜순위 k=3.
+    await db2.insert(classSessions).values([
+      { ownerId: owner2, sectionId: sectionId2, date: addDays(-14), status: "done" },
+      { ownerId: owner2, sectionId: sectionId2, date: addDays(-7), status: "done" },
+      { ownerId: owner2, sectionId: sectionId2, date: todayStr, status: "planned" },
+    ]);
+    // getPlanForSession 이 null 이 아니라 실제 ordinal 을 반환하도록 계획 셀도 채운다.
+    await db2.insert(lessonPlans).values({
+      ownerId: owner2,
+      subjectId: subjectId2,
+      ordinal: 3,
+      content: "테스트 차시 내용",
+    });
+  });
+
+  afterAll(async () => {
+    await db2.delete(lessonPlans).where(eq(lessonPlans.ownerId, owner2));
+    await db2.delete(classSessions).where(eq(classSessions.ownerId, owner2));
+    await db2.delete(timetableSlots).where(eq(timetableSlots.ownerId, owner2));
+    await db2.delete(courseSections).where(eq(courseSections.ownerId, owner2));
+    await db2.delete(subjects).where(eq(subjects.ownerId, owner2));
+    await sql2.end();
+  });
+
+  it("listTodayLessons 의 ordinal == getPlanForSession 의 k (패리티, Architect 필수#2)", async () => {
+    const lessons = await listTodayLessons(db2, owner2, todayStr, todayWeekday, YEAR, 1);
+    const lesson = lessons.find((l) => l.sectionId === sectionId2);
+    expect(lesson).toBeDefined();
+    expect(lesson!.ordinal).toBe(3);
+    expect(lesson!.content).toBe("테스트 차시 내용");
+    expect(lesson!.done).toBe(false);
+
+    const [todaySession] = await db2
+      .select({ id: classSessions.id })
+      .from(classSessions)
+      .where(
+        and(eq(classSessions.sectionId, sectionId2), eq(classSessions.date, todayStr)),
+      );
+    const plan = await getPlanForSession(db2, owner2, todaySession.id);
+    expect(plan).not.toBeNull();
+    expect(plan!.ordinal).toBe(lesson!.ordinal);
+  });
+
+  it("setTodaySessionStatus 체크/해제 — class_sessions.status 왕복(AC-1.2/1.3)", async () => {
+    await setTodaySessionStatus(db2, owner2, sectionId2, todayStr, "done");
+    let lessons = await listTodayLessons(db2, owner2, todayStr, todayWeekday, YEAR, 1);
+    expect(lessons.find((l) => l.sectionId === sectionId2)!.done).toBe(true);
+
+    await setTodaySessionStatus(db2, owner2, sectionId2, todayStr, "planned");
+    lessons = await listTodayLessons(db2, owner2, todayStr, todayWeekday, YEAR, 1);
+    expect(lessons.find((l) => l.sectionId === sectionId2)!.done).toBe(false);
+  });
+
+  it("setTodaySessionStatus 는 타 소유자 sectionId 를 거부한다(IDOR 가드, Architect 필수#1)", async () => {
+    const otherOwner = randomUUID();
+    await expect(
+      setTodaySessionStatus(db2, otherOwner, sectionId2, todayStr, "done"),
+    ).rejects.toThrow(/분반/);
+
+    const [row] = await db2
+      .select({ status: classSessions.status })
+      .from(classSessions)
+      .where(
+        and(eq(classSessions.sectionId, sectionId2), eq(classSessions.date, todayStr)),
+      );
+    expect(row.status).toBe("planned"); // 이전 테스트에서 planned 로 복구된 상태 유지 — 변조 없음
   });
 });

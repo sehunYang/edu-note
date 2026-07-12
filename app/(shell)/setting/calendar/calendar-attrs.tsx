@@ -154,7 +154,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
               return (
                 <div
                   key={e.id}
-                  className="flex flex-wrap items-center gap-2 rounded border border-neutral-200 px-3 py-2 text-sm"
+                  className="flex flex-col gap-2 rounded border border-neutral-200 px-3 py-2 text-sm sm:flex-row sm:flex-wrap sm:items-center"
                 >
                   <span className="w-24 shrink-0 text-xs text-neutral-500">
                     {e.date}
@@ -165,7 +165,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
                   >
                     {EVENT_KIND_LABEL[d.eventKind]}
                   </span>
-                  <span className="min-w-0 flex-1 truncate">
+                  <span className="w-full break-words sm:min-w-0 sm:w-auto sm:flex-1 sm:truncate">
                     {e.needsReview && (
                       <span className="mr-1 text-amber-600">⚠</span>
                     )}
@@ -176,7 +176,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
                     onChange={(ev) =>
                       patch(e.id, { eventKind: ev.target.value as EventKind })
                     }
-                    className="rounded border border-neutral-300 px-2 py-1 text-xs"
+                    className="w-full rounded border border-neutral-300 px-2 py-1 text-xs sm:w-auto"
                   >
                     {KINDS.map((k) => (
                       <option key={k} value={k}>
@@ -191,7 +191,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
                         onChange={(ev) =>
                           patch(e.id, { examSemester: ev.target.value })
                         }
-                        className="rounded border border-neutral-300 px-2 py-1 text-xs"
+                        className="w-full rounded border border-neutral-300 px-2 py-1 text-xs sm:w-auto"
                       >
                         <option value="">학기?</option>
                         <option value="1">1학기</option>
@@ -202,7 +202,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
                         onChange={(ev) =>
                           patch(e.id, { examOrdinal: ev.target.value })
                         }
-                        className="rounded border border-neutral-300 px-2 py-1 text-xs"
+                        className="w-full rounded border border-neutral-300 px-2 py-1 text-xs sm:w-auto"
                       >
                         <option value="">회차?</option>
                         <option value="1">1차(중간)</option>

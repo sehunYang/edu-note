@@ -7,6 +7,7 @@ import {
   classSessions,
   timetableSlots,
 } from "../schema/classes";
+import { lessonPlans } from "../schema/records";
 import { schoolDayCalendar } from "../schema/misc";
 import {
   resolveBoundary,
@@ -250,4 +251,164 @@ export async function getSectionSessions(
       and(eq(classSessions.ownerId, ownerId), eq(classSessions.sectionId, sectionId)),
     )
     .orderBy(asc(classSessions.date));
+}
+
+export interface TodayLesson {
+  sectionId: string;
+  subjectId: string;
+  subjectName: string;
+  label: string;
+  periods: number[];
+  ordinal: number;
+  content: string | null;
+  done: boolean;
+}
+
+/**
+ * 오늘의 학교 "오늘 수업" 카드용 (QC v7 comp1, AC-1.1). 오늘 시간표 슬롯을
+ * 분반별로 묶고, 체크 상태(class_sessions)와 차시 내용(lesson_plans)을 배치
+ * 조회해 합성한다. 스키마 변경 0 — 완료 상태는 class_sessions.status 단일
+ * 진실원(setTodaySessionStatus 가 upsert하는 바로 그 행)을 그대로 읽는다.
+ *
+ * ordinal(날짜순위) 산출은 getPlanForSession(progress.ts)의 k(date-asc 1-based
+ * 인덱스)와 반드시 같은 값을 내야 한다(패리티, Architect 필수#2) — 오늘 행이
+ * 이미 존재하면 (section,date) unique 제약상 그 날짜 행은 하나뿐이므로
+ * "date < 오늘 개수 + 1"이 getPlanForSession의 k와 정확히 일치한다.
+ */
+export async function listTodayLessons(
+  db: DB,
+  ownerId: string,
+  date: string,
+  weekday: number,
+  year: number,
+  semester: number,
+): Promise<TodayLesson[]> {
+  const slots = await db
+    .select({
+      sectionId: courseSections.id,
+      subjectId: subjects.id,
+      subjectName: subjects.name,
+      label: courseSections.label,
+      period: timetableSlots.period,
+    })
+    .from(timetableSlots)
+    .innerJoin(courseSections, eq(timetableSlots.sectionId, courseSections.id))
+    .innerJoin(subjects, eq(courseSections.subjectId, subjects.id))
+    .where(
+      and(
+        eq(timetableSlots.ownerId, ownerId),
+        eq(timetableSlots.weekday, weekday),
+        eq(subjects.schoolYear, year),
+        eq(subjects.semester, semester),
+      ),
+    );
+  if (slots.length === 0) return [];
+
+  const bySection = new Map<
+    string,
+    { subjectId: string; subjectName: string; label: string; periods: number[] }
+  >();
+  for (const s of slots) {
+    const entry = bySection.get(s.sectionId);
+    if (entry) entry.periods.push(s.period);
+    else
+      bySection.set(s.sectionId, {
+        subjectId: s.subjectId,
+        subjectName: s.subjectName,
+        label: s.label,
+        periods: [s.period],
+      });
+  }
+  const sectionIds = [...bySection.keys()];
+  const subjectIds = [...new Set([...bySection.values()].map((v) => v.subjectId))];
+
+  const allSessions = await db
+    .select({
+      sectionId: classSessions.sectionId,
+      date: classSessions.date,
+      status: classSessions.status,
+    })
+    .from(classSessions)
+    .where(
+      and(eq(classSessions.ownerId, ownerId), inArray(classSessions.sectionId, sectionIds)),
+    );
+  const sessionsBySection = new Map<string, { date: string; status: SessionStatus }[]>();
+  for (const s of allSessions) {
+    const arr = sessionsBySection.get(s.sectionId) ?? [];
+    arr.push({ date: s.date, status: s.status });
+    sessionsBySection.set(s.sectionId, arr);
+  }
+
+  const plans = await db
+    .select({
+      subjectId: lessonPlans.subjectId,
+      ordinal: lessonPlans.ordinal,
+      content: lessonPlans.content,
+    })
+    .from(lessonPlans)
+    .where(
+      and(eq(lessonPlans.ownerId, ownerId), inArray(lessonPlans.subjectId, subjectIds)),
+    );
+  const planBySubject = new Map<string, Map<number, string | null>>();
+  for (const p of plans) {
+    const m = planBySubject.get(p.subjectId) ?? new Map<number, string | null>();
+    m.set(p.ordinal, p.content);
+    planBySubject.set(p.subjectId, m);
+  }
+
+  const result: TodayLesson[] = [];
+  for (const [sectionId, info] of bySection) {
+    const sessions = sessionsBySection.get(sectionId) ?? [];
+    const ordinal = sessions.filter((s) => s.date < date).length + 1;
+    const todayRow = sessions.find((s) => s.date === date);
+    const content = planBySubject.get(info.subjectId)?.get(ordinal) ?? null;
+    result.push({
+      sectionId,
+      subjectId: info.subjectId,
+      subjectName: info.subjectName,
+      label: info.label,
+      periods: [...info.periods].sort((a, b) => a - b),
+      ordinal,
+      content,
+      done: todayRow?.status === "done",
+    });
+  }
+
+  return result.sort((a, b) => {
+    const byPeriod = (a.periods[0] ?? 0) - (b.periods[0] ?? 0);
+    return byPeriod !== 0 ? byPeriod : a.subjectName.localeCompare(b.subjectName);
+  });
+}
+
+/**
+ * 오늘 차시 체크/해제 (QC v7 comp1, AC-1.2/1.3). class_sessions(section,date)
+ * unique 행을 upsert — 오늘 행이 없으면(시수 미생성 분반) 생성한다. 이는 의도된
+ * 동작이다: "오늘 수업했다"를 그대로 반영하며, 해당 분반이 진척도에 새로
+ * 등장할 수 있다(R2, 수용됨). 해제 시 삭제가 아닌 planned 복구로 멱등.
+ *
+ * [Architect 필수#1] upsert 전 섹션 소유권을 SELECT로 강제해 타 소유자 sectionId로
+ * 상태를 만드는 IDOR을 차단한다. setWhere 로 update 절에도 방어를 병기한다.
+ */
+export async function setTodaySessionStatus(
+  db: DB,
+  ownerId: string,
+  sectionId: string,
+  date: string,
+  status: SessionStatus,
+): Promise<void> {
+  const [sec] = await db
+    .select({ id: courseSections.id })
+    .from(courseSections)
+    .where(and(eq(courseSections.id, sectionId), eq(courseSections.ownerId, ownerId)))
+    .limit(1);
+  if (!sec) throw new Error("분반을 찾을 수 없습니다.");
+
+  await db
+    .insert(classSessions)
+    .values({ ownerId, sectionId, date, status })
+    .onConflictDoUpdate({
+      target: [classSessions.sectionId, classSessions.date],
+      set: { status, updatedAt: new Date() },
+      setWhere: eq(classSessions.ownerId, ownerId),
+    });
 }

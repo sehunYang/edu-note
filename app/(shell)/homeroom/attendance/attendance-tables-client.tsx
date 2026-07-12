@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { Paginator } from "@/lib/ui/paginator";
 import { paginate } from "@/lib/db/pagination";
 import {
@@ -10,6 +11,7 @@ import {
 } from "./actions";
 import type { AttendanceStudentRow } from "@/lib/db/queries";
 import { Button } from "@/app/ui/button";
+import { ATTENDANCE_KIND_CHIP, ATTENDANCE_REASON_CHIP } from "@/lib/domain/attendance-display";
 
 /**
  * 출결 목록 클라이언트 (QC v4 US-4, AC-4.5~4.7).
@@ -43,9 +45,12 @@ function periodsLabel(periods: number[] | null): string {
 export function EditableAttendanceTable({
   rows,
   withDate = false,
+  navLinks = false,
 }: {
   rows: AttendanceStudentRow[];
   withDate?: boolean;
+  /** 월별 검색 결과에서 학생명/날짜 클릭 시 학생별/일별 뷰로 이동(AC-2.2/2.3). 편집 모드에는 미적용. */
+  navLinks?: boolean;
 }) {
   const [page, setPage] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -128,15 +133,45 @@ export function EditableAttendanceTable({
             ) : (
               <tr key={r.id} className="border-t border-neutral-100">
                 <td className="py-2">
-                  {r.sid} {r.name}
+                  {navLinks ? (
+                    <Link
+                      href={`/homeroom/attendance?view=student&studentYearId=${r.studentYearId}`}
+                      className="hover:underline"
+                    >
+                      {r.sid} {r.name}
+                    </Link>
+                  ) : (
+                    <>
+                      {r.sid} {r.name}
+                    </>
+                  )}
                 </td>
-                {withDate && <td className="py-2">{r.date}</td>}
-                <td className="py-2">{KIND_LABEL[r.kind]}</td>
+                {withDate && (
+                  <td className="py-2">
+                    {navLinks ? (
+                      <Link
+                        href={`/homeroom/attendance?view=today&date=${r.date}`}
+                        className="hover:underline"
+                      >
+                        {r.date}
+                      </Link>
+                    ) : (
+                      r.date
+                    )}
+                  </td>
+                )}
+                <td className="py-2">
+                  <span className={`rounded px-1.5 py-0.5 text-xs ${ATTENDANCE_KIND_CHIP[r.kind]}`}>
+                    {KIND_LABEL[r.kind]}
+                  </span>
+                </td>
                 <td className="py-2 text-xs text-neutral-500">
                   {periodsLabel(r.periods)}
                 </td>
                 <td className="py-2">
-                  {REASON_LABEL[r.reason]}
+                  <span className={`rounded px-1.5 py-0.5 text-xs ${ATTENDANCE_REASON_CHIP[r.reason]}`}>
+                    {REASON_LABEL[r.reason]}
+                  </span>
                   {r.noteField ? (
                     <span className="ml-1 text-xs text-neutral-400">({r.noteField})</span>
                   ) : null}
@@ -246,7 +281,9 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
               </td>
               <td className="py-2">{r.date}</td>
               <td className="py-2">
-                {KIND_LABEL[r.kind]}
+                <span className={`rounded px-1.5 py-0.5 text-xs ${ATTENDANCE_KIND_CHIP[r.kind]}`}>
+                  {KIND_LABEL[r.kind]}
+                </span>
                 <span className="ml-1 text-xs text-neutral-400">
                   ({SOURCE_LABEL[r.source]})
                 </span>

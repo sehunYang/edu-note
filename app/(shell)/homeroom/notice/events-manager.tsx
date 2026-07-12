@@ -51,7 +51,7 @@ export function EventsManager({
             name="title"
             required
             placeholder="공지/할 일 제목"
-            className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
+            className="min-w-0 flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
           />
           <Button className="px-3 py-1.5 text-sm">
             추가
@@ -99,7 +99,7 @@ export function EventsManager({
                         name="title"
                         defaultValue={e.title}
                         required
-                        className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
+                        className="min-w-0 flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
                       />
                     </div>
                     <textarea
