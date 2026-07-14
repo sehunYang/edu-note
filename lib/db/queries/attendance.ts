@@ -59,6 +59,27 @@ export interface AttendanceRow {
  */
 export const DEFAULT_PERIOD_LIST = [0, 1, 2, 3, 4, 5, 6, 7];
 
+/**
+ * 학생 소유권 검증(심층 방어). 액션 계층의 담임반 가드(isOwnerHomeroomStudent)와
+ * 별개로, 쓰기 진입점(upsertAttendance/addFieldTrip/addAbsenceRange)에서
+ * studentYearId 가 이 owner 의 학생인지 쿼리 계층 자체가 강제한다 — 향후 새 호출자가
+ * 가드를 빠뜨려도 교차 owner 기록 생성이 불가능하다.
+ */
+async function assertStudentOwner(
+  db: DB,
+  ownerId: string,
+  studentYearId: string,
+): Promise<void> {
+  const rows = await db
+    .select({ id: studentYears.id })
+    .from(studentYears)
+    .where(
+      and(eq(studentYears.id, studentYearId), eq(studentYears.ownerId, ownerId)),
+    )
+    .limit(1);
+  if (rows.length === 0) throw new Error("학생을 찾을 수 없습니다.");
+}
+
 /** report_tracking 행을 신고서 필요 여부에 맞춰 생성/정리. */
 async function syncTracking(
   db: DB,
@@ -99,6 +120,7 @@ export async function upsertAttendance(
   ownerId: string,
   input: UpsertAttendanceInput,
 ): Promise<AttendanceRow> {
+  await assertStudentOwner(db, ownerId, input.studentYearId);
   const reportRequired = isReportRequired({
     kind: input.kind,
     reason: input.reason,
@@ -244,6 +266,7 @@ export async function addFieldTrip(
   startDate: string,
   endDate?: string | null,
 ): Promise<{ id: string; createdRecords: number }> {
+  await assertStudentOwner(db, ownerId, studentYearId);
   const end = endDate ?? startDate;
   const [trip] = await db
     .insert(fieldTripReports)
@@ -289,6 +312,7 @@ export async function addAbsenceRange(
   reason: AttendanceReason,
   noteField?: string | null,
 ): Promise<{ createdRecords: number }> {
+  await assertStudentOwner(db, ownerId, studentYearId);
   const createdRecords = await createAbsenceRangeRecords(
     db,
     ownerId,

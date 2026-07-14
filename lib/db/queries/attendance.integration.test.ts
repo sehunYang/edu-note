@@ -485,6 +485,25 @@ describe.skipIf(!RUN)("출결 — reportRequired + report_tracking", () => {
       expect(await isOwnerHomeroomStudent(db, owner, randomUUID())).toBe(false);
     });
 
+    it("교차 owner 쓰기는 쿼리 계층 자체가 차단(심층 방어)", async () => {
+      // 타 owner 가 남의 studentYearId 로 쓰기 시도 → 세 진입점 모두 throw.
+      const stranger = randomUUID();
+      await expect(
+        upsertAttendance(db, stranger, {
+          studentYearId: hStudent,
+          date: "2098-05-07",
+          reason: "etc",
+          kind: "late",
+        }),
+      ).rejects.toThrow("학생을 찾을 수 없습니다.");
+      await expect(
+        addAbsenceRange(db, stranger, hStudent, "2098-05-04", "2098-05-05", "illness"),
+      ).rejects.toThrow("학생을 찾을 수 없습니다.");
+      await expect(
+        addFieldTrip(db, stranger, hStudent, "2098-05-04"),
+      ).rejects.toThrow("학생을 찾을 수 없습니다.");
+    });
+
     it("slicePage 는 머지된 전체 목록 기준 1회만 적용", async () => {
       const all = await listUnsubmittedAttendance(db, owner, HR_YEAR);
       const total = all.length;
