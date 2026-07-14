@@ -33,6 +33,8 @@ export const config = {
     // 제외 프리픽스는 세그먼트 경계((?:/|$))로 끝나야 한다 — 안 그러면
     // /loginfoo, /authoring 같은 향후 경로가 의도치 않게 보호에서 빠진다.
     // /p/* 는 매칭에 포함하되 위 분기에서 세션 없이 레이트리밋만 적용한다.
-    "/((?!_next/static|_next/image|favicon.ico|login(?:/|$)|auth(?:/|$)|api/health(?:/|$)|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // PWA 셸 자산(manifest/sw/오프라인 폴백)은 $ 앵커로 정확히 그 경로만 제외 —
+    // 데이터가 아닌 정적 자산이라 미인증 접근이 안전하다(계획 pwa-installability, AC-6).
+    "/((?!_next/static|_next/image|favicon.ico|login(?:/|$)|auth(?:/|$)|api/health(?:/|$)|manifest\\.webmanifest$|sw\\.js$|offline\\.html$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

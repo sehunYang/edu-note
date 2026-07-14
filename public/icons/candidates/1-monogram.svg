@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0a0a0a"/>
+  <!-- 타이포그래피 모노그램: 'E'를 노트 줄(리스트 바)로 재해석 -->
+  <g fill="#f5f5f5">
+    <rect x="176" y="146" width="160" height="34" rx="4"/>
+    <rect x="176" y="239" width="120" height="34" rx="4"/>
+    <rect x="176" y="332" width="160" height="34" rx="4"/>
+    <rect x="176" y="146" width="34" height="220" rx="4"/>
+  </g>
+</svg>

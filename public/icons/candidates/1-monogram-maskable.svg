@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0a0a0a"/>
+  <!-- 안전영역(중앙 80%, 반경 205px 원) 내부에 축소 배치 -->
+  <g fill="#f5f5f5" transform="translate(256 256) scale(0.8) translate(-256 -256)">
+    <rect x="176" y="146" width="160" height="34" rx="4"/>
+    <rect x="176" y="239" width="120" height="34" rx="4"/>
+    <rect x="176" y="332" width="160" height="34" rx="4"/>
+    <rect x="176" y="146" width="34" height="220" rx="4"/>
+  </g>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#0a0a0a"/>
+  <!-- 기하 심볼: 둥근 사각형(수업/기록판) + 체크(확인·출결·평가 완료를 상징) -->
+  <rect x="106" y="106" width="300" height="300" rx="48" fill="none" stroke="#f5f5f5" stroke-width="20"/>
+  <path d="M 176 266 L 232 322 L 342 196" fill="none" stroke="#f5f5f5" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

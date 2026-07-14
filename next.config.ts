@@ -26,6 +26,14 @@ const nextConfig: NextConfig = {
         source: "/p/:path*",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
       },
+      {
+        // SW는 항상 재검증(Vercel 기본값 가정 제거) — 배포 즉시 다음 실행에 반영되도록
+        // 명시적으로 강제한다(계획 pwa-installability, AC-2/R3).
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+        ],
+      },
     ];
   },
 };

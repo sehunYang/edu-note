@@ -1,9 +1,20 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { SwRegister } from "./sw-register";
 
 export const metadata: Metadata = {
   title: "Edu_Note",
   description: "고등학교 교사 1인용 교수-수업-평가-기록 일체화 플랫폼",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Edu_Note",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
 };
 
 export default function RootLayout({
@@ -27,7 +38,10 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <SwRegister />
+        {children}
+      </body>
     </html>
   );
 }
