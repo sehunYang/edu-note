@@ -15,6 +15,8 @@ import {
   listTeacherNotes,
   listNoticeEvents,
   listTodayLessons,
+  listHomeroomStudents,
+  listAttendanceByDate,
 } from "@/lib/db/queries";
 import { TodayNudgeModal } from "./nudge-modal";
 import { NudgeBanner } from "../nudge-banner";
@@ -25,6 +27,7 @@ import { NoticeWidget } from "./notice-widget";
 import { TimetableWidget } from "./timetable-widget";
 import { MealsWidget } from "./meals-widget";
 import { TodayLessonsCard } from "./today-lessons-card";
+import { TodayAttendanceCard } from "./today-attendance-card";
 import { kstToday, readMeals, todaySlotsFor } from "./today-lib";
 
 export const dynamic = "force-dynamic";
@@ -63,6 +66,8 @@ export default async function TodayPage() {
     googleEvents,
     vacationSpans,
     todayLessons,
+    homeroomStudents,
+    attendanceToday,
   ] = await Promise.all([
     getTeacherTimetable(db, ownerId, year, semester),
     getEventsInRange(db, ownerId, monthFrom, monthTo),
@@ -78,7 +83,13 @@ export default async function TodayPage() {
     fetchGoogleEventsInRange(monthFrom, monthTo),
     getVacationSpansInRange(db, ownerId, monthFrom, monthTo),
     listTodayLessons(db, ownerId, date, weekday, year, semester),
+    listHomeroomStudents(db, ownerId, year),
+    listAttendanceByDate(db, ownerId, date),
   ]);
+
+  // 담임반 명단으로 오늘 출결을 필터(공유 쿼리는 owner 전체 반환 — 룸 page.tsx와 동일 패턴).
+  const homeroomIds = new Set(homeroomStudents.map((s) => s.id));
+  const todayAttendance = attendanceToday.filter((r) => homeroomIds.has(r.studentYearId));
 
   const todaySlots = todaySlotsFor(allSlots, weekday);
   const todayMeals = meals.flatMap((m) => readMeals(m.payload));
@@ -115,6 +126,13 @@ export default async function TodayPage() {
       <div className="stagger mt-6 grid gap-6 md:grid-cols-2">
         {/* 오늘 수업 — 차시 체크(진척도 실반영, QC v7 comp1 AC-1.1~1.4) */}
         <TodayLessonsCard lessons={todayLessons} date={date} className="md:col-span-2" />
+
+        {/* 오늘 출결 — 담임반 빠른 입력(학생 선택→사유→즉시 저장). 홈룸 0명이면 미렌더. */}
+        <TodayAttendanceCard
+          students={homeroomStudents}
+          date={date}
+          records={todayAttendance}
+        />
 
         {/* 오늘 시간표 — 수업마다 색상 + 시간(AC-7.7) */}
         <TimetableWidget todaySlots={todaySlots} />

@@ -20,6 +20,7 @@ import {
   addAbsenceRange,
   updateAttendanceRecord,
   listUnsubmittedAttendance,
+  isOwnerHomeroomStudent,
 } from "./attendance";
 import { submissionTier } from "@/lib/domain/attendance";
 
@@ -475,6 +476,13 @@ describe.skipIf(!RUN)("출결 — reportRequired + report_tracking", () => {
       // 날짜 오름차순 정렬.
       const dates = mine.map((r) => r.date);
       expect([...dates].sort()).toEqual(dates);
+    });
+
+    it("isOwnerHomeroomStudent 는 담임반 멤버만 true(서버 가드 substance, AC-9)", async () => {
+      // 서버액션 담임반 가드 술어. 담임 멤버=true, 외부(비멤버)=false, 미존재 UUID=false.
+      expect(await isOwnerHomeroomStudent(db, owner, hStudent)).toBe(true);
+      expect(await isOwnerHomeroomStudent(db, owner, outsider)).toBe(false);
+      expect(await isOwnerHomeroomStudent(db, owner, randomUUID())).toBe(false);
     });
 
     it("slicePage 는 머지된 전체 목록 기준 1회만 적용", async () => {

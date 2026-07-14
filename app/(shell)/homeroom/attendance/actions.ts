@@ -11,6 +11,7 @@ import {
   addAbsenceRange,
   setFieldTripSubmitted,
   writeAudit,
+  isOwnerHomeroomStudent,
 } from "@/lib/db/queries";
 import type { AttendanceReason, AttendanceKind } from "@/lib/domain/types";
 
@@ -42,6 +43,11 @@ export async function recordAttendanceAction(formData: FormData): Promise<void> 
     return;
   }
 
+  const db = getDb();
+  // 담임반 서버 가드(신뢰 경계): UI 옵션뿐 아니라 서버에서 담임반 멤버십을 강제한다.
+  // 연도 무관 검사라 학년도 경계(3월~다음해 2월) 날짜에서도 정상 저장을 막지 않는다.
+  if (!(await isOwnerHomeroomStudent(db, ownerId, studentYearId))) return;
+
   // 교시 입력: 지각/조퇴=기점 라디오(pivotPeriod), 결과=다중 체크박스(periods).
   const pivotPeriod = Number(formData.get("pivotPeriod") ?? 0) || 0;
   const selectedPeriods = formData
@@ -49,7 +55,6 @@ export async function recordAttendanceAction(formData: FormData): Promise<void> 
     .map((p) => Number(p))
     .filter((p) => Number.isInteger(p));
 
-  const db = getDb();
   const row = await upsertAttendance(db, ownerId, {
     studentYearId,
     date,
@@ -68,6 +73,7 @@ export async function recordAttendanceAction(formData: FormData): Promise<void> 
     reportRequired: row.reportRequired,
   });
   revalidatePath("/homeroom/attendance");
+  revalidatePath("/today");
 }
 
 export async function toggleReportSubmittedAction(formData: FormData): Promise<void> {
@@ -122,8 +128,11 @@ export async function addAbsenceRangeAction(formData: FormData): Promise<void> {
     return;
   }
   const db = getDb();
+  // 담임반 서버 가드(record와 동일, 연도 무관).
+  if (!(await isOwnerHomeroomStudent(db, ownerId, studentYearId))) return;
   await addAbsenceRange(db, ownerId, studentYearId, startDate, endDate, reason, noteField);
   revalidatePath("/homeroom/attendance");
+  revalidatePath("/today");
 }
 
 /** 교외체험학습 추가(AC-4.2). 기간 내 수업일마다 인정결석 자동 생성 + 사후보고서 추적. */
@@ -136,6 +145,8 @@ export async function addFieldTripAction(formData: FormData): Promise<void> {
   if (!studentYearId || !DATE_RE.test(startDate)) return;
   if (endDate && !DATE_RE.test(endDate)) return;
   const db = getDb();
+  // 담임반 서버 가드(record/absence와 동일 불변식, 연도 무관).
+  if (!(await isOwnerHomeroomStudent(db, ownerId, studentYearId))) return;
   await addFieldTrip(db, ownerId, studentYearId, startDate, endDate);
   revalidatePath("/homeroom/attendance");
 }

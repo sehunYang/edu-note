@@ -7,6 +7,7 @@ import {
   reportTracking,
 } from "../schema/attendance";
 import { studentYears } from "../schema/identity";
+import { homeroomMembers } from "../schema/classes";
 import { schoolDayCalendar } from "../schema/misc";
 import { isReportRequired } from "@/lib/domain/attendance-rules";
 import { absentPeriods, submissionTier } from "@/lib/domain/attendance";
@@ -453,6 +454,30 @@ async function homeroomStudentIds(
 ): Promise<Set<string>> {
   const roster = await listHomeroomStudents(db, ownerId, year);
   return new Set(roster.map((s) => s.id));
+}
+
+/**
+ * 서버액션 담임반 가드용 — 이 학생이 소유자의 담임반 멤버인지(연도 무관) 검사한다.
+ * 서버액션은 임의 studentYearId를 받을 수 있으므로(신뢰 경계), 저장 전 이 술어로
+ * "내 담임반 학생"임을 강제한다. 연도 무관(homeroom_members는 owner 스코프)이라
+ * 학년도 경계(3월~다음해 2월) 날짜에서도 정상 저장을 막지 않는다.
+ */
+export async function isOwnerHomeroomStudent(
+  db: DB,
+  ownerId: string,
+  studentYearId: string,
+): Promise<boolean> {
+  const rows = await db
+    .select({ id: homeroomMembers.id })
+    .from(homeroomMembers)
+    .where(
+      and(
+        eq(homeroomMembers.ownerId, ownerId),
+        eq(homeroomMembers.studentYearId, studentYearId),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
 function toStudentRow(r: {
