@@ -2,15 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SwRegister } from "./sw-register";
 
+// manifest/appleWebApp을 metadata export에 넣지 않는 이유: Next 15.2+ 스트리밍
+// 메타데이터가 이 태그들을 <body>로 흘려보낸 뒤 하이드레이션 때 <head>로 끌어올리는데,
+// Chrome의 manifest 연결(installability)이 이 늦은 삽입에서 깨진다(실측:
+// Page.getAppManifest 빈 값 → 설치 커밋 조용히 실패). 아래 <head>에 정적으로 직접 넣는다.
 export const metadata: Metadata = {
   title: "Edu_Note",
   description: "고등학교 교사 1인용 교수-수업-평가-기록 일체화 플랫폼",
-  manifest: "/manifest.webmanifest",
-  appleWebApp: {
-    capable: true,
-    title: "Edu_Note",
-    statusBarStyle: "black-translucent",
-  },
 };
 
 export const viewport: Viewport = {
@@ -31,6 +29,22 @@ export default function RootLayout({
             __html:
               "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__eduNoteInstallPromptEvent=e;window.dispatchEvent(new Event('edu-note-install-prompt-ready'));});",
           }}
+        />
+        {/* PWA 필수 태그 — 파싱 시점에 <head>에 존재해야 Chrome installability가
+            안정적으로 동작한다(스트리밍 메타데이터 경유 금지, 위 주석 참조). */}
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <link
+          rel="apple-touch-icon"
+          href="/apple-icon.png"
+          sizes="180x180"
+          type="image/png"
+        />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Edu_Note" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
         />
         <link
           rel="stylesheet"
