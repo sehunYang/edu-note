@@ -66,10 +66,23 @@ export function InstallAppCard() {
       prompt: () => Promise<void>;
       userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
     };
+    // 워치독: prompt()가 성공도 실패도 없이 무한 대기하는 사례(브라우저 프로필에
+    // 남은 반쯤 설치된 잔재 등)에서 "설치 중…" 먹통을 끊고 행동 가능한 안내를 띄운다.
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("브라우저가 10초간 설치 요청에 응답하지 않았습니다")),
+        10_000,
+      ),
+    );
     try {
-      await promptEvent.prompt();
-      const choice = await promptEvent.userChoice;
-      if (choice.outcome === "accepted") setInstalled(true);
+      await Promise.race([
+        (async () => {
+          await promptEvent.prompt();
+          const choice = await promptEvent.userChoice;
+          if (choice.outcome === "accepted") setInstalled(true);
+        })(),
+        timeout,
+      ]);
     } catch (err) {
       // 실패 원인을 카드에 그대로 노출 — 실기기 진단용(예: 이미 설치됨, 프롬프트 취소).
       setError(err instanceof Error ? `${err.name}: ${err.message}` : String(err));
@@ -132,7 +145,8 @@ export function InstallAppCard() {
 
         {error && (
           <p className="text-xs text-red-600">
-            설치 실패: {error} — 브라우저 메뉴의 &lsquo;설치&rsquo; 항목으로
+            설치 실패: {error} — chrome://apps 에 남은 Edu_Note 항목이 있으면
+            제거하고, 브라우저 메뉴(⋮)의 &lsquo;페이지를 앱으로 설치&rsquo;로
             다시 시도해 보세요.
           </p>
         )}
