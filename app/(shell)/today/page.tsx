@@ -3,7 +3,6 @@ import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { activeSemester } from "@/lib/domain/school-year";
 import {
-  getTeacherTimetable,
   getMealsInRange,
   getEventsInRange,
   getVacationSpansInRange,
@@ -24,11 +23,10 @@ import { EventsCalendar } from "./events-calendar";
 import { fetchGoogleEventsInRange } from "./actions";
 import { getGoogleConnectionStatusAction } from "../setting/profile/google-calendar-actions";
 import { NoticeWidget } from "./notice-widget";
-import { TimetableWidget } from "./timetable-widget";
 import { MealsWidget } from "./meals-widget";
-import { TodayLessonsCard } from "./today-lessons-card";
+import { TodayScheduleCard } from "./today-schedule-card";
 import { TodayAttendanceCard } from "./today-attendance-card";
-import { kstToday, readMeals, todaySlotsFor } from "./today-lib";
+import { kstToday, readMeals } from "./today-lib";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +50,6 @@ export default async function TodayPage() {
   const monthTo = `${cy}-${mm}-${String(lastDay).padStart(2, "0")}`;
 
   const [
-    allSlots,
     monthEvents,
     meals,
     sections,
@@ -69,7 +66,6 @@ export default async function TodayPage() {
     homeroomStudents,
     attendanceToday,
   ] = await Promise.all([
-    getTeacherTimetable(db, ownerId, year, semester),
     getEventsInRange(db, ownerId, monthFrom, monthTo),
     getMealsInRange(db, ownerId, date, date),
     listSectionsWithProgress(db, ownerId, year),
@@ -91,7 +87,6 @@ export default async function TodayPage() {
   const homeroomIds = new Set(homeroomStudents.map((s) => s.id));
   const todayAttendance = attendanceToday.filter((r) => homeroomIds.has(r.studentYearId));
 
-  const todaySlots = todaySlotsFor(allSlots, weekday);
   const todayMeals = meals.flatMap((m) => readMeals(m.payload));
   const tierCount = {
     total: pendingTiers.length,
@@ -124,8 +119,9 @@ export default async function TodayPage() {
       <NudgeBanner nudges={nudges} />
 
       <div className="stagger mt-6 grid gap-6 md:grid-cols-2">
-        {/* 오늘 수업 — 차시 체크(진척도 실반영, QC v7 comp1 AC-1.1~1.4) */}
-        <TodayLessonsCard lessons={todayLessons} date={date} className="md:col-span-2" />
+        {/* 오늘 시간표 통합 카드 — 교시·시간·과목색(시간표) + 차시 체크·내용(수업)
+            을 한 카드로(today-schedule-merge). 진척도 실반영은 기존과 동일. */}
+        <TodayScheduleCard lessons={todayLessons} date={date} className="md:col-span-2" />
 
         {/* 오늘 출결 — 담임반 빠른 입력(학생 선택→사유→즉시 저장). 홈룸 0명이면 미렌더. */}
         <TodayAttendanceCard
@@ -133,9 +129,6 @@ export default async function TodayPage() {
           date={date}
           records={todayAttendance}
         />
-
-        {/* 오늘 시간표 — 수업마다 색상 + 시간(AC-7.7) */}
-        <TimetableWidget todaySlots={todaySlots} />
 
         {/* 오늘 급식 — 표(메뉴/칼로리/영양) (AC-7.8) */}
         <MealsWidget todayMeals={todayMeals} />
