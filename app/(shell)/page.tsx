@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import {
   collectNudges,
-  getTeacherTimetable,
+  listTodayLessons,
   getMealsInRange,
   getWeeklyProgressStat,
   listHomeroomReservationsInRange,
@@ -13,10 +13,10 @@ import {
 import { activeSemester } from "@/lib/domain/school-year";
 import { NudgeBanner } from "./nudge-banner";
 import { NoticeWidget } from "./today/notice-widget";
-import { TimetableWidget } from "./today/timetable-widget";
+import { TodayScheduleCard } from "./today/today-schedule-card";
 import { MealsWidget } from "./today/meals-widget";
 import { SummaryWidget } from "./today/summary-widget";
-import { kstToday, readMeals, todaySlotsFor, weekRange } from "./today/today-lib";
+import { kstToday, readMeals, weekRange } from "./today/today-lib";
 import type { NudgeResult } from "@/lib/domain/nudge";
 import { Button } from "@/app/ui/button";
 
@@ -44,28 +44,29 @@ export default async function Home() {
   const user = await getCurrentUser();
 
   let nudges: NudgeResult = EMPTY_NUDGES;
-  let todaySlots: Awaited<ReturnType<typeof getTeacherTimetable>> = [];
+  let todayLessons: Awaited<ReturnType<typeof listTodayLessons>> = [];
   let todayMeals: ReturnType<typeof readMeals> = [];
   let progressPercent = 0;
   let unrecordedObservations = 0;
   let weeklyReservations = 0;
   let publicNotes: string[] = [];
   let upcomingNotices: Awaited<ReturnType<typeof listNoticeEvents>> = [];
+  // 렌더에서도 필요(TodayScheduleCard date prop) — user 유무와 무관하게 산출.
+  const { date, weekday } = kstToday();
 
   if (user) {
     const db = getDb();
     const now = new Date();
     const year = now.getFullYear();
     const semester = activeSemester(now);
-    const { date, weekday } = kstToday();
     const { weekStart, weekEnd } = weekRange(date);
 
-    const [nudgeR, slotsR, mealsR, progressR, reservationsR, notesR, noticeR] =
+    const [nudgeR, lessonsR, mealsR, progressR, reservationsR, notesR, noticeR] =
       await Promise.all([
         safe(collectNudges(db, user.id, year), EMPTY_NUDGES),
         safe(
-          getTeacherTimetable(db, user.id, year, semester),
-          [] as Awaited<ReturnType<typeof getTeacherTimetable>>,
+          listTodayLessons(db, user.id, date, weekday, year, semester),
+          [] as Awaited<ReturnType<typeof listTodayLessons>>,
         ),
         safe(
           getMealsInRange(db, user.id, date, date),
@@ -91,7 +92,7 @@ export default async function Home() {
       ]);
 
     nudges = nudgeR;
-    todaySlots = todaySlotsFor(slotsR, weekday);
+    todayLessons = lessonsR;
     todayMeals = mealsR.flatMap((m) => readMeals(m.payload));
     progressPercent = Math.round(progressR.rate * 100);
     unrecordedObservations = nudges.unrecordedObservations.length;
@@ -130,7 +131,11 @@ export default async function Home() {
         </Link>
       </div>
       <section className="stagger mt-3 grid grid-cols-1 gap-3 md:grid-cols-12">
-        <TimetableWidget todaySlots={todaySlots} className="md:col-span-7" />
+        <TodayScheduleCard
+          lessons={todayLessons}
+          date={date}
+          className="md:col-span-7"
+        />
         <MealsWidget todayMeals={todayMeals} className="md:col-span-5" />
         <SummaryWidget
           progressPercent={progressPercent}

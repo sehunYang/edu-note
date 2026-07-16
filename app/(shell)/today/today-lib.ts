@@ -1,5 +1,3 @@
-import type { TimetableViewSlot } from "@/lib/db/queries";
-
 /**
  * 오늘의 학교 · 허브 공용 헬퍼 (Stage 3-2에서 today/page.tsx 인라인 로직을 추출).
  * 표시 로직은 위젯 컴포넌트가, 데이터 준비(fetch·가공)는 각 페이지가 담당한다.
@@ -51,14 +49,4 @@ export function weekRange(date: string): { weekStart: string; weekEnd: string } 
     weekStart: monday.toISOString().slice(0, 10),
     weekEnd: sunday.toISOString().slice(0, 10),
   };
-}
-
-/** 오늘 요일 슬롯만 교시순으로 정렬(시간표 위젯 입력). */
-export function todaySlotsFor(
-  slots: TimetableViewSlot[],
-  weekday: number,
-): TimetableViewSlot[] {
-  return slots
-    .filter((s) => s.weekday === weekday)
-    .sort((a, b) => a.period - b.period);
 }
