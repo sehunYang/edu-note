@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getPublicPage } from "@/lib/public/get-public-page";
+import { CoveLight } from "@/app/ui/cove-light";
 import { GoneNotice } from "./gone";
 import { PublicPageView } from "./public-page-view";
 
@@ -29,8 +30,26 @@ export default async function PublicStudentPage({
   const result = await getPublicPage(token);
 
   if (result.status === "not_found") notFound();
-  if (result.status === "revoked") return <GoneNotice reason="revoked" />;
-  if (result.status === "expired") return <GoneNotice reason="expired" />;
+  // 코브 조명은 정상·gone 분기 각각에 삽입(공통 최상위 없음). 404는 미적용(수용).
+  if (result.status === "revoked")
+    return (
+      <>
+        <CoveLight />
+        <GoneNotice reason="revoked" />
+      </>
+    );
+  if (result.status === "expired")
+    return (
+      <>
+        <CoveLight />
+        <GoneNotice reason="expired" />
+      </>
+    );
 
-  return <PublicPageView token={token} payload={result.payload} />;
+  return (
+    <>
+      <CoveLight />
+      <PublicPageView token={token} payload={result.payload} />
+    </>
+  );
 }

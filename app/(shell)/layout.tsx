@@ -1,4 +1,5 @@
 import { AppShell } from "@/app/ui/app-shell";
+import { CoveLight } from "@/app/ui/cove-light";
 
 /**
  * (shell) 라우트 그룹 레이아웃.
@@ -17,5 +18,12 @@ import { AppShell } from "@/app/ui/app-shell";
 export default function ShellLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  return <AppShell>{children}</AppShell>;
+  // CoveLight는 template.tsx의 transform 애니메이션 조상 바깥(AppShell 형제)에
+  // 두어야 fixed 앵커링이 유지된다(cove-lighting 계획 AC-6/RC4).
+  return (
+    <>
+      <CoveLight />
+      <AppShell>{children}</AppShell>
+    </>
+  );
 }

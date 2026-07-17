@@ -53,13 +53,43 @@ body {
 }
 
 @layer utilities {
-  /* Vercel식 절제된 상단 라디얼 글로우 — 브랜드 no-shadow 유지, 배경 그라디언트만. */
-  .hero-glow {
-    background-image: radial-gradient(
-      ellipse 80% 40% at 50% 0%,
-      rgba(255, 255, 255, 0.06),
-      transparent 70%
-    );
+  /* 코브 조명(간접등) 오버레이 — 화면 최상단 몰딩(턱) 실루엣 아래로 따뜻한 빛이
+     새어나오는 구조(cove-lighting 계획 AC-1~4). 뷰포트 고정(z-10 < 헤더 z-40 <
+     모달 z-50), pointer-events 없음. 기본 opacity는 반드시 1 — reduced-motion
+     가드(iteration-count:1 강제)가 애니메이션을 즉시 끝내면 기본값으로 복귀하므로
+     1 미만이면 흐린 상태로 얼어붙는다(dim-freeze 방지).
+     후보 튜닝 축: --cove-seam-alpha(밝기 0.10~0.18), --cove-edge(seam 전이 폭 px). */
+  .cove-light {
+    --cove-seam-alpha: 0.12;
+    --cove-edge: 52px;
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 42vh;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 1;
+    animation: cove-breathe 14s ease-in-out infinite;
+    background:
+      linear-gradient(
+        to bottom,
+        rgba(255, 200, 130, var(--cove-seam-alpha)) 0,
+        rgba(255, 200, 130, calc(var(--cove-seam-alpha) * 0.5)) var(--cove-edge),
+        transparent calc(var(--cove-edge) * 3.5)
+      ),
+      radial-gradient(
+        ellipse 90% 100% at 50% 0%,
+        rgba(255, 190, 120, 0.07),
+        rgba(255, 190, 120, 0.03) 45%,
+        transparent 75%
+      );
+  }
+  /* 몰딩(턱) — 광원을 가리는 실루엣. 배경(#0a0a0a)보다 어두워 '위로는 새까맣게'. */
+  .cove-light::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 7px;
+    background: #030303;
   }
 
   /* 등장 스태거 (Stage 2-2): 부모에 .stagger 클래스만 부여하면 첫 8개 직계
@@ -109,6 +139,18 @@ body {
   }
 }
 
+/* 코브 조명 미세 숨쉬기 — 0%/100%가 반드시 1(최대 밝기): 휴지 상태·reduced-motion
+   정적 상태 모두 최대 밝기에서 머물게 한다(cove-lighting 계획 AC-4). */
+@keyframes cove-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -123,6 +165,11 @@ body {
 @media print {
   :root {
     color-scheme: light;
+  }
+  /* 코브 조명은 그라디언트(background-image)라 아래 background-color 규칙으로
+     제거되지 않는다 — 종이 출력에서 명시적으로 완전 숨김(cove-lighting AC-6). */
+  .cove-light {
+    display: none !important;
   }
   * {
     background-color: transparent !important;

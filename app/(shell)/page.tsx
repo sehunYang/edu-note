@@ -102,7 +102,7 @@ export default async function Home() {
   }
 
   return (
-    <main className="hero-glow mx-auto max-w-5xl px-6 py-12">
+    <main className="mx-auto max-w-5xl px-6 py-12">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-normal tracking-tight">📆 Edu_Note</h1>
