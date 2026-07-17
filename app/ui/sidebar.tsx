@@ -36,7 +36,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`hidden shrink-0 flex-col border-r border-hairline bg-canvas transition-[width] duration-200 print:hidden md:flex ${
+      className={`hidden shrink-0 flex-col border-r border-hairline bg-canvas transition-[width] duration-200 print:hidden md:flex md:sticky md:top-0 md:z-20 md:h-screen md:self-start ${
         collapsed ? "w-14" : "w-60"
       }`}
     >
