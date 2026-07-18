@@ -45,3 +45,44 @@ self.addEventListener("fetch", (event) => {
     })(),
   );
 });
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = {};
+  }
+  const title = payload.title || "Edu_Note";
+  const body = payload.body || "";
+  const url = payload.url || "/";
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      data: { url },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(
+    (async () => {
+      const clientsList = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      for (const client of clientsList) {
+        if ("focus" in client) {
+          await client.focus();
+          if ("navigate" in client) await client.navigate(url);
+          return;
+        }
+      }
+      await self.clients.openWindow(url);
+    })(),
+  );
+});

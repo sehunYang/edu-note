@@ -7,6 +7,9 @@ import {
   saveStudentMemo,
   deleteStudentMemo,
   markNoticeRead,
+  registerStudentPush,
+  updateStudentPushPrefs,
+  sendStudentTestPush,
   type StudentWriteResult,
 } from "@/lib/public/student-write";
 
@@ -79,4 +82,28 @@ export async function deleteStudentMemoAction(
   const res = await deleteStudentMemo(token, id);
   if (res.ok) revalidatePath(`/p/${token}`);
   return res;
+}
+
+/** 학생 웹푸시 구독 등록(push-notifications, US-6). revalidate 불필요(클라 상태로만 반영). */
+export async function registerStudentPushAction(
+  token: string,
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
+): Promise<StudentWriteResult> {
+  return registerStudentPush(token, subscription);
+}
+
+/** 학생 알림 설정 토글(S1/S2/S3). */
+export async function updateStudentPushPrefAction(
+  token: string,
+  key: "s1" | "s2" | "s3",
+  value: boolean,
+): Promise<StudentWriteResult> {
+  return updateStudentPushPrefs(token, key, value);
+}
+
+/** 학생 테스트 알림 발송(확정 publicPageId 1건만). */
+export async function sendStudentTestPushAction(
+  token: string,
+): Promise<StudentWriteResult> {
+  return sendStudentTestPush(token);
 }

@@ -319,16 +319,18 @@ export async function cancelReservation(
   db: DB,
   ownerId: string,
   reservationId: string,
-): Promise<void> {
-  await db
+): Promise<{ studentYearId: string } | null> {
+  const [row] = await db
     .delete(counselReservations)
     .where(
       and(
         eq(counselReservations.id, reservationId),
         eq(counselReservations.ownerId, ownerId),
       ),
-    );
+    )
+    .returning({ studentYearId: counselReservations.studentYearId });
   await writeAudit(db, ownerId, "counsel_cancel", reservationId);
+  return row ?? null;
 }
 
 // ── AC-6.7: 학생 취소요청 → 교사 승인 ──────────────────────────────────────
@@ -367,8 +369,8 @@ export async function approveCancelReservation(
   db: DB,
   ownerId: string,
   reservationId: string,
-): Promise<void> {
-  await db
+): Promise<{ studentYearId: string } | null> {
+  const [row] = await db
     .delete(counselReservations)
     .where(
       and(
@@ -376,8 +378,10 @@ export async function approveCancelReservation(
         eq(counselReservations.ownerId, ownerId),
         eq(counselReservations.cancelRequested, true),
       ),
-    );
+    )
+    .returning({ studentYearId: counselReservations.studentYearId });
   await writeAudit(db, ownerId, "counsel_cancel_approve", reservationId);
+  return row ?? null;
 }
 
 // ── QC v4 AC-7.9: 담임 로스터 전체의 다가오는 상담 예약 집계(오늘의 학교 캘린더) ──

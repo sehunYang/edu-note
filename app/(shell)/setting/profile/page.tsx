@@ -6,6 +6,7 @@ import { LockedNotice } from "../locked-notice";
 import { ProfileForm } from "./profile-form";
 import { GoogleCalendarCard } from "./google-calendar-card";
 import { InstallAppCard } from "./install-app-card";
+import { NotifyCard } from "./notify-card";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function ProfileStagePage() {
       <ProfileForm initial={settings} />
       <GoogleCalendarCard />
       <InstallAppCard />
+      <NotifyCard />
       <StageGate stage="profile" completed={completed} />
     </div>
   );

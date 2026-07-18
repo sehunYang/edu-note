@@ -35,6 +35,6 @@ export const config = {
     // /p/* 는 매칭에 포함하되 위 분기에서 세션 없이 레이트리밋만 적용한다.
     // PWA 셸 자산(manifest/sw/오프라인 폴백)은 $ 앵커로 정확히 그 경로만 제외 —
     // 데이터가 아닌 정적 자산이라 미인증 접근이 안전하다(계획 pwa-installability, AC-6).
-    "/((?!_next/static|_next/image|favicon.ico|login(?:/|$)|auth(?:/|$)|api/health(?:/|$)|manifest\\.webmanifest$|sw\\.js$|offline\\.html$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|login(?:/|$)|auth(?:/|$)|api/health(?:/|$)|api/cron(?:/|$)|manifest\\.webmanifest$|sw\\.js$|offline\\.html$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

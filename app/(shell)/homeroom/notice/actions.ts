@@ -1,7 +1,12 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { and, eq, inArray, isNull } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { getDb } from "@/lib/db";
 import { getOwnerId } from "@/lib/auth/owner";
+import * as schema from "@/lib/db/schema";
+import { sendToStudents } from "@/lib/push/send";
+import { filterActiveStudentTargets } from "@/lib/push/targeting";
 import { fetchTimetableBySchool } from "@/lib/integrations/comcigan-client";
 import {
   setPublicNotice,
@@ -59,6 +64,54 @@ function parseTarget(formData: FormData): {
 }
 
 /**
+ * 새 공지 등록 후 학생 웹푸시 발송(S1). studentYearIds=null 이면 owner 의 활성 학생 전체,
+ * 배열이면 해당 학생들만 대상. 각 학생의 알림 클릭이 자기 페이지로 가도록 학생별 토큰
+ * URL(`/p/{token}`)로 개별 발송한다. 발송 준비/실행 실패는 공지 등록 결과에 영향 없음.
+ * 반드시 await(Promise.allSettled) — Vercel Hobby 는 waitUntil 이 없어 fire-and-forget
+ * 발송이 응답 반환 후 죽는다. 본문은 이미 공개 DTO 로 노출되는 내용이라 민감정보 없음.
+ */
+async function notifyStudentsNewNotice(
+  db: PostgresJsDatabase<typeof schema>,
+  ownerId: string,
+  body: string,
+  studentYearIds: string[] | null,
+): Promise<void> {
+  try {
+    if (studentYearIds !== null && studentYearIds.length === 0) return;
+    const conds = [
+      eq(schema.publicPages.ownerId, ownerId),
+      isNull(schema.publicPages.revokedAt),
+    ];
+    if (studentYearIds !== null) {
+      conds.push(inArray(schema.publicPages.studentYearId, studentYearIds));
+    }
+    const rows = await db
+      .select({
+        id: schema.publicPages.id,
+        token: schema.publicPages.token,
+        revokedAt: schema.publicPages.revokedAt,
+        expiresAt: schema.publicPages.expiresAt,
+      })
+      .from(schema.publicPages)
+      .where(and(...conds));
+    const active = filterActiveStudentTargets(rows);
+    if (active.length === 0) return;
+    const preview = body.slice(0, 80);
+    await Promise.allSettled(
+      active.map((p) =>
+        sendToStudents(db, [{ publicPageId: p.id }], "s1", {
+          title: "새 공지가 있어요",
+          body: preview,
+          url: `/p/${p.token}`,
+        }),
+      ),
+    );
+  } catch {
+    // 발송 준비/실행 실패는 공지 등록 결과에 영향 없음(무해).
+  }
+}
+
+/**
  * 전체 공지란 — target_scope='all' 1건 생성(AC-5.2). 기존 단일 생성 패턴.
  */
 export async function createAllTeacherNoteAction(
@@ -74,6 +127,7 @@ export async function createAllTeacherNoteAction(
     targets: 0,
   });
   revalidatePath(PATH);
+  await notifyStudentsNewNotice(db, ownerId, body, null);
 }
 
 /**
@@ -103,6 +157,7 @@ export async function bulkCreateIndividualNotesAction(
     ids,
   });
   revalidatePath(PATH);
+  await notifyStudentsNewNotice(db, ownerId, body, studentYearIds);
 }
 
 /**
@@ -129,6 +184,12 @@ export async function createTeacherNoteAction(
     targets: studentYearIds.length,
   });
   revalidatePath(PATH);
+  await notifyStudentsNewNotice(
+    db,
+    ownerId,
+    body,
+    scope === "all" ? null : studentYearIds,
+  );
 }
 
 export async function updateTeacherNoteAction(

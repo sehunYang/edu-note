@@ -9,6 +9,7 @@ import {
   kstWeekday,
   eventChipClass,
 } from "../_shared";
+import { NotifyCard } from "./notify-card";
 
 // ── 다중 교사 한마디(스와이프) ──────────────────────────────────────────────
 function Notices({
@@ -245,6 +246,7 @@ export function HomeTab({
         onNavigate={onNavigateTimetable}
       />
       <UpcomingEvents todos={payload.weekTodos} onNavigate={onNavigateSchedule} />
+      <NotifyCard token={token} />
     </div>
   );
 }

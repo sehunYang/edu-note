@@ -121,7 +121,10 @@ export type AuditEvent =
   | "student_memo_save"
   | "student_memo_delete"
   // 구글 캘린더 동기화 (계획 v4, 0049)
-  | "gcal_sync_fail";
+  | "gcal_sync_fail"
+  // PWA 푸시 알림 (합의 계획 push-notifications)
+  | "push_subscribe"
+  | "push_send";
 
 export async function writeAudit(
   db: DB,

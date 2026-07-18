@@ -1,31 +1,114 @@
-# QC v6 Ralph 실행 (plan: .omc/plans/qc-v6-consensus-plan.md)
+# Progress — PWA 설치성 (교사 앱)
 
-## Baseline (feat/qc-v6 분기)
-- npm test: 264 passed, 183 skipped(DB 통합 미연결), 0 failed
-- itest 명령: RUN_DB_ITEST=1 node --env-file=.env.local ./node_modules/vitest/vitest.mjs run <file>
+## 계획/스펙
+- Plan: `.omc/plans/pwa-installability-consensus-plan.md` (consensus APPROVED)
+- Spec: `.omc/specs/deep-interview-pwa-installability.md` (모호도 4.1%)
 
-## 학습/패턴
-- 마이그 named unique = Drizzle 스키마 1:1 (0037 교훈). exam_segment_plans=(subjectId,examOrdinal), semester 제외(subjectId가 학기-스코프).
-- 공개 페이지 읽기=단일 SQL 함수 get_public_page. 새 데이터는 함수 마이그(v6)+dto allowlist 필수.
-- 공개 쓰기=lib/public/student-write.ts resolveToken 재사용(클라 studentYearId 무시).
-- 마이그 DB 적용은 US-9 배포/사용자 승인 게이트로 이연. 코드 스토리는 build+단위테스트로 per-story 확인.
+## 구현 완료 (US-1~6 all pass)
 
-## 스토리 진행
-- US-2 진척도 페이지네이션 DONE: progress-board.tsx PopupSection 추출(paginate+Paginator, size 20).
-- US-7 메인 8카드 DONE: app/page.tsx 대표8개 순서+이모지(🗓️🗂️📊🖨️), 나머지6 제거.
-- US-4 개별공지 캐러셀 DONE: public-page-view IndividualNotices ‹N/M› idx 캐러셀.
-- US-3 출결 DONE: addFieldTrip noteField='체험학습'(isReportRequired 무영향 확인), listAttendanceByMonth/searchAttendanceByStudent reason 필터+page.tsx 사유 select.
-- US-6 오늘의학교 DONE: middleware 세션1회 쿠키(shouldRedirectMobileToToday 순수함수+device.test 4케이스), /today NudgeBanner 상시, 행동특성 가중랜덤(countHomeroomBehaviorByStudent + nudge.behaviorNotes.suggestedStudentId/Name + nudge.test 2케이스), 넛지 딥링크 /homeroom/behavior?studentYearId=(behavior page 기존 preselect 활용).
-- US-1 수업계획실 DONE(executor+보정): 마이그 0041 exam_segment_plans(uq_exam_segment_plans(subject_id,exam_ordinal), 스키마 1:1), computeUnitOrdinalSum/computeRemainingToExam(lesson-plan.test 20), getRemainingToExam 쿼리 헬퍼(보정), session/page.tsx totalOrdinals+remaining 배선(보정), AuditEvent exam_segment_plan_save 추가(보정).
-- US-5 학생페이지 DONE: 영양 진단(코드체인 정상=stale캐시/함수버전, 아래 문서화), 열교체 메뉴/영양/칼로리, 마이그 0042 student_calendar_memos(인덱스, RLS) + 0043 get_public_page v6(studentMemos v_sy_id 스코프), dto allowlist+parser+test 갱신, student-write saveStudentMemo/deleteStudentMemo(토큰 스코프, (id,student_year_id) 횡적차단), p/[token]/actions wrapper, public-page-view CalendarSection 버튼화+DayDetailModal CRUD, AuditEvent student_memo_save/delete.
-- US-8 검증: build exit0, 단위테스트 276 passed/0 fail(baseline 264, +12), lint(확인중).
+### US-1 오프라인 폴백 + 최소 SW
+- `public/offline.html`: 완전 자립형(인라인 CSS), 다크 톤, 재시도 버튼.
+- `public/sw.js`: install(offline.html만 캐시)+skipWaiting, activate(구캐시 삭제+navigationPreload.enable+clients.claim), fetch(navigate&&GET만, preloadResponse 우선→fetch→실패시 오프라인 캐시). cache.put 없음(라이브 응답 미저장) — 온라인 전용+자동 업데이트 보장.
 
-## 영양 미표시 근본원인(US-5 AC-5.1 문서화)
-코드 체인 전 구간 정상·테스트 통과: NEIS NTR_INFO→neis.ts ntrInfo→calendar.ts payload.meals[].ntrInfo→get_public_page v4+ m->>'ntrInfo'→dto→Meals 렌더. "JSON 파싱 안 될 리 없다"는 직관이 맞음. 유력 원인=런타임 데이터: (1) prod meal_cache.payload가 ntrInfo 수집(0035) 이전 stale 캐시 → 재동기화 필요, 또는 (2) prod get_public_page 함수 버전이 v4(0036) 미만. 둘 다 파싱 버그 아님. 실행 시 prod 함수버전 확인+급식 재동기화로 복구(prod 적용은 사용자 승인 게이트).
+### US-2 Manifest + 레이아웃 메타 + SW 등록
+- `app/manifest.ts`: name/short_name Edu_Note, start_url /today, standalone, scope "/", id "/?app", #0a0a0a, icons(192/512/maskable-512).
+- `app/layout.tsx`: metadata.manifest + appleWebApp(capable/title/statusBarStyle), 별도 `viewport` export(Next 15 요건, themeColor).
+- `app/sw-register.tsx`("use client"): SW 등록 + beforeinstallprompt 조기캡처(preventDefault+window ref+커스텀 이벤트 재발행) — body에 마운트.
 
-## 배포 완료 (US-9 DONE)
-- deslop: nudge.ts behaviorNotes 사후변이 1건 정리(단일표현식), 나머지 churn 없음. 회귀 재검증 build✓+276 pass.
-- 커밋(feat/qc-v6) → main --no-ff 머지 → origin push(6ce3d39) = Vercel 자동배포.
-- prod 마이그 0041/0042/0043 적용+검증: 테이블 2개 생성, uq_exam_segment_plans 존재, get_public_page v6 동작(studentMemos 포함, 더미토큰 not_found).
-- architect APPROVED-WITH-NITS, 권고 통합테스트(student-write.integration) 작성 완료(DB 게이트 skip).
-- 잔여(사용자 액션): ⑤ 영양 표시 복구 위해 세팅실에서 급식 재동기화 필요(stale meal_cache payload에 ntrInfo 채우기). 코드/함수는 정상.
+### US-3 미들웨어 제외 + SW 헤더
+- `middleware.ts:36` matcher에 `$`-앵커 제외 추가: `manifest\.webmanifest$|sw\.js$|offline\.html$`.
+- `next.config.ts` headers()에 `/sw.js` 전용 `Cache-Control: public, max-age=0, must-revalidate` 추가.
+
+### US-4 아이콘 4후보 + PNG 세트
+- `public/icons/candidates/`에 4종 SVG(+각 maskable 버전, 안전영역 80% scale 내장): 1-monogram(타이포 E), 2-geometric-check(사각프레임+체크), 3-note-lines(줄노트+펜점), 4-combined(모노그램+체크 조합).
+- **초기 배포 선택: 후보 2(geometric-check)** — "교사 어시스턴트"의 확인/완료(출결·평가 체크) 의미를 가장 직접 반영 + xAI 톤에 맞는 단순 스트로크 기하학. 사용자가 다른 후보를 원하면 동일 resvg 명령으로 즉시 교체 가능(설계 의도).
+- PNG 생성: `resvg-cli`(unscoped, v2.6.2, deprecated 경고는 있으나 기능 정상) — 계획의 `-w/-h` 플래그는 실제 CLI에 없어 `--fit-width`로 교정(정사각形이라 문제 없음).
+- 산출물: `public/icons/icon-192.png`(192x192), `icon-512.png`(512x512), `icon-maskable-512.png`(512x512), `app/apple-icon.png`(180x180), `app/icon.png`(512x512, favicon 겸용) — 전부 header 검증으로 실제 치수 확인.
+
+### US-5 설치 안내 카드
+- `app/(shell)/setting/profile/install-app-card.tsx`("use client"): standalone 감지(matchMedia+navigator.standalone)→완료 표시, sw-register 커스텀 이벤트 구독→설치 버튼(prompt()), iOS&비standalone→수동 안내(+재로그인 1회 안내), 그 외→일반 안내.
+- `page.tsx`에 `<InstallAppCard />` 마운트(GoogleCalendarCard 다음).
+
+### US-6 검증
+- typecheck 그린. vitest 369 passed/0 failed(회귀 없음, baseline과 동일).
+- build 성공 — `/manifest.webmanifest`, `/icon.png` 정적 라우트 생성 확인, `/setting/profile` 번들 3.91→4.6kB.
+- `next start` 로컬 + Git Bash `curl.exe`: manifest(200, application/manifest+json)·sw.js(200, javascript, Cache-Control 확인)·offline.html(200) 전부 통과. `/today`(보호 라우트)는 미인증 시 307(정상 — 3개 셸 자산만 예외, 나머지 보호 불변).
+- manifest JSON 파싱: name/start_url/display/scope/theme_color/icons 전부 기대값 일치. 아이콘 3종 실제 200 확인.
+- 보안 헤더 회귀 없음: `/login`에서 X-Content-Type-Options/Referrer-Policy/X-Frame-Options/CSP 4개 전부 불변 확인.
+- **lint 관련 발견**: 이 저장소는 ESLint가 설정된 적이 없음(설정파일·devDependency·git이력 전무, 최초 확인). `next lint`가 대화형 초기화 마법사를 요구 — PWA 작업과 무관한 기존 공백이라 이번 범위에서 신규 도입하지 않고 typecheck/test/build를 실질 게이트로 채택.
+
+## 설계 결정 / 학습
+- **자원 캐싱 없음이 핵심**: SW는 오직 offline.html 1개만 캐시. Navigation Preload로 SW 콜드스타트가 매 네비게이션을 직렬화하지 않도록 방어(architect 지적 반영) — 기존 지연 개선 작업과 충돌 없음.
+- **resvg-cli 플래그 불일치**: 계획 문서의 `-w/-h`는 실재하지 않음(`--help` 확인) — `--fit-width`로 교정. 정사각 SVG라 결과 동일.
+- **아이콘 게이트는 설계상 열려있음**: 4후보 전부 리포에 보존, 다른 후보 채택 시 동일 5줄 resvg 명령만 재실행하면 즉시 교체(신규 코드 불필요).
+- **MCP 도구 일부 연결 끊김(세션 중)**: `mcp__plugin_oh-my-claudecode_t__*` (state_write 등) disconnect됨 — PRD/progress 파일 기반 추적으로 지속 진행, 세션 종료 시 상태파일은 bash로 직접 정리.
+
+## 리뷰 + 배포 (US-7)
+- Architect 리뷰어: **APPROVED**. 미들웨어 matcher `$` 앵커 검증(누수 매치 없음), 3개 셸 자산 PII/시크릿 없음 확인, SW `cache.put` 부재 재확인(R1 완전 해소), Navigation Preload 배선 확인, beforeinstallprompt 채널 레이스 없음 확인, Next 15 viewport export 정확성 확인.
+- ai-slop-cleaner 패스: 9개 대상 파일 전부 검토 — 슬롭 없음(변경 0건). 재검증 불필요(파일 무변경).
+- 커밋 `79065e2`(24 files, plan/spec 문서 포함) → `main` push(`cdaf5be..79065e2`) → Vercel 자동배포 트리거 완료.
+
+## 미착수(사용자 게이트, AC-8)
+- 배포 후 실기기 3플랫폼(데스크톱 Chrome/Edge, Android Chrome, iOS Safari) 설치·실행·로그인 유지 확인은 자동화 범위 밖 — 배포 완료 후 사용자 확인 필요.
+- 아이콘 재선택(후보 1/3/4 중 원하면) 가능 — `public/icons/candidates/`에 4종 전부 보존. 스왑 시 `npx --yes resvg-cli --fit-width <N> <선택.svg> <출력.png>` 5개 명령만 재실행(코드 변경 불필요).
+
+---
+
+# Progress — PWA 푸시 알림 (교사·학생 영역)
+
+## 계획/스펙
+- Plan: `.omc/plans/push-notifications-consensus-plan.md` (RALPLAN-DR consensus)
+- Spec: `.omc/specs/deep-interview-push-notifications.md` (모호도 4.8%, PASSED)
+
+## 구현 완료 (US-1~8 all pass, 11개 executor 병렬 라운드로 진행)
+
+### US-1 스키마
+- `lib/db/schema/push.ts`: `pushSubscriptions`(id, ownerId, audience 'teacher'|'student', publicPageId nullable FK→publicPages cascade, endpoint/p256dh/auth, prefs jsonb, timestamps). unique(endpoint, audience) 복합키 — endpoint 단독 unique 금지(동일 브라우저 교사+학생 양쪽 구독 보호).
+- `lib/db/migrations/0056_push_subscriptions.sql` 손작성, RLS는 0050 패턴 정확 복제(anon 전면 차단, authenticated=본인 행만). prod 적용은 사용자 게이트(미적용).
+
+### US-2 발송 유틸 + 타겟팅
+- `web-push`(+@types) 추가. `lib/push/send.ts`: VAPID 3종 env lazy init(미설정 시 전 함수 no-op), `sendRaw`(no-throw, 404/410 구독삭제, push_send 감사로그), `sendToTeacher`/`sendToStudents`(prefs 필터+동시성 10 배치).
+- `lib/push/targeting.ts`: 순수함수 `filterActiveStudentTargets`/`prefEnabled`(옵트아웃 모델 — 명시적 false만 끔).
+- `lib/db/queries/audit.ts` AuditEvent에 `push_subscribe`/`push_send` 추가. 단위테스트 28개(vi.mock("web-push")로 네트워크 없이 no-throw/필터/삭제 검증).
+
+### US-3 SW 확장
+- `public/sw.js`에 push(`registration.showNotification`)·notificationclick(기존 창 focus+navigate 우선, 없으면 openWindow) 핸들러만 추가. install/activate/fetch 완전 불변.
+
+### US-4 클라 구독 헬퍼
+- `app/ui/push-subscribe.ts`: `subscribeToPush(vapidKey)` — 미지원/권한거부/구독실패 전부 throw 없이 결과값으로 반환.
+
+### US-5 교사 알림 카드
+- `app/(shell)/setting/profile/push-actions.ts` + `notify-card.tsx`. 즉시(상담 신청·취소요청)/브리핑 2토글, 테스트 발송, VAPID 미설정 시 안내만. `page.tsx`에 마운트.
+
+### US-6 학생 알림 카드
+- `lib/public/student-write.ts`의 `resolveToken`에 `publicPageId` 필드 추가(기존 6개 호출부 무영향) + 신규 export 3개(registerStudentPush/updateStudentPushPrefs/sendStudentTestPush, jsonb_set으로 prefs 병합). 테스트 발송은 반드시 확정 publicPageId 1건만(교차 학생 발송 차단).
+- `app/p/[token]/actions.ts` 얇은 래퍼 3개 + `_components/notify-card.tsx`(iOS 안내 포함) + `home-tab.tsx` 마운트.
+
+### US-7 이벤트 트리거 삽입
+- T1/T2(상담 신청/취소요청): `student-write.ts`의 `reserveCounsel`/`requestCounselCancel` 성공 직후 `notifyTeacherCounsel` 헬퍼(학생명 조회+발송, 전체 try/catch 격리).
+- S1(새 공지): `homeroom/notice/actions.ts` 3개 함수가 `notifyStudentsNewNotice` 공용 헬퍼 호출 — 활성 링크 필터 후 **학생별 개별 sendToStudents**(딥링크가 학생마다 다른 토큰이라 배치 불가) + `Promise.allSettled`로 반드시 await(fire-and-forget 금지, Hobby엔 waitUntil 없음).
+- S2(상담 변경): `counseling.ts`의 `cancelReservation`/`approveCancelReservation`에 `.returning({studentYearId})` 추가(DELETE 이전 순서 버그 회피) — 반환 null이면 무발송. `counsel/actions.ts`가 결과로 학생 활성 링크 조회 후 중립 문구("상담 일정이 변경되었어요") 발송.
+- 전부 원 액션 성공 이후 삽입, 발송 실패가 원 액션 결과에 영향 없음.
+
+### US-8 크론
+- `app/api/cron/daily-brief/route.ts` + `lib/push/cron-brief.ts`(순수 로직 분리 — authorizeCron sha256 고정길이 비교로 timingSafeEqual RangeError 회피, composeBriefingBody, distinctTeacherBriefingOwners/distinctStudentS3Owners).
+- T3/S3 오너집합은 서로 독립 도출(교사 briefing 토글이 학생 S3에 커플링되지 않음) — `getOwnerId()` 미사용(크론엔 세션 없음).
+- 오너별 `schoolDayCalendar` 수업일 게이트(행 없으면 NEIS 미동기로 간주해 조용히 스킵). T3는 4요소(수업/넛지/신고서/일정) 개수 합성, 전부 0이면 미발송. S3는 학생별 개별 토큰 딥링크로 발송.
+- `vercel.json` 병합(기존 `regions:["icn1"]` 유지 + crons 30 22 * * * = 07:30 KST). `middleware.ts` matcher에 `api/cron(?:/|$)` 한 줄 추가.
+- 단위테스트 12개(인증 4케이스, 합성 null, T3/S3 독립성).
+
+## US-10 검증 (직접 수행, 2026-07-18)
+- `npm run typecheck` 그린. `npm run test` 409 passed / 0 failed / 209 skipped(회귀 0, 신규 40 테스트 = push 28 + cron-brief 12).
+- `npm run build` 성공 — `/api/cron/daily-brief` 라우트(ƒ, 191B) 정상 생성.
+- `next start` 로컬 + `curl.exe`: `/api/cron/daily-brief` 무인증/빈 Bearer/짧은 토큰/틀린 토큰/Bearer 접두어 없음 **전부 401**(RangeError 없음, 500 없음), Location 헤더 없음(미들웨어가 /login으로 리다이렉트하지 않음 — matcher 제외 확인).
+- 회귀 스팟체크: `/manifest.webmanifest`·`/sw.js`·`/offline.html` 전부 200 유지, `/login` 보안헤더(X-Frame-Options/CSP/X-Content-Type-Options) 불변.
+
+## Architect 검증 + deslop
+- Architect(Opus): **APPROVED**. 9개 검증축(RLS anon차단, 교차학생발송차단, no-throw격리, S2 RETURNING순서, T3/S3오너독립, 크론인증, matcher경계, 회귀, allSettled await) 전부 코드 레벨 확인. Minor 관찰 2건(비차단, 반영 안 함): notifyTeacherCounsel의 try블록 위치(이미 이중 무해), S1 학생별 sendToStudents 호출 시 pushSubscriptions SELECT 팬아웃(payload가 학생별 상이해 구조적으로 불가피).
+- ai-slop-cleaner: `app/(shell)/setting/profile/push-actions.ts`의 `readPref`가 `lib/push/targeting.ts`의 `prefEnabled`와 완전 중복 — 제거 후 prefEnabled import로 교체(중복 제거 1건, 그 외 슬롭 없음).
+- 재검증: typecheck/test(409 passed)/build 전부 그린(회귀 0).
+
+## 미착수(사용자 게이트)
+- 0056 마이그레이션 prod 적용.
+- Vercel env 등록: `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`/`NEXT_PUBLIC_VAPID_PUBLIC_KEY`/`CRON_SECRET`(키 생성 `npx web-push generate-vapid-keys`, `.env.example`에 문서화됨).
+- 배포 후 실기기 게이트 6종: 교사 테스트 발송 수신, 학생 테스트 발송 수신, T1 상담 신청 종단, S2 상담 취소→학생 수신(삭제순서 버그 검출), S3+T3 다음 수업일 아침 브리핑·서류 리마인드 수신(오너 커플링·크론 검출), iOS 미수신 조건(홈화면 미추가) 확인.

@@ -1,7 +1,13 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { and, eq } from "drizzle-orm";
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import { getDb } from "@/lib/db";
 import { getOwnerId } from "@/lib/auth/owner";
+import * as schema from "@/lib/db/schema";
+import { publicPages } from "@/lib/db/schema";
+import { sendToStudents } from "@/lib/push/send";
+import { filterActiveStudentTargets } from "@/lib/push/targeting";
 import {
   createCounselingLog,
   deleteCounselingLog,
@@ -122,6 +128,43 @@ export async function reserveSlotAction(formData: FormData): Promise<void> {
   revalidatePath("/homeroom/counsel");
 }
 
+/**
+ * 상담 일정 변경(취소/승인) 후 해당 학생에게 중립 안내 발송(S2). 취소/승인 구분이나
+ * 사유는 넣지 않는다(민감정보 금지). 활성 링크가 없으면 조용히 스킵(에러 아님).
+ * 발송 실패는 취소/승인 결과에 영향 없음.
+ */
+async function notifyStudentScheduleChange(
+  db: PostgresJsDatabase<typeof schema>,
+  ownerId: string,
+  studentYearId: string,
+): Promise<void> {
+  try {
+    const rows = await db
+      .select({
+        id: publicPages.id,
+        token: publicPages.token,
+        revokedAt: publicPages.revokedAt,
+        expiresAt: publicPages.expiresAt,
+      })
+      .from(publicPages)
+      .where(
+        and(
+          eq(publicPages.ownerId, ownerId),
+          eq(publicPages.studentYearId, studentYearId),
+        ),
+      );
+    const [page] = filterActiveStudentTargets(rows);
+    if (!page) return;
+    await sendToStudents(db, [{ publicPageId: page.id }], "s2", {
+      title: "상담 일정 안내",
+      body: "상담 일정이 변경되었어요.",
+      url: `/p/${page.token}`,
+    });
+  } catch {
+    // 발송 실패는 취소/승인 결과에 영향 없음(무해).
+  }
+}
+
 export async function cancelReservationAction(
   formData: FormData,
 ): Promise<void> {
@@ -130,8 +173,11 @@ export async function cancelReservationAction(
   if (!reservationId) return;
 
   const db = getDb();
-  await cancelReservation(db, ownerId, reservationId);
+  const result = await cancelReservation(db, ownerId, reservationId);
   revalidatePath("/homeroom/counsel");
+  if (result) {
+    await notifyStudentScheduleChange(db, ownerId, result.studentYearId);
+  }
 }
 
 /**
@@ -146,8 +192,11 @@ export async function approveCancelAction(
   if (!reservationId) return;
 
   const db = getDb();
-  await approveCancelReservation(db, ownerId, reservationId);
+  const result = await approveCancelReservation(db, ownerId, reservationId);
   revalidatePath("/homeroom/counsel");
+  if (result) {
+    await notifyStudentScheduleChange(db, ownerId, result.studentYearId);
+  }
 }
 
 // ── AC-9.5: 코워크 CSV 원천자료 내보내기 (서버에서 CSV 문자열 생성) ─────────

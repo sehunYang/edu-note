@@ -1,6 +1,6 @@
 import "server-only";
 import postgres from "postgres";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "@/lib/db/schema";
 import {
@@ -9,6 +9,7 @@ import {
   requestCancelReservation,
   writeAudit,
 } from "@/lib/db/queries";
+import { sendToStudents, sendToTeacher } from "@/lib/push/send";
 
 /**
  * 공개 페이지(미인증) 학생 쓰기 경로 — 토큰 스코프 service-role 어댑터
@@ -44,9 +45,10 @@ function publicDb(): PostgresJsDatabase<typeof schema> {
 interface ResolvedToken {
   studentYearId: string;
   ownerId: string;
+  publicPageId: string;
 }
 
-/** 토큰 → 유효한 (student_year_id, owner_id). 폐기/만료/없음이면 null. */
+/** 토큰 → 유효한 (student_year_id, owner_id, public_page_id). 폐기/만료/없음이면 null. */
 async function resolveToken(
   db: PostgresJsDatabase<typeof schema>,
   token: string,
@@ -54,6 +56,7 @@ async function resolveToken(
   if (!token) return null;
   const rows = await db
     .select({
+      id: schema.publicPages.id,
       studentYearId: schema.publicPages.studentYearId,
       ownerId: schema.publicPages.ownerId,
       revokedAt: schema.publicPages.revokedAt,
@@ -66,7 +69,11 @@ async function resolveToken(
   if (!row) return null;
   if (row.revokedAt !== null) return null;
   if (row.expiresAt !== null && row.expiresAt <= new Date()) return null;
-  return { studentYearId: row.studentYearId, ownerId: row.ownerId };
+  return {
+    studentYearId: row.studentYearId,
+    ownerId: row.ownerId,
+    publicPageId: row.id,
+  };
 }
 
 export type StudentWriteResult =
@@ -152,6 +159,7 @@ export async function reserveCounsel(
 
   try {
     await reserveCounselSlot(db, resolved.ownerId, slotId, resolved.studentYearId);
+    await notifyTeacherCounsel(db, resolved, "상담 신청", `${date} 상담을 신청했습니다.`);
     return { ok: true };
   } catch (e) {
     // 정원 초과·중복 예약 등 의도된 안내만 통과. DB 내부 오류 문구는
@@ -207,9 +215,43 @@ export async function requestCounselCancel(
       slotId,
       resolved.studentYearId,
     );
+    await notifyTeacherCounsel(
+      db,
+      resolved,
+      "상담 취소 요청",
+      `${date} 상담 취소를 요청했습니다.`,
+    );
     return { ok: true };
   } catch {
     return { ok: false, message: "취소 요청에 실패했습니다." };
+  }
+}
+
+/**
+ * 상담 신청/취소요청 성공 후 담임 교사에게 즉시 알림(T1/T2). 학생 이름만 노출하고
+ * 사유·성적 등 민감정보는 담지 않는다. 이름 조회/발송 실패는 원 액션 결과에 영향을
+ * 주지 않도록 전부 삼킨다(sendToTeacher 자체도 이미 no-throw).
+ */
+async function notifyTeacherCounsel(
+  db: PostgresJsDatabase<typeof schema>,
+  resolved: ResolvedToken,
+  titleSuffix: string,
+  body: string,
+): Promise<void> {
+  try {
+    const [student] = await db
+      .select({ name: schema.studentYears.name })
+      .from(schema.studentYears)
+      .where(eq(schema.studentYears.id, resolved.studentYearId))
+      .limit(1);
+    const name = student?.name ?? "";
+    await sendToTeacher(db, resolved.ownerId, "instant", {
+      title: `${name} 학생 ${titleSuffix}`,
+      body,
+      url: "/homeroom/counsel",
+    });
+  } catch {
+    // 조회/발송 실패는 조용히 무시 — 상담 신청/취소 자체는 이미 성공.
   }
 }
 
@@ -356,5 +398,120 @@ export async function deleteStudentMemo(
     return { ok: true };
   } catch {
     return { ok: false, message: "삭제에 실패했습니다." };
+  }
+}
+
+// ── 학생 웹푸시 알림(합의 계획 push-notifications, US-6) ──────────────────────
+// 토큰 스코프 구독 등록/설정/테스트. 미인증 학생은 토큰만 보유 —
+// service-role publicDb() 로 토큰→publicPageId 를 해석한 뒤 그 페이지의 학생 구독에만
+// 쓴다. 발송 대상도 항상 확정된 publicPageId 1건으로 제한해 타 학생 교차 발송을 차단한다.
+
+type StudentPrefKey = "s1" | "s2" | "s3";
+
+/** 학생 푸시 구독 등록(토큰 스코프). (endpoint, audience) 유니크로 upsert. */
+export async function registerStudentPush(
+  token: string,
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
+): Promise<StudentWriteResult> {
+  const { endpoint } = subscription;
+  const { p256dh, auth } = subscription.keys;
+  if (!endpoint || !p256dh || !auth) {
+    return { ok: false, message: "구독 정보가 올바르지 않습니다." };
+  }
+  const db = publicDb();
+  const resolved = await resolveToken(db, token);
+  if (!resolved) return { ok: false, message: "유효하지 않은 링크입니다." };
+  try {
+    await db
+      .insert(schema.pushSubscriptions)
+      .values({
+        ownerId: resolved.ownerId,
+        audience: "student",
+        publicPageId: resolved.publicPageId,
+        endpoint,
+        p256dh,
+        auth,
+        prefs: { s1: true, s2: true, s3: true },
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.pushSubscriptions.endpoint,
+          schema.pushSubscriptions.audience,
+        ],
+        set: {
+          ownerId: resolved.ownerId,
+          publicPageId: resolved.publicPageId,
+          p256dh,
+          auth,
+          updatedAt: new Date(),
+        },
+      });
+    await writeAudit(db, resolved.ownerId, "push_subscribe", resolved.studentYearId, {
+      audience: "student",
+    });
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "구독 등록에 실패했습니다." };
+  }
+}
+
+/**
+ * 알림 설정 토글(토큰 스코프). 이 페이지의 audience='student' 구독 전체 prefs[key] 갱신.
+ * 같은 학생이 여러 기기에서 구독했을 수 있으므로 publicPageId 스코프로 일괄 반영한다.
+ */
+export async function updateStudentPushPrefs(
+  token: string,
+  key: StudentPrefKey,
+  value: boolean,
+): Promise<StudentWriteResult> {
+  if (key !== "s1" && key !== "s2" && key !== "s3") {
+    return { ok: false, message: "알 수 없는 설정입니다." };
+  }
+  const db = publicDb();
+  const resolved = await resolveToken(db, token);
+  if (!resolved) return { ok: false, message: "유효하지 않은 링크입니다." };
+  try {
+    await db
+      .update(schema.pushSubscriptions)
+      .set({
+        prefs: sql`jsonb_set(coalesce(${schema.pushSubscriptions.prefs}, '{}'::jsonb), ${`{${key}}`}::text[], ${JSON.stringify(value)}::jsonb, true)`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.pushSubscriptions.audience, "student"),
+          eq(schema.pushSubscriptions.publicPageId, resolved.publicPageId),
+        ),
+      );
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "설정 변경에 실패했습니다." };
+  }
+}
+
+/**
+ * 테스트 알림 발송(토큰 스코프). 반드시 확정된 publicPageId 1건만 대상 —
+ * audience='student' 전체 발송 금지(타 학생 교차 발송 차단).
+ */
+export async function sendStudentTestPush(
+  token: string,
+): Promise<StudentWriteResult> {
+  const db = publicDb();
+  const resolved = await resolveToken(db, token);
+  if (!resolved) return { ok: false, message: "유효하지 않은 링크입니다." };
+  try {
+    await sendToStudents(
+      db,
+      [{ publicPageId: resolved.publicPageId }],
+      "test",
+      {
+        title: "테스트 알림",
+        body: "정상 수신되면 설정이 완료된 것입니다.",
+        url: `/p/${token}`,
+      },
+    );
+    return { ok: true };
+  } catch {
+    return { ok: false, message: "테스트 발송에 실패했습니다." };
   }
 }
