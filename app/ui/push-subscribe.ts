@@ -23,6 +23,22 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+/**
+ * 이 브라우저(기기)의 현재 푸시 구독 endpoint. 구독은 기기별이므로 "구독됨" 판정은
+ * 서버에 행이 있는지가 아니라 **이 기기**의 구독 존재 여부로 해야 한다(기기별 설정).
+ * 미지원/미구독/실패 전부 null.
+ */
+export async function getLocalPushEndpoint(): Promise<string | null> {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    return subscription?.endpoint ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function subscribeToPush(
   vapidPublicKey: string,
 ): Promise<PushSubscribeResult> {

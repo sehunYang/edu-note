@@ -10,6 +10,7 @@ import {
   writeAudit,
 } from "@/lib/db/queries";
 import { sendToStudents, sendToTeacher } from "@/lib/push/send";
+import { prefEnabled } from "@/lib/push/targeting";
 
 /**
  * 공개 페이지(미인증) 학생 쓰기 경로 — 토큰 스코프 service-role 어댑터
@@ -407,6 +408,55 @@ export async function deleteStudentMemo(
 // 쓴다. 발송 대상도 항상 확정된 publicPageId 1건으로 제한해 타 학생 교차 발송을 차단한다.
 
 type StudentPrefKey = "s1" | "s2" | "s3";
+
+export interface StudentPushState {
+  subscribed: boolean;
+  prefs: { s1: boolean; s2: boolean; s3: boolean };
+}
+
+/**
+ * 이 기기(endpoint)의 구독 상태 조회(토큰 스코프). 구독은 기기별 1행이므로 판정은
+ * 반드시 (publicPageId, endpoint) 기준 — 페이지 전체 기준이면 다른 기기에서 구독한
+ * 학생이 새 기기에서 구독 버튼을 못 본다. 미구독/무효 토큰은 기본값(전부 켜짐) 반환.
+ */
+export async function getStudentPushState(
+  token: string,
+  endpoint: string | null,
+): Promise<StudentPushState> {
+  const fallback: StudentPushState = {
+    subscribed: false,
+    prefs: { s1: true, s2: true, s3: true },
+  };
+  if (!endpoint) return fallback;
+  const db = publicDb();
+  const resolved = await resolveToken(db, token);
+  if (!resolved) return fallback;
+  try {
+    const rows = await db
+      .select({ prefs: schema.pushSubscriptions.prefs })
+      .from(schema.pushSubscriptions)
+      .where(
+        and(
+          eq(schema.pushSubscriptions.audience, "student"),
+          eq(schema.pushSubscriptions.publicPageId, resolved.publicPageId),
+          eq(schema.pushSubscriptions.endpoint, endpoint),
+        ),
+      )
+      .limit(1);
+    if (!rows[0]) return fallback;
+    const prefs = rows[0].prefs;
+    return {
+      subscribed: true,
+      prefs: {
+        s1: prefEnabled(prefs, "s1"),
+        s2: prefEnabled(prefs, "s2"),
+        s3: prefEnabled(prefs, "s3"),
+      },
+    };
+  } catch {
+    return fallback;
+  }
+}
 
 /** 학생 푸시 구독 등록(토큰 스코프). (endpoint, audience) 유니크로 upsert. */
 export async function registerStudentPush(

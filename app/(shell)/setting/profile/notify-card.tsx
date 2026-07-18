@@ -1,7 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Button } from "@/app/ui/button";
-import { subscribeToPush, type PushSubscribeResult } from "@/app/ui/push-subscribe";
+import {
+  subscribeToPush,
+  getLocalPushEndpoint,
+  type PushSubscribeResult,
+} from "@/app/ui/push-subscribe";
 import {
   getTeacherPushStateAction,
   registerTeacherPushAction,
@@ -32,8 +36,11 @@ export function NotifyCard() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  // 구독은 기기별 — 이 기기의 endpoint 기준으로 조회해야 다른 기기에서 이미
+  // 구독했어도 이 기기에는 "알림 켜기" 버튼이 정상적으로 보인다.
   const refresh = async () => {
-    setState(await getTeacherPushStateAction());
+    const endpoint = await getLocalPushEndpoint();
+    setState(await getTeacherPushStateAction(endpoint));
   };
 
   useEffect(() => {

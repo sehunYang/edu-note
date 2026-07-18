@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { pushSubscriptions } from "@/lib/db/schema";
@@ -49,7 +49,19 @@ export async function registerTeacherPushAction(subscription: {
   return { ok: true };
 }
 
-export async function getTeacherPushStateAction(): Promise<TeacherPushState> {
+/**
+ * 구독은 기기(endpoint)별 1행이므로 "구독됨" 판정은 **이 기기의 endpoint** 기준이어야
+ * 한다 — 계정 전체 기준이면 데스크톱에서 구독한 뒤 모바일 접속 시 "알림 켜기" 버튼이
+ * 사라져 모바일 기기 구독을 영영 못 만든다(기기별 설정 버그).
+ */
+export async function getTeacherPushStateAction(
+  endpoint: string | null,
+): Promise<TeacherPushState> {
+  const fallback: TeacherPushState = {
+    subscribed: false,
+    prefs: { instant: true, briefing: true },
+  };
+  if (!endpoint) return fallback;
   const ownerId = await getOwnerId();
   const db = getDb();
   const rows = await db
@@ -59,14 +71,12 @@ export async function getTeacherPushStateAction(): Promise<TeacherPushState> {
       and(
         eq(pushSubscriptions.audience, "teacher"),
         eq(pushSubscriptions.ownerId, ownerId),
+        eq(pushSubscriptions.endpoint, endpoint),
       ),
     )
-    .orderBy(desc(pushSubscriptions.updatedAt))
     .limit(1);
 
-  if (rows.length === 0) {
-    return { subscribed: false, prefs: { instant: true, briefing: true } };
-  }
+  if (rows.length === 0) return fallback;
   const prefs = rows[0].prefs;
   return {
     subscribed: true,

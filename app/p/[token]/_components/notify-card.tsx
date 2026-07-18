@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { subscribeToPush } from "@/app/ui/push-subscribe";
+import { subscribeToPush, getLocalPushEndpoint } from "@/app/ui/push-subscribe";
 import { Button } from "@/app/ui/button";
 import {
   registerStudentPushAction,
   updateStudentPushPrefAction,
   sendStudentTestPushAction,
+  getStudentPushStateAction,
 } from "../actions";
 
 /**
@@ -45,6 +46,18 @@ export function NotifyCard({ token }: { token: string }) {
 
   useEffect(() => {
     setIosBlocked(isIOS() && !isStandalone());
+    // 구독은 기기별 — 이 기기의 endpoint 로 서버 상태를 복원해야 새로고침해도
+    // 토글 상태가 유지되고, 다른 기기 구독과 혼동하지 않는다.
+    (async () => {
+      const endpoint = await getLocalPushEndpoint();
+      if (!endpoint) return;
+      const state = await getStudentPushStateAction(token, endpoint);
+      if (state.subscribed) {
+        setSubscribed(true);
+        setPrefs(state.prefs);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const configured = VAPID_PUBLIC_KEY.length > 0;

@@ -10,7 +10,9 @@ import {
   registerStudentPush,
   updateStudentPushPrefs,
   sendStudentTestPush,
+  getStudentPushState,
   type StudentWriteResult,
+  type StudentPushState,
 } from "@/lib/public/student-write";
 
 /**
@@ -106,4 +108,12 @@ export async function sendStudentTestPushAction(
   token: string,
 ): Promise<StudentWriteResult> {
   return sendStudentTestPush(token);
+}
+
+/** 이 기기(endpoint)의 구독 상태 조회 — 구독은 기기별이라 endpoint 기준 판정. */
+export async function getStudentPushStateAction(
+  token: string,
+  endpoint: string | null,
+): Promise<StudentPushState> {
+  return getStudentPushState(token, endpoint);
 }
