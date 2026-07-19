@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useRef } from "react";
-import type { PublicNotice } from "@/lib/public";
+import type { PublicNotice, PublicPagePayload } from "@/lib/public";
 import { markNoticeReadAction } from "./actions";
 import type { EventKind } from "@/lib/domain/calendar-keywords";
 import { EVENT_KIND_CHIP } from "@/lib/domain/event-kind-display";
+import { assignSubjectColors } from "@/lib/domain/subject-colors";
 
 /** 캘린더 칸/인라인 상세에 표시할 학사일정 항목(제목 + 종류). 상담 예약은 "counsel"(green), 미분류는 null. */
 export interface DayEvent {
@@ -60,6 +61,36 @@ export function ymd(d: Date): string {
 export function periodsLabel(periods: number[] | null): string | null {
   if (!periods || periods.length === 0) return null;
   return `${[...periods].sort((a, b) => a - b).join("·")}교시`;
+}
+
+// ── 과목 색(오늘의학교 오늘 시간표와 동일 팔레트) ─────────────────────────
+/**
+ * 시간표 슬롯의 색 키 — 공통과목=과목명, 지정된 선택과목=지정 과목명,
+ * 미지정 선택과목=null(색 없음 — 점선 파랑 유도 스타일 유지).
+ */
+export function slotColorKey(
+  slot: PublicPagePayload["timetable"][number],
+): string | null {
+  if (slot.isFixed) return slot.subjectName;
+  return slot.electiveMapped ?? null;
+}
+
+/**
+ * 주간 시간표 전체(weekday→period 순) 등장순 과목색 맵. 시간표 탭과 홈 탭
+ * 오늘 요약이 같은 맵을 쓰므로 같은 과목=항상 같은 색(요일 변경에도 안정).
+ */
+export function subjectColorsForTimetable(
+  slots: PublicPagePayload["timetable"],
+): Map<string, string> {
+  const ordered = [...slots].sort(
+    (a, b) => a.weekday - b.weekday || a.period - b.period,
+  );
+  const names: string[] = [];
+  for (const s of ordered) {
+    const key = slotColorKey(s);
+    if (key) names.push(key);
+  }
+  return assignSubjectColors(names);
 }
 
 // ── 시간표 상수 ──────────────────────────────────────────────────────────

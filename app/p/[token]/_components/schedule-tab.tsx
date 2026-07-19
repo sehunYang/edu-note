@@ -2,37 +2,9 @@
 import { useMemo, useState, useTransition } from "react";
 import type { PublicPagePayload, PublicVacationSpan, PublicStudentMemo } from "@/lib/public";
 import { saveStudentMemoAction, deleteStudentMemoAction } from "../actions";
-import type { EventKind } from "@/lib/domain/calendar-keywords";
 import { VACATION_BAND_BG } from "@/lib/domain/event-kind-display";
 import { Button } from "@/app/ui/button";
 import { kstToday, ymd, Card, type DayEvent, eventChipClass } from "../_shared";
-
-/**
- * 점 마커 색상 — 캘린더 칸 이벤트 칩(eventChipClass)과 동일 hue 계열의 solid dot.
- * 신규 hue 도입 금지(스펙 R4) — EVENT_KIND_CHIP 배경색과 같은 계열만 사용.
- */
-function eventDotClass(eventKind: EventKind | "counsel" | null): string {
-  switch (eventKind) {
-    case "exam":
-      return "bg-red-400";
-    case "mock_exam":
-      return "bg-rose-400";
-    case "vacation":
-      return "bg-amber-400";
-    case "holiday":
-      return "bg-orange-400";
-    case "club":
-      return "bg-violet-400";
-    case "self_activity":
-      return "bg-cyan-400";
-    case "career_activity":
-      return "bg-teal-400";
-    case "counsel":
-      return "bg-green-400";
-    default:
-      return "bg-neutral-400";
-  }
-}
 
 // ── 일정 안내(월간 달력 + 네비 + 인라인 날짜 상세) ─────────────────────────
 function ScheduleTab({
@@ -148,32 +120,31 @@ function ScheduleTab({
             : isVac
               ? `border-amber-200 ${VACATION_BAND_BG}`
               : "border-neutral-100";
-          // 점 마커: 종류별 1개씩(최대 3개) — 칩 대신 단순화(스펙 R6).
-          const dotKinds = Array.from(new Set(events.map((e) => e.eventKind))).slice(0, 3);
+          // 일정 제목 칩(오늘의학교 캘린더와 동일 방식) — 좁은 칸이라 truncate 허용.
           return (
             <button
               key={dateStr}
               type="button"
               onClick={() => setSelectedDate(dateStr)}
-              className={`min-h-[3.25rem] rounded border p-1 text-left transition hover:border-blue-400 ${cellBg}`}
+              className={`min-h-[3.5rem] rounded border p-1 text-left transition hover:border-blue-400 ${cellBg}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs text-neutral-500">{d}</span>
+                <span className="text-[11px] text-neutral-500">{d}</span>
                 {dayMemos.length > 0 && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+                  <span className="rounded-full bg-purple-100 px-1 text-[9px] text-purple-700">
+                    {dayMemos.length}
+                  </span>
                 )}
               </div>
-              {dotKinds.length > 0 && (
-                <div className="mt-1 flex items-center justify-center gap-0.5">
-                  {dotKinds.map((k, j) => (
-                    <span
-                      key={j}
-                      title={events.find((e) => e.eventKind === k)?.title}
-                      className={`h-1.5 w-1.5 rounded-full ${eventDotClass(k)}`}
-                    />
-                  ))}
+              {events.map((e, j) => (
+                <div
+                  key={j}
+                  title={e.title}
+                  className={`mt-0.5 truncate rounded px-1 text-[10px] ${eventChipClass(e.eventKind)}`}
+                >
+                  {e.title}
                 </div>
-              )}
+              ))}
             </button>
           );
         })}

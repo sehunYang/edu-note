@@ -8,6 +8,8 @@ import {
   kstToday,
   kstWeekday,
   eventChipClass,
+  slotColorKey,
+  subjectColorsForTimetable,
 } from "../_shared";
 import { NotifyCard } from "./notify-card";
 
@@ -140,6 +142,8 @@ function TodaySummary({
     .filter((s) => s.weekday === todayWeekday)
     .sort((a, b) => a.period - b.period);
   const todayMeal = meals.find((m) => m.date === todayStr) ?? null;
+  // 주간 전체 기준 과목색 — 시간표 탭과 동일 맵이라 같은 과목=같은 색.
+  const subjectColors = subjectColorsForTimetable(timetable);
 
   return (
     <button
@@ -148,18 +152,27 @@ function TodaySummary({
       className="block w-full min-h-[44px] rounded-2xl border border-hairline bg-card p-4 text-left transition hover:border-blue-400"
     >
       <h2 className="text-sm font-normal text-neutral-700">오늘 요약</h2>
-      <div className="mt-2 space-y-1">
+      <div className="mt-2 space-y-1.5">
         {todaySlots.length === 0 ? (
           <p className="text-sm text-neutral-400">오늘 수업이 없습니다</p>
         ) : (
-          todaySlots.map((s) => (
-            <div
-              key={s.period}
-              className="flex min-h-[44px] items-center text-sm"
-            >
-              {s.period}교시 {s.subjectName}
-            </div>
-          ))
+          todaySlots.map((s) => {
+            const key = slotColorKey(s);
+            const color = key ? subjectColors.get(key) : undefined;
+            const name = s.isFixed ? s.subjectName : (s.electiveMapped ?? "선택과목");
+            return (
+              <div key={s.period} className="flex min-h-[44px] items-center gap-2 text-sm">
+                <span className="w-6 shrink-0 text-neutral-400">{s.period}</span>
+                <span
+                  className={`flex min-h-[38px] min-w-0 flex-1 items-center truncate rounded border px-2 ${
+                    color ?? "border-hairline text-neutral-500"
+                  }`}
+                >
+                  {name}
+                </span>
+              </div>
+            );
+          })
         )}
       </div>
       <div className="mt-3 border-t border-hairline pt-2">
@@ -198,13 +211,14 @@ function UpcomingEvents({
         ) : (
           upcoming.map((t, i) => (
             <div key={i} className="flex min-h-[44px] items-center gap-2 text-sm">
-              <span
-                className={`h-1.5 w-1.5 shrink-0 rounded-full ${eventChipClass(t.eventKind)}`}
-              />
               <span className="shrink-0 text-neutral-400">
                 {t.at.slice(5, 10)}
               </span>
-              <span className="truncate">{t.title}</span>
+              <span
+                className={`truncate rounded px-1.5 py-0.5 text-xs ${eventChipClass(t.eventKind)}`}
+              >
+                {t.title}
+              </span>
             </div>
           ))
         )}

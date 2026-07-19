@@ -3,7 +3,15 @@ import { useMemo, useState, useTransition } from "react";
 import type { PublicPagePayload } from "@/lib/public";
 import { saveElectiveAction } from "../actions";
 import { Button } from "@/app/ui/button";
-import { Card, TT_WEEKDAYS, TT_WEEKDAY_LABEL, TT_PERIODS, kstWeekday } from "../_shared";
+import {
+  Card,
+  TT_WEEKDAYS,
+  TT_WEEKDAY_LABEL,
+  TT_PERIODS,
+  kstWeekday,
+  slotColorKey,
+  subjectColorsForTimetable,
+} from "../_shared";
 
 export function TimetableTab({
   token,
@@ -35,6 +43,8 @@ function Timetable({
     for (const s of slots) map.set(`${s.weekday}::${s.period}`, s);
     return map;
   }, [slots]);
+  // 과목별 안정 색(주간 전체 등장순 — 홈 탭 오늘 요약과 동일 맵, 오늘의학교 팔레트).
+  const subjectColors = useMemo(() => subjectColorsForTimetable(slots), [slots]);
   // 오늘 요일(KST 날짜 경계). 시간표에는 월~금 데이터만 있으므로 토·일이면 월요일 기본 선택.
   const todayWeekday = useMemo(() => kstWeekday(), []);
   const [weekday, setWeekday] = useState<number>(() =>
@@ -66,17 +76,22 @@ function Timetable({
               </button>
             ))}
           </div>
-          <div className="mt-2 divide-y divide-hairline">
+          <div className="mt-2 space-y-1.5">
             {TT_PERIODS.map((p) => {
               const slot = byCell.get(`${weekday}::${p}`);
+              const colorKey = slot ? slotColorKey(slot) : null;
               return (
-                <div key={p} className="flex min-h-[44px] items-center gap-3 py-1">
+                <div key={p} className="flex min-h-[44px] items-center gap-3">
                   <span className="w-6 shrink-0 text-sm text-neutral-400">{p}</span>
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     {slot ? (
-                      <TimetableCell token={token} slot={slot} />
+                      <TimetableCell
+                        token={token}
+                        slot={slot}
+                        color={colorKey ? subjectColors.get(colorKey) : undefined}
+                      />
                     ) : (
-                      <span className="text-sm text-neutral-300">-</span>
+                      <span className="px-2 text-sm text-neutral-300">-</span>
                     )}
                   </div>
                 </div>
@@ -92,9 +107,12 @@ function Timetable({
 function TimetableCell({
   token,
   slot,
+  color,
 }: {
   token: string;
   slot: PublicPagePayload["timetable"][number];
+  /** 과목별 안정 색(subjectColorsForTimetable). 미지정 선택과목은 undefined. */
+  color?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(slot.electiveMapped ?? "");
@@ -102,11 +120,18 @@ function TimetableCell({
   const [err, setErr] = useState<string | null>(null);
 
   if (slot.isFixed) {
-    // 공통과목: 짙은 회색 텍스트
-    return <span className="text-sm text-neutral-700">{slot.subjectName}</span>;
+    // 공통과목: 과목색 칩 행(오늘의학교 오늘 시간표와 동일 팔레트).
+    return (
+      <div
+        className={`flex min-h-[44px] items-center truncate rounded border px-2 text-sm ${
+          color ?? "border-hairline text-neutral-700"
+        }`}
+      >
+        {slot.subjectName}
+      </div>
+    );
   }
-  // 선택과목 행: 매핑값 있으면 표시, 없으면 '선택과목' + 토글.
-  // AC-6.1: 선택과목은 항상 파란 계열(공통과목 text-neutral-700 과 시각적 구분).
+  // 선택과목 행: 매핑값 있으면 과목색 칩, 없으면 '선택과목' 점선 파랑(지정 유도) + 토글.
   const label = slot.electiveMapped ?? "선택과목";
 
   function submit() {
@@ -125,10 +150,10 @@ function TimetableCell({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`min-h-[44px] w-full truncate rounded px-1 text-left text-sm ${
-          slot.electiveMapped
-            ? "text-blue-700"
-            : "text-blue-600 underline decoration-dotted"
+        className={`min-h-[44px] w-full truncate rounded border px-2 text-left text-sm ${
+          slot.electiveMapped && color
+            ? color
+            : "border-dashed border-blue-300 text-blue-600 underline decoration-dotted"
         }`}
         title="선택과목 지정"
       >

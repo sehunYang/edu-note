@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import type { TodayLesson } from "@/lib/db/queries";
+import { assignSubjectColors } from "@/lib/domain/subject-colors";
 import { toggleTodaySessionAction } from "./actions";
 
 /**
@@ -23,17 +24,7 @@ const PERIOD_TIMES: Record<number, string> = {
   7: "15:50",
 };
 
-// 과목별 안정 색(기존 timetable-widget에서 이관, neutral-friendly 팔레트).
-const SLOT_COLORS = [
-  "bg-rose-50 border-rose-200 text-rose-700",
-  "bg-sky-50 border-sky-200 text-sky-700",
-  "bg-amber-50 border-amber-200 text-amber-700",
-  "bg-emerald-50 border-emerald-200 text-emerald-700",
-  "bg-violet-50 border-violet-200 text-violet-700",
-  "bg-cyan-50 border-cyan-200 text-cyan-700",
-  "bg-orange-50 border-orange-200 text-orange-700",
-  "bg-teal-50 border-teal-200 text-teal-700",
-];
+// 과목별 안정 색 — lib/domain/subject-colors 단일 정의(학생 공개 페이지와 공유).
 
 export function TodayScheduleCard({
   lessons,
@@ -68,17 +59,7 @@ export function TodayScheduleCard({
     .sort((a, b) => a.period - b.period);
 
   // 교시순 등장 순서 기준 과목별 안정 색 배정.
-  const colorBySubject = new Map<string, string>();
-  let colorIdx = 0;
-  for (const r of rows) {
-    if (!colorBySubject.has(r.lesson.subjectName)) {
-      colorBySubject.set(
-        r.lesson.subjectName,
-        SLOT_COLORS[colorIdx % SLOT_COLORS.length],
-      );
-      colorIdx += 1;
-    }
-  }
+  const colorBySubject = assignSubjectColors(rows.map((r) => r.lesson.subjectName));
 
   return (
     <section className={`rounded-lg border border-neutral-200 p-4 ${className ?? ""}`}>

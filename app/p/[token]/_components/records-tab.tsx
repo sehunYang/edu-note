@@ -39,6 +39,40 @@ export function RecordsTab({
 }
 
 // ── 출결 2D(성격×사유) ──────────────────────────────────────────────────────
+/**
+ * 출결 성격별 색(오늘의학교 톤 맞춤). remap 된 hue 만 사용 — 지각 amber,
+ * 조퇴 cyan, 결과 violet, 결석 red. 캘린더 event_kind 칩과는 별개 축(출결 전용).
+ */
+const KIND_STYLE: Record<
+  keyof PublicAttendance2D,
+  { dot: string; count: string; hover: string; detailBorder: string }
+> = {
+  late: {
+    dot: "bg-amber-400",
+    count: "text-amber-700",
+    hover: "hover:bg-amber-50",
+    detailBorder: "border-l-amber-300",
+  },
+  earlyLeave: {
+    dot: "bg-cyan-400",
+    count: "text-cyan-700",
+    hover: "hover:bg-cyan-50",
+    detailBorder: "border-l-cyan-300",
+  },
+  absentPeriod: {
+    dot: "bg-violet-400",
+    count: "text-violet-700",
+    hover: "hover:bg-violet-50",
+    detailBorder: "border-l-violet-300",
+  },
+  absent: {
+    dot: "bg-red-400",
+    count: "text-red-700",
+    hover: "hover:bg-red-50",
+    detailBorder: "border-l-red-300",
+  },
+};
+
 function Attendance2DTable({
   matrix,
   records,
@@ -83,7 +117,12 @@ function Attendance2DTable({
           {KIND_ROWS.map(([kind, kindLabel]) => (
             <tr key={kind}>
               <th className="border border-neutral-200 bg-neutral-50 px-3 py-3 font-normal text-neutral-500">
-                {kindLabel}
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${KIND_STYLE[kind].dot}`}
+                  />
+                  {kindLabel}
+                </span>
               </th>
               {REASON_COLS.map(([reason]) => {
                 const count = matrix[kind][reason];
@@ -93,7 +132,7 @@ function Attendance2DTable({
                       <button
                         type="button"
                         onClick={() => setSel({ kind, kindLabel, reason })}
-                        className="w-full px-3 py-3 text-sm font-normal text-blue-700 underline decoration-dotted underline-offset-2 transition hover:bg-blue-50"
+                        className={`w-full px-3 py-3 text-sm font-normal underline decoration-dotted underline-offset-2 transition ${KIND_STYLE[kind].count} ${KIND_STYLE[kind].hover}`}
                         title={`${kindLabel}(${REASON_LABEL[reason]}) 상세 보기`}
                       >
                         {count}
@@ -140,7 +179,7 @@ function Attendance2DTable({
                 {detailRecords.map((r, i) => (
                   <li
                     key={i}
-                    className="flex items-center justify-between rounded border border-neutral-200 px-3 py-2"
+                    className={`flex items-center justify-between rounded border border-neutral-200 border-l-2 px-3 py-2 ${KIND_STYLE[sel.kind].detailBorder}`}
                   >
                     <span className="text-neutral-700">{r.date}</span>
                     <span className="text-xs text-neutral-500">
@@ -212,7 +251,7 @@ function CounselSlotRow({
   }
 
   return (
-    <li className="flex min-h-[44px] items-center justify-between gap-2 rounded border border-neutral-100 px-3 py-2">
+    <li className="flex min-h-[44px] items-center justify-between gap-2 rounded border border-hairline px-3 py-2">
       <span>
         {slot.date}{" "}
         <span className="text-xs text-neutral-400">잔여 {slot.remaining}</span>
