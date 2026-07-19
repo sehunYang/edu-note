@@ -198,6 +198,8 @@ export interface TeacherComciganConfig {
   comciganSchool: string | null;
   comciganTeacher: string | null;
   lastTimetableSyncAt: Date | null;
+  /** NEIS '이번 주 실제' 시간표 마지막 갱신 시각(최신성 배지용). */
+  lastNeisTimetableSyncAt: Date | null;
 }
 
 export async function getTeacherProfile(
@@ -209,6 +211,7 @@ export async function getTeacherProfile(
       comciganSchool: teacherProfile.comciganSchool,
       comciganTeacher: teacherProfile.comciganTeacher,
       lastTimetableSyncAt: teacherProfile.lastTimetableSyncAt,
+      lastNeisTimetableSyncAt: teacherProfile.lastNeisTimetableSyncAt,
     })
     .from(teacherProfile)
     .where(eq(teacherProfile.ownerId, ownerId))

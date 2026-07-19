@@ -32,6 +32,15 @@ export interface PublicTimetableSlot {
   isFixed: boolean; // 고정반(원반) 여부. false 면 선택과목 칸(자가매핑 대상).
   electiveMapped: string | null; // 학생이 자가매핑한 선택과목(없으면 null).
 }
+/**
+ * NEIS '이번 주 실제' 시간표 한 칸(v13). 표준(timetable, 컴시간)과 별개 오버레이 —
+ * 화면이 같은 (weekday,period)의 표준 과목과 다르면 강조한다. 읽기전용(학생 편집 불가).
+ */
+export interface PublicWeeklyActualSlot {
+  weekday: number; // 1=월 .. 5=금 (isodow)
+  period: number;
+  subjectName: string; // 그날 실제 수업내용(진로활동·행사 등 포함)
+}
 export interface PublicMeal {
   date: string; // YYYY-MM-DD
   menu: string;
@@ -133,7 +142,9 @@ export interface PublicPagePayload {
   commonNotice: string | null; // 교사 한마디(단일, 하위호환 — body 문자열)
   notices: PublicNotice[]; // 다중 교사 한마디(전체 공개 — 스와이프). v10~: {body,postedAt}
   individualNotices: PublicNotice[]; // 이 학생 대상 개별 공지(전체 공지와 병렬). v4 AC-5.3, v10~ postedAt
-  timetable: PublicTimetableSlot[];
+  timetable: PublicTimetableSlot[]; // 표준 주간 시간표(컴시간)
+  weeklyActual: PublicWeeklyActualSlot[]; // v13: NEIS 이번 주 실제(오버레이)
+  weeklyActualSyncedAt: string | null; // v13: NEIS 마지막 갱신 ISO 일시(최신성 배지). 미갱신 시 null
   meals: PublicMeal[];
   // 개별칸
   attendanceSummary: PublicAttendanceSummary; // 1D(하위호환)
@@ -221,6 +232,8 @@ export interface RawPublicPageInput {
     isFixed?: boolean;
     electiveMapped?: string | null;
   }[];
+  weeklyActual?: { weekday: number; period: number; subjectName: string }[];
+  weeklyActualSyncedAt?: string | null;
   meals: { date: string; menu: string; calInfo?: string | null; ntrInfo?: string | null }[];
   // 출결 원자료 (집계 전용)
   attendance: AttendanceRowForSummary[];
@@ -277,6 +290,12 @@ export function buildPublicPagePayload(
       isFixed: s.isFixed ?? false,
       electiveMapped: s.electiveMapped ?? null,
     })),
+    weeklyActual: (input.weeklyActual ?? []).map((s) => ({
+      weekday: s.weekday,
+      period: s.period,
+      subjectName: s.subjectName,
+    })),
+    weeklyActualSyncedAt: input.weeklyActualSyncedAt ?? null,
     meals: input.meals.map((m) => ({
       date: m.date,
       menu: m.menu,
@@ -402,6 +421,14 @@ function parseSlot(v: unknown): PublicTimetableSlot | null {
     electiveMapped: asString(o.electiveMapped),
   };
 }
+function parseWeeklyActualSlot(v: unknown): PublicWeeklyActualSlot | null {
+  const o = rec(v);
+  const weekday = asNumber(o.weekday);
+  const period = asNumber(o.period);
+  const subjectName = asString(o.subjectName);
+  if (weekday === null || period === null || subjectName === null) return null;
+  return { weekday, period, subjectName };
+}
 function parseMeal(v: unknown): PublicMeal | null {
   const o = rec(v);
   const date = asString(o.date);
@@ -524,6 +551,10 @@ export function parsePublicPagePayload(raw: unknown): PublicPagePayload {
     notices: parseNoticeArray(o.notices),
     individualNotices: parseNoticeArray(o.individualNotices),
     timetable: asArray(o.timetable).map(parseSlot).filter((x): x is PublicTimetableSlot => x !== null),
+    weeklyActual: asArray(o.weeklyActual)
+      .map(parseWeeklyActualSlot)
+      .filter((x): x is PublicWeeklyActualSlot => x !== null),
+    weeklyActualSyncedAt: asString(o.weeklyActualSyncedAt),
     meals: asArray(o.meals).map(parseMeal).filter((x): x is PublicMeal => x !== null),
     attendanceSummary: parseAttendance(o.attendanceSummary),
     attendance2D: parseAttendance2D(o.attendance2D),

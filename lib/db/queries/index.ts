@@ -34,6 +34,7 @@ export * from "./notice";
 export * from "./fixed-class";
 export * from "./homeroom-record";
 export * from "./homeroom-timetable";
+export * from "./neis-timetable";
 export * from "./homeroom-classes";
 export * from "./today-memo";
 export * from "./google-calendar";

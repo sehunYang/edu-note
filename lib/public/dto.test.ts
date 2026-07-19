@@ -163,11 +163,36 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
         "timetable",
         "vacationSpans",
         "weekTodos",
+        "weeklyActual",
+        "weeklyActualSyncedAt",
       ].sort(),
     );
     expect(Object.keys(parsed.attendanceSummary).sort()).toEqual(
       ["absent", "absentPeriod", "earlyLeave", "hasUnsubmittedReport", "late"].sort(),
     );
+  });
+
+  it("weeklyActual(v13)은 weekday·period·subjectName 만 통과, 이상행 drop", () => {
+    const parsed = parsePublicPagePayload({
+      weeklyActual: [
+        { weekday: 4, period: 5, subjectName: "진로활동", secret: "x" },
+        { weekday: 4, period: 6, subjectName: "" }, // 빈 과목도 문자열이라 통과(빈 문자열)
+        { period: 1, subjectName: "누락요일" }, // weekday 없음 → drop
+        "nope", // 형식 불명 → drop
+      ],
+      weeklyActualSyncedAt: "2026-07-19T22:20:00.000Z",
+    });
+    expect(parsed.weeklyActual).toEqual([
+      { weekday: 4, period: 5, subjectName: "진로활동" },
+      { weekday: 4, period: 6, subjectName: "" },
+    ]);
+    expect(parsed.weeklyActualSyncedAt).toBe("2026-07-19T22:20:00.000Z");
+  });
+
+  it("weeklyActual 누락 시 빈 배열·null 기본값", () => {
+    const parsed = parsePublicPagePayload({});
+    expect(parsed.weeklyActual).toEqual([]);
+    expect(parsed.weeklyActualSyncedAt).toBeNull();
   });
 
   it("새 필드(studentName·notices·attendance2D·counselSlots·slot 확장)도 allowlist 로 파싱", () => {

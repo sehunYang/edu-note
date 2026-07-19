@@ -16,6 +16,8 @@ import {
   listTodayLessons,
   listHomeroomStudents,
   listAttendanceByDate,
+  listNeisActualForDate,
+  getTeacherProfile,
 } from "@/lib/db/queries";
 import { TodayNudgeModal } from "./nudge-modal";
 import { NudgeBanner } from "../nudge-banner";
@@ -65,6 +67,8 @@ export default async function TodayPage() {
     todayLessons,
     homeroomStudents,
     attendanceToday,
+    neisActualToday,
+    teacherProfile,
   ] = await Promise.all([
     getEventsInRange(db, ownerId, monthFrom, monthTo),
     getMealsInRange(db, ownerId, date, date),
@@ -81,7 +85,18 @@ export default async function TodayPage() {
     listTodayLessons(db, ownerId, date, weekday, year, semester),
     listHomeroomStudents(db, ownerId, year),
     listAttendanceByDate(db, ownerId, date),
+    listNeisActualForDate(db, ownerId, date),
+    getTeacherProfile(db, ownerId),
   ]);
+
+  // NEIS 오늘 실제(반·교시)로 오늘 수업 오버레이 강조. 교사 수업은 분반 라벨 "g-c" → (grade,classNo).
+  // 같은 (grade,classNo,period)의 실제 과목이 표준 과목과 다르면 카드에서 강조한다.
+  const actualByClassPeriod = new Map<string, string>();
+  for (const a of neisActualToday) {
+    if (a.subjectName.trim().length > 0) {
+      actualByClassPeriod.set(`${a.grade}-${a.classNo}::${a.period}`, a.subjectName);
+    }
+  }
 
   // 담임반 명단으로 오늘 출결을 필터(공유 쿼리는 owner 전체 반환 — 룸 page.tsx와 동일 패턴).
   const homeroomIds = new Set(homeroomStudents.map((s) => s.id));
@@ -121,7 +136,17 @@ export default async function TodayPage() {
       <div className="stagger mt-6 grid gap-6 md:grid-cols-2">
         {/* 오늘 시간표 통합 카드 — 교시·시간·과목색(시간표) + 차시 체크·내용(수업)
             을 한 카드로(today-schedule-merge). 진척도 실반영은 기존과 동일. */}
-        <TodayScheduleCard lessons={todayLessons} date={date} className="md:col-span-2" />
+        <TodayScheduleCard
+          lessons={todayLessons}
+          date={date}
+          actualByClassPeriod={Object.fromEntries(actualByClassPeriod)}
+          neisSyncedAt={
+            teacherProfile?.lastNeisTimetableSyncAt
+              ? teacherProfile.lastNeisTimetableSyncAt.toISOString()
+              : null
+          }
+          className="md:col-span-2"
+        />
 
         {/* 오늘 출결 — 담임반 빠른 입력(학생 선택→사유→즉시 저장). 홈룸 0명이면 미렌더. */}
         <TodayAttendanceCard

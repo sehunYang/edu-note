@@ -5,6 +5,7 @@ import {
   parseSchoolSchedule,
   parseMealService,
   parseSchoolInfo,
+  parseHisTimetable,
 } from "./neis";
 
 describe("parseSchoolInfo", () => {
@@ -178,5 +179,79 @@ describe("parseMealService", () => {
 
   it("무데이터는 빈 배열", () => {
     expect(parseMealService({ RESULT: { CODE: "INFO-200" } })).toEqual([]);
+  });
+});
+
+describe("parseHisTimetable", () => {
+  // 실측 필드 구조(인천해송고 2-9반) 스냅샷.
+  const ttJson = {
+    hisTimetable: [
+      { head: [{ RESULT: { CODE: "INFO-000" } }] },
+      {
+        row: [
+          {
+            ALL_TI_YMD: "20260713",
+            GRADE: "2",
+            CLASS_NM: "9",
+            PERIO: "1",
+            ITRT_CNTNT: "일본어",
+            CLRM_NM: "2-9",
+          },
+          {
+            ALL_TI_YMD: "20260713",
+            GRADE: "2",
+            CLASS_NM: "9",
+            PERIO: "2",
+            ITRT_CNTNT: "문학",
+          },
+        ],
+      },
+    ],
+  };
+
+  it("날짜·학년·반·교시·수업내용을 정규화", () => {
+    const out = parseHisTimetable(ttJson);
+    expect(out).toEqual([
+      { date: "2026-07-13", grade: 2, classNo: 9, period: 1, subject: "일본어" },
+      { date: "2026-07-13", grade: 2, classNo: 9, period: 2, subject: "문학" },
+    ]);
+  });
+
+  it("빈 수업내용(ITRT_CNTNT) 행은 제외", () => {
+    const j = {
+      hisTimetable: [
+        { head: [{ RESULT: { CODE: "INFO-000" } }] },
+        {
+          row: [
+            { ALL_TI_YMD: "20260713", GRADE: "2", CLASS_NM: "9", PERIO: "3", ITRT_CNTNT: "" },
+            { ALL_TI_YMD: "20260713", GRADE: "2", CLASS_NM: "9", PERIO: "4", ITRT_CNTNT: "화학" },
+          ],
+        },
+      ],
+    };
+    expect(parseHisTimetable(j)).toEqual([
+      { date: "2026-07-13", grade: 2, classNo: 9, period: 4, subject: "화학" },
+    ]);
+  });
+
+  it("학년/반/교시 파싱 불가 행은 제외", () => {
+    const j = {
+      hisTimetable: [
+        { head: [{ RESULT: { CODE: "INFO-000" } }] },
+        {
+          row: [
+            { ALL_TI_YMD: "20260713", GRADE: "", CLASS_NM: "9", PERIO: "1", ITRT_CNTNT: "수학" },
+            { ALL_TI_YMD: "20260713", GRADE: "2", CLASS_NM: "9", PERIO: "x", ITRT_CNTNT: "영어" },
+          ],
+        },
+      ],
+    };
+    expect(parseHisTimetable(j)).toEqual([]);
+  });
+
+  it("무데이터/형식불명은 빈 배열(throw 안 함)", () => {
+    expect(parseHisTimetable({ RESULT: { CODE: "INFO-200" } })).toEqual([]);
+    expect(parseHisTimetable(null)).toEqual([]);
+    expect(parseHisTimetable({})).toEqual([]);
   });
 });

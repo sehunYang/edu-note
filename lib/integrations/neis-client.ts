@@ -3,9 +3,11 @@ import {
   parseMealService,
   parseSchoolSchedule,
   parseSchoolInfo,
+  parseHisTimetable,
   type NeisMealEntry,
   type NeisScheduleEntry,
   type NeisSchoolInfo,
+  type NeisTimetableEntry,
 } from "./neis";
 
 /**
@@ -101,4 +103,26 @@ export async function fetchMealService(
   const res = await fetchJson(url);
   if (!res.ok) return res;
   return { ok: true, data: parseMealService(res.data) };
+}
+
+/**
+ * 고등학교시간표(hisTimetable) 조회 — 특정 학년/반의 기간(YYYYMMDD) 실제 시간표.
+ * '이번 주 실제' 오버레이 소스. 실패는 Result.ok=false(호출측이 표준 폴백).
+ */
+export async function fetchHisTimetable(
+  query: NeisQuery,
+  grade: number,
+  classNm: number,
+  fromYmd: string,
+  toYmd: string,
+): Promise<NeisResult<NeisTimetableEntry[]>> {
+  const url = buildUrl("hisTimetable", query, {
+    GRADE: String(grade),
+    CLASS_NM: String(classNm),
+    TI_FROM_YMD: fromYmd,
+    TI_TO_YMD: toYmd,
+  });
+  const res = await fetchJson(url);
+  if (!res.ok) return res;
+  return { ok: true, data: parseHisTimetable(res.data) };
 }

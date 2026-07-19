@@ -19,6 +19,7 @@ import {
   distinctTeacherBriefingOwners,
   distinctStudentS3Owners,
 } from "@/lib/push/cron-brief";
+import { syncNeisTimetables } from "@/lib/integrations/neis-timetable-sync";
 
 /**
  * 일일 아침 브리핑 크론 (합의 계획 push-notifications, US-8).
@@ -66,6 +67,17 @@ export async function GET(request: NextRequest) {
   const year = now.getFullYear();
   const semester = activeSemester(now);
   const { date: today, weekday } = kstToday();
+
+  // ── 0단계: NEIS '이번 주 실제' 시간표 갱신(브리핑보다 먼저) ──
+  // 읽기전용 오버레이 레이어만 갱신하며 수업계획/시수관리 테이블은 건드리지 않는다.
+  // 실패가 브리핑 발송을 절대 막지 않도록 격리한다(NEIS 클라이언트는 Result라 통상 throw
+  // 없지만 DB 오류 등 예외를 방어).
+  let neisSync: unknown = null;
+  try {
+    neisSync = await syncNeisTimetables(db, today);
+  } catch (e) {
+    neisSync = { error: e instanceof Error ? e.message : "neis sync 실패" };
+  }
 
   const skipped = { teacherNotSchoolDay: 0, teacherEmpty: 0, studentNotSchoolDay: 0 };
 
@@ -166,6 +178,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     ok: true,
+    neisSync,
     teacherBriefings,
     studentReminders,
     skipped,

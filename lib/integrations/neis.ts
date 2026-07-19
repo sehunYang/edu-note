@@ -41,6 +41,19 @@ export interface NeisSchoolInfo {
   name: string; // SCHUL_NM 학교명
 }
 
+/**
+ * 고등학교시간표(hisTimetable) 한 건 → '이번 주 실제' 오버레이 입력.
+ * NEIS 시간표는 **날짜 기반**(ALL_TI_YMD)이며 교사 필드가 없다(반 단위). 표준(컴시간)
+ * 과 별개의 읽기전용 레이어로, 그날 실제 내용(진로활동·행사 등)을 담는다.
+ */
+export interface NeisTimetableEntry {
+  date: string; // YYYY-MM-DD (ALL_TI_YMD)
+  grade: number; // GRADE
+  classNo: number; // CLASS_NM
+  period: number; // PERIO
+  subject: string; // ITRT_CNTNT (수업내용)
+}
+
 // ── 공통 헬퍼 ──
 
 /** "YYYYMMDD" → "YYYY-MM-DD". 형식 불일치는 원본 그대로 반환. */
@@ -135,6 +148,36 @@ export function parseMealService(json: unknown): NeisMealEntry[] {
       ntrInfo: ntrInfo.length > 0 ? ntrInfo : null,
     };
   });
+}
+
+// ── 고등학교시간표(이번 주 실제) ──
+
+/**
+ * hisTimetable 응답 → 시간표 엔트리 배열. 빈 수업내용(ITRT_CNTNT) 행과 학년/반/교시
+ * 파싱 불가 행은 제외한다(무데이터/에러는 extractRows 가 [] 로 흡수 — §6 비차단).
+ */
+export function parseHisTimetable(json: unknown): NeisTimetableEntry[] {
+  const rows = extractRows(json, "hisTimetable");
+  const out: NeisTimetableEntry[] = [];
+  for (const r of rows) {
+    const subject = str(r.ITRT_CNTNT).trim();
+    const grade = Number(str(r.GRADE).trim());
+    const classNo = Number(str(r.CLASS_NM).trim());
+    const period = Number(str(r.PERIO).trim());
+    if (
+      subject.length === 0 ||
+      !Number.isInteger(grade) ||
+      !Number.isInteger(classNo) ||
+      !Number.isInteger(period) ||
+      grade < 1 ||
+      classNo < 1 ||
+      period < 1
+    ) {
+      continue;
+    }
+    out.push({ date: neisDate(str(r.ALL_TI_YMD)), grade, classNo, period, subject });
+  }
+  return out;
 }
 
 // ── 학교 검색 ──

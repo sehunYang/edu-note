@@ -70,7 +70,13 @@ export function PublicPageView({
           />
         )}
         {tab === "timetable" && (
-          <TimetableTab token={token} slots={payload.timetable} meals={payload.meals} />
+          <TimetableTab
+            token={token}
+            slots={payload.timetable}
+            meals={payload.meals}
+            weeklyActual={payload.weeklyActual}
+            weeklyActualSyncedAt={payload.weeklyActualSyncedAt}
+          />
         )}
         {tab === "records" && (
           <RecordsTab

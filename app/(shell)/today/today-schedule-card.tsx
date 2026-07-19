@@ -2,6 +2,8 @@
 import { useEffect, useState, useTransition } from "react";
 import type { TodayLesson } from "@/lib/db/queries";
 import { assignSubjectColors } from "@/lib/domain/subject-colors";
+import { neisFreshnessBadge } from "@/lib/domain/timetable-freshness";
+import { shouldHighlightActual } from "@/lib/domain/timetable-actual";
 import { toggleTodaySessionAction } from "./actions";
 
 /**
@@ -29,10 +31,16 @@ const PERIOD_TIMES: Record<number, string> = {
 export function TodayScheduleCard({
   lessons,
   date,
+  actualByClassPeriod,
+  neisSyncedAt,
   className,
 }: {
   lessons: TodayLesson[];
   date: string;
+  /** NEIS 오늘 실제: "{grade-classNo}::{period}" → 과목. 표준과 다르면 강조. */
+  actualByClassPeriod?: Record<string, string>;
+  /** NEIS 마지막 갱신 ISO(최신성 배지). */
+  neisSyncedAt?: string | null;
   className?: string;
 }) {
   const [pending, startTransition] = useTransition();
@@ -61,9 +69,21 @@ export function TodayScheduleCard({
   // 교시순 등장 순서 기준 과목별 안정 색 배정.
   const colorBySubject = assignSubjectColors(rows.map((r) => r.lesson.subjectName));
 
+  // NEIS 최신성 배지(today = 카드가 표시하는 날짜, KST yyyy-mm-dd).
+  const badge = neisFreshnessBadge(neisSyncedAt ?? null, date);
+
   return (
     <section className={`rounded-lg border border-neutral-200 p-4 ${className ?? ""}`}>
-      <h2 className="text-sm font-normal text-neutral-700">오늘 시간표</h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-normal text-neutral-700">오늘 시간표</h2>
+        {badge && (
+          <span
+            className={`text-xs ${badge.stale ? "text-amber-600" : "text-neutral-400"}`}
+          >
+            {badge.label}
+          </span>
+        )}
+      </div>
       {rows.length === 0 ? (
         <p className="mt-2 text-sm text-neutral-400">
           오늘 수업이 없거나 시간표 미동기화.
@@ -73,11 +93,17 @@ export function TodayScheduleCard({
           {rows.map(({ lesson: l, period }) => {
             const done = doneBySection[l.sectionId] ?? l.done;
             const strike = done ? "line-through" : "";
+            // NEIS 오늘 실제가 특별활동/행사면 강조(반 라벨 "g-c"::교시 키).
+            // 정규과목 표기차(일어↔일본어 등)는 강조하지 않는다(shouldHighlightActual).
+            const actual = actualByClassPeriod?.[`${l.label}::${period}`];
+            const differs = shouldHighlightActual(l.subjectName, actual);
             return (
               <li
                 key={`${l.sectionId}-${period}`}
                 className={`flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded border px-2 py-1.5 ${
-                  colorBySubject.get(l.subjectName) ?? "border-neutral-200"
+                  differs
+                    ? "border-amber-300 bg-amber-50"
+                    : colorBySubject.get(l.subjectName) ?? "border-neutral-200"
                 } ${done ? "opacity-60" : ""}`}
               >
                 <input
@@ -95,6 +121,9 @@ export function TodayScheduleCard({
                 </span>
                 <span className={`font-normal ${strike}`}>
                   {l.subjectName} <span className="opacity-70">{l.label}</span>
+                  {differs && (
+                    <span className="ml-1 text-xs text-amber-700">· 실제 {actual} ★</span>
+                  )}
                 </span>
                 {/* 모바일: 둘째 줄(w-full, 체크박스만큼 들여쓰기·줄바꿈 허용) /
                     데스크톱: 같은 줄 잔여 폭에서 truncate (AC-5) */}

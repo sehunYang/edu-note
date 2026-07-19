@@ -278,6 +278,32 @@ export const homeroomTimetableSlots = pgTable(
   ],
 );
 
+// NEIS '이번 주 실제' 시간표 캐시 (자동 오버레이 — 표준(컴시간)과 별개 읽기전용 레이어).
+// NEIS 고등학교시간표는 날짜 기반이라 weekday 가 아닌 실제 date 를 저장한다.
+// daily-brief 크론이 이번 주(월~금) 범위를 매일 갱신. 수업계획/시수관리는 미참조.
+export const neisTimetableSlots = pgTable(
+  "neis_timetable_slots",
+  {
+    id: pk(),
+    ownerId: ownerId(),
+    grade: integer("grade").notNull(),
+    classNo: integer("class_no").notNull(),
+    date: date("date").notNull(),
+    period: integer("period").notNull(),
+    subjectName: text("subject_name").notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    unique("uq_neis_timetable_slots").on(
+      t.ownerId,
+      t.grade,
+      t.classNo,
+      t.date,
+      t.period,
+    ),
+  ],
+);
+
 // 업무 (데드라인 to-do + 진척)
 export const tasks = pgTable("tasks", {
   id: pk(),
@@ -417,6 +443,10 @@ export const teacherProfile = pgTable("teacher_profile", {
   neisSchoolCode: text("neis_school_code"),
   neisSchoolName: text("neis_school_name"),
   lastCalendarSyncAt: timestamp("last_calendar_sync_at", {
+    withTimezone: true,
+  }),
+  // NEIS '이번 주 실제' 시간표 마지막 갱신 시각(최신성 배지용). daily-brief 크론이 갱신.
+  lastNeisTimetableSyncAt: timestamp("last_neis_timetable_sync_at", {
     withTimezone: true,
   }),
   // 공개 페이지 공통 '교사 한마디'(공지실, 계획 §4 Phase2-I, migration 0007)
