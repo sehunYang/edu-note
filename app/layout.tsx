@@ -21,18 +21,30 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
-        {/* beforeinstallprompt 조기 캡처 — React 하이드레이션(useEffect)보다 먼저
-            발화할 수 있으므로(특히 모바일) 인라인 스크립트로 문서 파싱 시점에 리스너를
-            건다. 카드(install-app-card)는 window ref + 커스텀 이벤트로 읽는다(AC-5). */}
+        {/* PWA manifest 링크 — JSX 로 렌더하지 않고 아래 인라인 스크립트가
+            파싱 시점에 동기 생성한다(head 내 script 라 installability 에 필요한
+            "파싱 시점 존재" 조건 충족, 스트리밍 메타데이터 경유 금지는 기존과 동일).
+            JSX <link> 로 두면 React 19 하이드레이션이 hoistable 링크를 재조정하며
+            클라이언트에서 바꾼 href 를 원복 + 원본 링크를 중복 삽입한다(실측:
+            /p/* 토큰 스왑이 하이드레이션 후 /manifest.webmanifest 2개로 되돌아감).
+            스크립트가 만든 노드는 React 소유가 아니라 하이드레이션이 건드리지 않는다.
+            같은 이유로 app/manifest.ts 는 금지 — 존재하면 Next 가 전역 링크를
+            메타데이터로 자동 주입해 문서상 첫 manifest 링크(Chrome 이 이것만 씀)를
+            차지한다. 교사용 전역 manifest 는 public/manifest.webmanifest 정적 파일.
+            ① 학생 공개 페이지(/p/<hex32토큰>)면 토큰별 manifest 를 연결(전역
+               manifest 는 start_url 이 교사용 /today 라 학생 설치가 로그인 화면으로
+               떨어짐) — 학생 페이지엔 설치 카드가 없으므로 beforeinstallprompt 를
+               잡지 않아 브라우저 기본 설치 유도를 살린다.
+            ② 그 외 경로는 전역 manifest + beforeinstallprompt 조기 캡처 — React
+               하이드레이션(useEffect)보다 먼저 발화할 수 있으므로(특히 모바일)
+               파싱 시점에 리스너를 건다. 카드(install-app-card)는 window ref +
+               커스텀 이벤트로 읽는다(AC-5). */}
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__eduNoteInstallPromptEvent=e;window.dispatchEvent(new Event('edu-note-install-prompt-ready'));});",
+              "(function(){var m=location.pathname.match(/^\\/p\\/([0-9a-f]{32})(?:\\/|$)/);var l=document.createElement('link');l.rel='manifest';l.href=m?'/p/'+m[1]+'/manifest.webmanifest':'/manifest.webmanifest';document.head.appendChild(l);if(m)return;window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__eduNoteInstallPromptEvent=e;window.dispatchEvent(new Event('edu-note-install-prompt-ready'));});})();",
           }}
         />
-        {/* PWA 필수 태그 — 파싱 시점에 <head>에 존재해야 Chrome installability가
-            안정적으로 동작한다(스트리밍 메타데이터 경유 금지, 위 주석 참조). */}
-        <link rel="manifest" href="/manifest.webmanifest" />
         <link
           rel="apple-touch-icon"
           href="/apple-icon.png"
