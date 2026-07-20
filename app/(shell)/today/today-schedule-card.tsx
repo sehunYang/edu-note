@@ -3,7 +3,7 @@ import { useEffect, useState, useTransition } from "react";
 import type { TodayLesson } from "@/lib/db/queries";
 import { assignSubjectColors } from "@/lib/domain/subject-colors";
 import { neisFreshnessBadge } from "@/lib/domain/timetable-freshness";
-import { shouldHighlightActual } from "@/lib/domain/timetable-actual";
+import type { OverlayResult } from "@/lib/domain/timetable-actual";
 import { toggleTodaySessionAction } from "./actions";
 
 /**
@@ -31,14 +31,14 @@ const PERIOD_TIMES: Record<number, string> = {
 export function TodayScheduleCard({
   lessons,
   date,
-  actualByClassPeriod,
+  overlayByClassPeriod,
   neisSyncedAt,
   className,
 }: {
   lessons: TodayLesson[];
   date: string;
-  /** NEIS 오늘 실제: "{grade-classNo}::{period}" → 과목. 표준과 다르면 강조. */
-  actualByClassPeriod?: Record<string, string>;
+  /** NEIS 오늘 변화 분류: "{grade-classNo}::{period}" → OverlayResult(반별 classifyWeeklyOverlay). */
+  overlayByClassPeriod?: Record<string, OverlayResult>;
   /** NEIS 마지막 갱신 ISO(최신성 배지). */
   neisSyncedAt?: string | null;
   className?: string;
@@ -93,10 +93,10 @@ export function TodayScheduleCard({
           {rows.map(({ lesson: l, period }) => {
             const done = doneBySection[l.sectionId] ?? l.done;
             const strike = done ? "line-through" : "";
-            // NEIS 오늘 실제가 특별활동/행사면 강조(반 라벨 "g-c"::교시 키).
-            // 정규과목 표기차(일어↔일본어 등)는 강조하지 않는다(shouldHighlightActual).
-            const actual = actualByClassPeriod?.[`${l.label}::${period}`];
-            const differs = shouldHighlightActual(l.subjectName, actual);
+            // NEIS 오늘 실제가 표준과 다르면 강조(반 라벨 "g-c"::교시 키). 특별활동·교시교환·
+            // 대체 모두 포함. 어휘 표기차는 별칭 학습으로 걸러짐(overlay 없음).
+            const overlay = overlayByClassPeriod?.[`${l.label}::${period}`];
+            const differs = overlay != null;
             return (
               <li
                 key={`${l.sectionId}-${period}`}
@@ -121,8 +121,10 @@ export function TodayScheduleCard({
                 </span>
                 <span className={`font-normal ${strike}`}>
                   {l.subjectName} <span className="opacity-70">{l.label}</span>
-                  {differs && (
-                    <span className="ml-1 text-xs text-amber-700">· 실제 {actual} ★</span>
+                  {overlay && (
+                    <span className="ml-1 text-xs text-amber-700">
+                      · 실제 {overlay.actual} {overlay.kind === "swap" ? "⇄" : "★"}
+                    </span>
                   )}
                 </span>
                 {/* 모바일: 둘째 줄(w-full, 체크박스만큼 들여쓰기·줄바꿈 허용) /

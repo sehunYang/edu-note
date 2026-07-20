@@ -16,9 +16,14 @@ import {
   listTodayLessons,
   listHomeroomStudents,
   listAttendanceByDate,
-  listNeisActualForDate,
+  listNeisActualForRange,
+  getTeacherTimetable,
   getTeacherProfile,
 } from "@/lib/db/queries";
+import {
+  classifyWeeklyOverlay,
+  type OverlayResult,
+} from "@/lib/domain/timetable-actual";
 import { TodayNudgeModal } from "./nudge-modal";
 import { NudgeBanner } from "../nudge-banner";
 import { EventsCalendar } from "./events-calendar";
@@ -28,7 +33,7 @@ import { NoticeWidget } from "./notice-widget";
 import { MealsWidget } from "./meals-widget";
 import { TodayScheduleCard } from "./today-schedule-card";
 import { TodayAttendanceCard } from "./today-attendance-card";
-import { kstToday, readMeals } from "./today-lib";
+import { kstToday, readMeals, weekRange } from "./today-lib";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +56,9 @@ export default async function TodayPage() {
   const monthFrom = `${cy}-${mm}-01`;
   const monthTo = `${cy}-${mm}-${String(lastDay).padStart(2, "0")}`;
 
+  // NEIS 이번 주(월~금) 범위 — 표준↔실제 변화 분류에 주간 데이터가 필요(별칭 학습).
+  const { weekStart, weekEnd } = weekRange(date);
+
   const [
     monthEvents,
     meals,
@@ -67,7 +75,8 @@ export default async function TodayPage() {
     todayLessons,
     homeroomStudents,
     attendanceToday,
-    neisActualToday,
+    neisActualWeek,
+    teacherWeekStd,
     teacherProfile,
   ] = await Promise.all([
     getEventsInRange(db, ownerId, monthFrom, monthTo),
@@ -85,16 +94,39 @@ export default async function TodayPage() {
     listTodayLessons(db, ownerId, date, weekday, year, semester),
     listHomeroomStudents(db, ownerId, year),
     listAttendanceByDate(db, ownerId, date),
-    listNeisActualForDate(db, ownerId, date),
+    listNeisActualForRange(db, ownerId, weekStart, weekEnd),
+    getTeacherTimetable(db, ownerId, year, semester),
     getTeacherProfile(db, ownerId),
   ]);
 
-  // NEIS 오늘 실제(반·교시)로 오늘 수업 오버레이 강조. 교사 수업은 분반 라벨 "g-c" → (grade,classNo).
-  // 같은 (grade,classNo,period)의 실제 과목이 표준 과목과 다르면 카드에서 강조한다.
-  const actualByClassPeriod = new Map<string, string>();
-  for (const a of neisActualToday) {
-    if (a.subjectName.trim().length > 0) {
-      actualByClassPeriod.set(`${a.grade}-${a.classNo}::${a.period}`, a.subjectName);
+  // NEIS 이번 주 실제 ↔ 표준을 **반별로** 비교해 오늘의 변화(특별활동·교시교환·대체)를 분류한다.
+  // 교환은 같은 반 내 판정이라 반(label)별로 classifyWeeklyOverlay 를 돌린다.
+  const isodow = (d: string): number => {
+    const wd = new Date(`${d}T00:00:00Z`).getUTCDay(); // 0=일..6=토
+    return wd === 0 ? 7 : wd;
+  };
+  // 반별 표준 주간 슬롯: label → [{weekday, period, subject}]
+  const stdByClass = new Map<string, { weekday: number; period: number; subject: string }[]>();
+  for (const s of teacherWeekStd) {
+    const arr = stdByClass.get(s.label) ?? [];
+    arr.push({ weekday: s.weekday, period: s.period, subject: s.subjectName });
+    stdByClass.set(s.label, arr);
+  }
+  // 반별 NEIS 주간 실제: label("g-c") → [{weekday, period, subject}]
+  const actByClass = new Map<string, { weekday: number; period: number; subject: string }[]>();
+  for (const a of neisActualWeek) {
+    const label = `${a.grade}-${a.classNo}`;
+    const arr = actByClass.get(label) ?? [];
+    arr.push({ weekday: isodow(a.date), period: a.period, subject: a.subjectName });
+    actByClass.set(label, arr);
+  }
+  // 오늘(weekday) 변화만 추출: "label::period" → OverlayResult.
+  const overlayByClassPeriod: Record<string, OverlayResult> = {};
+  for (const [label, std] of stdByClass) {
+    const overlay = classifyWeeklyOverlay(std, actByClass.get(label) ?? []);
+    for (const [k, res] of overlay) {
+      const [wd, p] = k.split("::").map(Number);
+      if (wd === weekday) overlayByClassPeriod[`${label}::${p}`] = res;
     }
   }
 
@@ -139,7 +171,7 @@ export default async function TodayPage() {
         <TodayScheduleCard
           lessons={todayLessons}
           date={date}
-          actualByClassPeriod={Object.fromEntries(actualByClassPeriod)}
+          overlayByClassPeriod={overlayByClassPeriod}
           neisSyncedAt={
             teacherProfile?.lastNeisTimetableSyncAt
               ? teacherProfile.lastNeisTimetableSyncAt.toISOString()

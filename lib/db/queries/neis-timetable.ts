@@ -108,6 +108,37 @@ export async function listNeisActualForDate(
     );
 }
 
+/** [fromDate,toDate] 구간의 owner 전체 반 NEIS 시간표(오늘의학교 주간 오버레이용). */
+export async function listNeisActualForRange(
+  db: DB,
+  ownerId: string,
+  fromDate: string,
+  toDate: string,
+): Promise<NeisActualSlot[]> {
+  return db
+    .select({
+      grade: neisTimetableSlots.grade,
+      classNo: neisTimetableSlots.classNo,
+      date: neisTimetableSlots.date,
+      period: neisTimetableSlots.period,
+      subjectName: neisTimetableSlots.subjectName,
+    })
+    .from(neisTimetableSlots)
+    .where(
+      and(
+        eq(neisTimetableSlots.ownerId, ownerId),
+        gte(neisTimetableSlots.date, fromDate),
+        lte(neisTimetableSlots.date, toDate),
+      ),
+    )
+    .orderBy(
+      asc(neisTimetableSlots.grade),
+      asc(neisTimetableSlots.classNo),
+      asc(neisTimetableSlots.date),
+      asc(neisTimetableSlots.period),
+    );
+}
+
 /** [fromDate,toDate] 구간의 한 반 NEIS 시간표(주간 뷰용). 날짜·교시순. */
 export async function listNeisActualForWeek(
   db: DB,

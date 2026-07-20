@@ -4,7 +4,11 @@ import type { PublicPagePayload } from "@/lib/public";
 import { saveElectiveAction } from "../actions";
 import { Button } from "@/app/ui/button";
 import { neisFreshnessBadge } from "@/lib/domain/timetable-freshness";
-import { shouldHighlightActual } from "@/lib/domain/timetable-actual";
+import {
+  classifyWeeklyOverlay,
+  isSpecialTimetableEntry,
+  type OverlayResult,
+} from "@/lib/domain/timetable-actual";
 import {
   Card,
   TT_WEEKDAYS,
@@ -59,7 +63,7 @@ function Timetable({
     for (const s of slots) map.set(`${s.weekday}::${s.period}`, s);
     return map;
   }, [slots]);
-  // NEIS '이번 주 실제' (weekday,period)→과목. 표준과 다른 칸 강조용.
+  // NEIS '이번 주 실제' (weekday,period)→과목(선택과목 특별활동 폴백 판정용 원본).
   const actualByCell = useMemo(() => {
     const map = new Map<string, string>();
     for (const a of weeklyActual) {
@@ -69,6 +73,19 @@ function Timetable({
     }
     return map;
   }, [weeklyActual]);
+  // 표준↔실제 변화 분류(별칭 학습으로 어휘 표기차 제거). 공통과목(isFixed)만 대상 —
+  // 선택과목은 학생별 매핑이라 NEIS 반 단위와 정합이 안 맞아 제외한다.
+  const overlayByCell = useMemo(() => {
+    const std = slots
+      .filter((s) => s.isFixed)
+      .map((s) => ({ weekday: s.weekday, period: s.period, subject: s.subjectName }));
+    const act = weeklyActual.map((a) => ({
+      weekday: a.weekday,
+      period: a.period,
+      subject: a.subjectName,
+    }));
+    return classifyWeeklyOverlay(std, act);
+  }, [slots, weeklyActual]);
   // 과목별 안정 색(주간 전체 등장순 — 홈 탭 오늘 요약과 동일 맵, 오늘의학교 팔레트).
   const subjectColors = useMemo(() => subjectColorsForTimetable(slots), [slots]);
   // 오늘 요일(KST 날짜 경계). 시간표에는 월~금 데이터만 있으므로 토·일이면 월요일 기본 선택.
@@ -127,6 +144,7 @@ function Timetable({
                         slot={slot}
                         color={colorKey ? subjectColors.get(colorKey) : undefined}
                         actual={actualByCell.get(`${weekday}::${p}`)}
+                        overlay={overlayByCell.get(`${weekday}::${p}`)}
                       />
                     ) : (
                       <span className="px-2 text-sm text-neutral-300">-</span>
@@ -142,18 +160,26 @@ function Timetable({
   );
 }
 
+/** 변화 종류별 마커: 교환은 ⇄, 특별활동·대체는 ★. */
+function overlayMarker(kind: OverlayResult["kind"]): string {
+  return kind === "swap" ? "⇄" : "★";
+}
+
 function TimetableCell({
   token,
   slot,
   color,
   actual,
+  overlay,
 }: {
   token: string;
   slot: PublicPagePayload["timetable"][number];
   /** 과목별 안정 색(subjectColorsForTimetable). 미지정 선택과목은 undefined. */
   color?: string;
-  /** NEIS 이번 주 실제 과목(있고 표준과 다르면 강조). */
+  /** NEIS 이번 주 실제 과목 원본(선택과목 특별활동 폴백 판정용). */
   actual?: string;
+  /** 공통과목 표준↔실제 변화 분류(classifyWeeklyOverlay). 변화 없으면 undefined. */
+  overlay?: OverlayResult;
 }) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(slot.electiveMapped ?? "");
@@ -162,30 +188,36 @@ function TimetableCell({
 
   if (slot.isFixed) {
     // 공통과목: 과목색 칩 행(오늘의학교 오늘 시간표와 동일 팔레트).
-    // 실제(NEIS)가 특별활동/행사(진로활동·제헌절 등)면 실제를 앞세우고 앰버 강조.
-    // 정규과목 표기차(일어↔일본어 등)는 강조하지 않는다(shouldHighlightActual).
-    const differs = shouldHighlightActual(slot.subjectName, actual);
+    // 표준과 다른 변화(특별활동·교시교환·대체)면 실제를 앞세우고 앰버 강조.
+    // 어휘 표기차(일어↔일본어 등)는 별칭 학습으로 걸러져 강조되지 않는다(overlay=undefined).
+    if (overlay) {
+      return (
+        <div className="min-h-[44px] truncate rounded border border-amber-300 bg-amber-50 px-2 py-1 text-sm text-amber-800">
+          <span className="truncate">
+            {overlay.actual} {overlayMarker(overlay.kind)}
+          </span>
+          <span className="ml-1 text-xs text-amber-600/80">표준 {slot.subjectName}</span>
+        </div>
+      );
+    }
     return (
       <div
-        className={`min-h-[44px] truncate rounded border px-2 py-1 text-sm ${
-          differs ? "border-amber-300 bg-amber-50 text-amber-800" : color ?? "border-hairline text-neutral-700"
+        className={`flex min-h-[44px] items-center truncate rounded border px-2 text-sm ${
+          color ?? "border-hairline text-neutral-700"
         }`}
       >
-        {differs ? (
-          <>
-            <span className="truncate">{actual} ★</span>
-            <span className="ml-1 text-xs text-amber-600/80">표준 {slot.subjectName}</span>
-          </>
-        ) : (
-          slot.subjectName
-        )}
+        {slot.subjectName}
       </div>
     );
   }
   // 선택과목 행: 매핑값 있으면 과목색 칩, 없으면 '선택과목' 점선 파랑(지정 유도) + 토글.
+  // 선택과목은 분류기 제외 — NEIS 실제가 '특별활동/행사'일 때만 강조(반 단위 특별항목).
   const label = slot.electiveMapped ?? "선택과목";
-  const standard = slot.electiveMapped ?? "선택과목";
-  const differs = shouldHighlightActual(standard, actual);
+  const differs =
+    actual != null &&
+    actual.trim().length > 0 &&
+    isSpecialTimetableEntry(actual) &&
+    actual !== (slot.electiveMapped ?? "");
 
   function submit() {
     const subject = value.trim();
