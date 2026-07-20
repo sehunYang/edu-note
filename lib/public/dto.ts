@@ -41,6 +41,16 @@ export interface PublicWeeklyActualSlot {
   period: number;
   subjectName: string; // 그날 실제 수업내용(진로활동·행사 등 포함)
 }
+/**
+ * 과목 별칭 학습용 동시등장 집계(v14). 누적 NEIS↔표준을 같은 칸에서 짝지은
+ * (표준과목 std, NEIS과목 act, 횟수 count). 클라이언트가 std별 최빈 act 로 별칭을
+ * 도출해 어휘 표기차(일어↔일본어)를 정규화한다(특별활동 제외는 도메인 함수).
+ */
+export interface PublicSubjectAliasPair {
+  std: string;
+  act: string;
+  count: number;
+}
 export interface PublicMeal {
   date: string; // YYYY-MM-DD
   menu: string;
@@ -145,6 +155,7 @@ export interface PublicPagePayload {
   timetable: PublicTimetableSlot[]; // 표준 주간 시간표(컴시간)
   weeklyActual: PublicWeeklyActualSlot[]; // v13: NEIS 이번 주 실제(오버레이)
   weeklyActualSyncedAt: string | null; // v13: NEIS 마지막 갱신 ISO 일시(최신성 배지). 미갱신 시 null
+  subjectAliasPairs: PublicSubjectAliasPair[]; // v14: 누적 별칭 학습용 (std,act,count)
   meals: PublicMeal[];
   // 개별칸
   attendanceSummary: PublicAttendanceSummary; // 1D(하위호환)
@@ -234,6 +245,7 @@ export interface RawPublicPageInput {
   }[];
   weeklyActual?: { weekday: number; period: number; subjectName: string }[];
   weeklyActualSyncedAt?: string | null;
+  subjectAliasPairs?: { std: string; act: string; count: number }[];
   meals: { date: string; menu: string; calInfo?: string | null; ntrInfo?: string | null }[];
   // 출결 원자료 (집계 전용)
   attendance: AttendanceRowForSummary[];
@@ -296,6 +308,11 @@ export function buildPublicPagePayload(
       subjectName: s.subjectName,
     })),
     weeklyActualSyncedAt: input.weeklyActualSyncedAt ?? null,
+    subjectAliasPairs: (input.subjectAliasPairs ?? []).map((p) => ({
+      std: p.std,
+      act: p.act,
+      count: p.count,
+    })),
     meals: input.meals.map((m) => ({
       date: m.date,
       menu: m.menu,
@@ -429,6 +446,14 @@ function parseWeeklyActualSlot(v: unknown): PublicWeeklyActualSlot | null {
   if (weekday === null || period === null || subjectName === null) return null;
   return { weekday, period, subjectName };
 }
+function parseAliasPair(v: unknown): PublicSubjectAliasPair | null {
+  const o = rec(v);
+  const std = asString(o.std);
+  const act = asString(o.act);
+  const count = asNumber(o.count);
+  if (std === null || act === null || count === null) return null;
+  return { std, act, count };
+}
 function parseMeal(v: unknown): PublicMeal | null {
   const o = rec(v);
   const date = asString(o.date);
@@ -555,6 +580,9 @@ export function parsePublicPagePayload(raw: unknown): PublicPagePayload {
       .map(parseWeeklyActualSlot)
       .filter((x): x is PublicWeeklyActualSlot => x !== null),
     weeklyActualSyncedAt: asString(o.weeklyActualSyncedAt),
+    subjectAliasPairs: asArray(o.subjectAliasPairs)
+      .map(parseAliasPair)
+      .filter((x): x is PublicSubjectAliasPair => x !== null),
     meals: asArray(o.meals).map(parseMeal).filter((x): x is PublicMeal => x !== null),
     attendanceSummary: parseAttendance(o.attendanceSummary),
     attendance2D: parseAttendance2D(o.attendance2D),

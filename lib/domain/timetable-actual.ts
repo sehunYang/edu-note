@@ -72,13 +72,84 @@ export interface OverlayResult {
   kind: OverlayKind;
   actual: string; // NEIS 실제 과목(표시용)
 }
+/** 별칭 학습용 (표준과목 std, NEIS 과목 act, 동시등장 횟수 count) 쌍. */
+export interface AliasPair {
+  std: string;
+  act: string;
+  count: number;
+}
 
 const cellKey = (weekday: number, period: number) => `${weekday}::${period}`;
+
+/** std→act 카운트 맵에서 최빈 act 를 뽑아 별칭 맵 완성(동점은 먼저 큰 값). */
+function modeAliasMap(
+  counts: Map<string, Map<string, number>>,
+): Map<string, string> {
+  const alias = new Map<string, string>();
+  for (const [std, m] of counts) {
+    let best: string | undefined;
+    let bestCount = -1;
+    for (const [a, c] of m) {
+      if (c > bestCount) {
+        bestCount = c;
+        best = a;
+      }
+    }
+    if (best !== undefined) alias.set(std, best);
+  }
+  return alias;
+}
+
+/**
+ * 표준↔NEIS 과목 별칭 학습(std → 정규(특별 아닌) NEIS 최빈 과목). standard(요일·교시)와
+ * actual 슬롯을 같은 칸에서 짝지어 센다. **여러 주치 actual** 을 넣을수록 최빈값이 안정적
+ * (오탐·표본부족 방지) — 크론이 누적한 과거 주 NEIS 를 통째로 넣는 것을 권장.
+ */
+export function learnSubjectAliases(
+  standard: OverlaySlot[],
+  actual: OverlaySlot[],
+): Map<string, string> {
+  const stdBy = new Map<string, string>();
+  for (const s of standard) {
+    const v = s.subject.trim();
+    if (v) stdBy.set(cellKey(s.weekday, s.period), v);
+  }
+  const counts = new Map<string, Map<string, number>>();
+  for (const a of actual) {
+    const act = a.subject.trim();
+    if (!act || isSpecialTimetableEntry(act)) continue;
+    const std = stdBy.get(cellKey(a.weekday, a.period));
+    if (!std) continue;
+    let m = counts.get(std);
+    if (!m) counts.set(std, (m = new Map()));
+    m.set(act, (m.get(act) ?? 0) + 1);
+  }
+  return modeAliasMap(counts);
+}
+
+/**
+ * SQL 에서 사전 집계한 (std, act, count) 쌍으로 별칭 맵 구성(get_public_page 경유).
+ * 특별활동 act 는 제외하고 std 별 최빈 정규 과목을 별칭으로 삼는다.
+ */
+export function buildAliasMapFromPairs(pairs: AliasPair[]): Map<string, string> {
+  const counts = new Map<string, Map<string, number>>();
+  for (const p of pairs) {
+    const std = p.std.trim();
+    const act = p.act.trim();
+    if (!std || !act || isSpecialTimetableEntry(act)) continue;
+    let m = counts.get(std);
+    if (!m) counts.set(std, (m = new Map()));
+    m.set(act, (m.get(act) ?? 0) + p.count);
+  }
+  return modeAliasMap(counts);
+}
 
 /**
  * 표준 주간 시간표와 NEIS 이번주 실제를 비교해, 표준 칸별로 '변화'를 분류한다.
  * 반환: `${weekday}::${period}` → { kind, actual }. 변화 없는(별칭 정규화 후 동일) 칸은
  * 결과에 없음. 표준 칸 기준으로만 판정한다(정규 빈 교시에 실제가 있어도 미표시).
+ *
+ * aliasMap: 누적 주간으로 학습한 별칭(권장). 없으면 actual(이번 주)만으로 학습(폴백).
  *
  * kind:
  *  - special: 실제가 특별활동/행사(진로활동·제헌절·여름방학·보강 등)
@@ -88,6 +159,7 @@ const cellKey = (weekday: number, period: number) => `${weekday}::${period}`;
 export function classifyWeeklyOverlay(
   standard: OverlaySlot[],
   actual: OverlaySlot[],
+  aliasMap?: Map<string, string>,
 ): Map<string, OverlayResult> {
   const stdBy = new Map<string, string>();
   for (const s of standard) {
@@ -100,28 +172,9 @@ export function classifyWeeklyOverlay(
     if (v) actBy.set(cellKey(a.weekday, a.period), v);
   }
 
-  // 별칭 학습: 표준과목 → 같은 칸의 (특별 아닌) NEIS 실제 최빈값.
-  const pairCounts = new Map<string, Map<string, number>>();
-  for (const [k, act] of actBy) {
-    const std = stdBy.get(k);
-    if (!std || isSpecialTimetableEntry(act)) continue;
-    let m = pairCounts.get(std);
-    if (!m) pairCounts.set(std, (m = new Map()));
-    m.set(act, (m.get(act) ?? 0) + 1);
-  }
-  const aliasOf = (std: string): string | undefined => {
-    const m = pairCounts.get(std);
-    if (!m) return undefined;
-    let best: string | undefined;
-    let bestCount = -1;
-    for (const [a, c] of m) {
-      if (c > bestCount) {
-        bestCount = c;
-        best = a;
-      }
-    }
-    return best;
-  };
+  // 별칭: 누적 학습 맵이 있으면 사용, 없으면 이번 주 actual 로 학습(하위호환 폴백).
+  const alias = aliasMap ?? learnSubjectAliases(standard, actual);
+  const aliasOf = (std: string): string | undefined => alias.get(std);
   // 표준과 실제가 (별칭 포함) 같은 과목인지.
   const sameSubject = (std: string, act: string): boolean =>
     act === std || aliasOf(std) === act;

@@ -6,6 +6,7 @@ import { Button } from "@/app/ui/button";
 import { neisFreshnessBadge } from "@/lib/domain/timetable-freshness";
 import {
   classifyWeeklyOverlay,
+  buildAliasMapFromPairs,
   isSpecialTimetableEntry,
   type OverlayResult,
 } from "@/lib/domain/timetable-actual";
@@ -26,12 +27,14 @@ export function TimetableTab({
   meals,
   weeklyActual,
   weeklyActualSyncedAt,
+  subjectAliasPairs,
 }: {
   token: string;
   slots: PublicPagePayload["timetable"];
   meals: PublicPagePayload["meals"];
   weeklyActual: PublicPagePayload["weeklyActual"];
   weeklyActualSyncedAt: string | null;
+  subjectAliasPairs: PublicPagePayload["subjectAliasPairs"];
 }) {
   return (
     <>
@@ -40,6 +43,7 @@ export function TimetableTab({
         slots={slots}
         weeklyActual={weeklyActual}
         weeklyActualSyncedAt={weeklyActualSyncedAt}
+        subjectAliasPairs={subjectAliasPairs}
       />
       <Meals meals={meals} />
     </>
@@ -52,11 +56,13 @@ function Timetable({
   slots,
   weeklyActual,
   weeklyActualSyncedAt,
+  subjectAliasPairs,
 }: {
   token: string;
   slots: PublicPagePayload["timetable"];
   weeklyActual: PublicPagePayload["weeklyActual"];
   weeklyActualSyncedAt: string | null;
+  subjectAliasPairs: PublicPagePayload["subjectAliasPairs"];
 }) {
   const byCell = useMemo(() => {
     const map = new Map<string, PublicPagePayload["timetable"][number]>();
@@ -84,8 +90,10 @@ function Timetable({
       period: a.period,
       subject: a.subjectName,
     }));
-    return classifyWeeklyOverlay(std, act);
-  }, [slots, weeklyActual]);
+    // 별칭은 누적 주간 집계(subjectAliasPairs)로 학습 — 이번 주만으로 학습하지 않는다.
+    const alias = buildAliasMapFromPairs(subjectAliasPairs);
+    return classifyWeeklyOverlay(std, act, alias);
+  }, [slots, weeklyActual, subjectAliasPairs]);
   // 과목별 안정 색(주간 전체 등장순 — 홈 탭 오늘 요약과 동일 맵, 오늘의학교 팔레트).
   const subjectColors = useMemo(() => subjectColorsForTimetable(slots), [slots]);
   // 오늘 요일(KST 날짜 경계). 시간표에는 월~금 데이터만 있으므로 토·일이면 월요일 기본 선택.

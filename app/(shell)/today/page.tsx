@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/queries";
 import {
   classifyWeeklyOverlay,
+  learnSubjectAliases,
   type OverlayResult,
 } from "@/lib/domain/timetable-actual";
 import { TodayNudgeModal } from "./nudge-modal";
@@ -56,8 +57,11 @@ export default async function TodayPage() {
   const monthFrom = `${cy}-${mm}-01`;
   const monthTo = `${cy}-${mm}-${String(lastDay).padStart(2, "0")}`;
 
-  // NEIS 이번 주(월~금) 범위 — 표준↔실제 변화 분류에 주간 데이터가 필요(별칭 학습).
+  // NEIS 이번 주(월~금) 범위 + 별칭 학습용 누적 범위(8주 전부터).
   const { weekStart, weekEnd } = weekRange(date);
+  const aliasFrom = new Date(`${weekStart}T00:00:00Z`);
+  aliasFrom.setUTCDate(aliasFrom.getUTCDate() - 56);
+  const aliasFromStr = aliasFrom.toISOString().slice(0, 10);
 
   const [
     monthEvents,
@@ -75,7 +79,7 @@ export default async function TodayPage() {
     todayLessons,
     homeroomStudents,
     attendanceToday,
-    neisActualWeek,
+    neisActualRange,
     teacherWeekStd,
     teacherProfile,
   ] = await Promise.all([
@@ -94,13 +98,14 @@ export default async function TodayPage() {
     listTodayLessons(db, ownerId, date, weekday, year, semester),
     listHomeroomStudents(db, ownerId, year),
     listAttendanceByDate(db, ownerId, date),
-    listNeisActualForRange(db, ownerId, weekStart, weekEnd),
+    listNeisActualForRange(db, ownerId, aliasFromStr, weekEnd),
     getTeacherTimetable(db, ownerId, year, semester),
     getTeacherProfile(db, ownerId),
   ]);
 
   // NEIS 이번 주 실제 ↔ 표준을 **반별로** 비교해 오늘의 변화(특별활동·교시교환·대체)를 분류한다.
   // 교환은 같은 반 내 판정이라 반(label)별로 classifyWeeklyOverlay 를 돌린다.
+  // 별칭은 누적(8주) 실제로 학습하고, 분류·표시는 이번 주만 대상으로 한다.
   const isodow = (d: string): number => {
     const wd = new Date(`${d}T00:00:00Z`).getUTCDay(); // 0=일..6=토
     return wd === 0 ? 7 : wd;
@@ -112,18 +117,22 @@ export default async function TodayPage() {
     arr.push({ weekday: s.weekday, period: s.period, subject: s.subjectName });
     stdByClass.set(s.label, arr);
   }
-  // 반별 NEIS 주간 실제: label("g-c") → [{weekday, period, subject}]
-  const actByClass = new Map<string, { weekday: number; period: number; subject: string }[]>();
-  for (const a of neisActualWeek) {
+  // 반별 NEIS: 누적(별칭 학습)과 이번 주(분류 대상)를 각각 요일 매핑해 모은다.
+  const actHistByClass = new Map<string, { weekday: number; period: number; subject: string }[]>();
+  const actWeekByClass = new Map<string, { weekday: number; period: number; subject: string }[]>();
+  for (const a of neisActualRange) {
     const label = `${a.grade}-${a.classNo}`;
-    const arr = actByClass.get(label) ?? [];
-    arr.push({ weekday: isodow(a.date), period: a.period, subject: a.subjectName });
-    actByClass.set(label, arr);
+    const slot = { weekday: isodow(a.date), period: a.period, subject: a.subjectName };
+    (actHistByClass.get(label) ?? actHistByClass.set(label, []).get(label)!).push(slot);
+    if (a.date >= weekStart && a.date <= weekEnd) {
+      (actWeekByClass.get(label) ?? actWeekByClass.set(label, []).get(label)!).push(slot);
+    }
   }
   // 오늘(weekday) 변화만 추출: "label::period" → OverlayResult.
   const overlayByClassPeriod: Record<string, OverlayResult> = {};
   for (const [label, std] of stdByClass) {
-    const overlay = classifyWeeklyOverlay(std, actByClass.get(label) ?? []);
+    const alias = learnSubjectAliases(std, actHistByClass.get(label) ?? []);
+    const overlay = classifyWeeklyOverlay(std, actWeekByClass.get(label) ?? [], alias);
     for (const [k, res] of overlay) {
       const [wd, p] = k.split("::").map(Number);
       if (wd === weekday) overlayByClassPeriod[`${label}::${p}`] = res;

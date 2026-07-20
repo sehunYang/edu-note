@@ -76,6 +76,7 @@ export function PublicPageView({
             meals={payload.meals}
             weeklyActual={payload.weeklyActual}
             weeklyActualSyncedAt={payload.weeklyActualSyncedAt}
+            subjectAliasPairs={payload.subjectAliasPairs}
           />
         )}
         {tab === "records" && (

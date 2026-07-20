@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   isSpecialTimetableEntry,
   classifyWeeklyOverlay,
+  learnSubjectAliases,
+  buildAliasMapFromPairs,
   type OverlaySlot,
 } from "./timetable-actual";
 
@@ -133,6 +135,43 @@ describe("classifyWeeklyOverlay", () => {
     ]);
     const out = classifyWeeklyOverlay(std, act);
     expect(out.size).toBe(0);
+  });
+
+  it("누적 별칭 맵을 주입하면 이번주 데이터가 부실해도 어휘 정규화", () => {
+    // 이번 주 표준·실제는 딱 1칸(일어→일본어)만 — 그 주만으론 별칭이 빈약하지만,
+    // 여러 주치로 학습한 aliasMap 을 주입하면 정규화되어 변화 아님.
+    const std = slots([[1, 5, "일어"]]);
+    const act = slots([[1, 5, "일본어"]]);
+    const alias = new Map([["일어", "일본어"]]);
+    expect(classifyWeeklyOverlay(std, act, alias).size).toBe(0);
+    // 별칭 없이 이번주만으로도 이 경우는 학습되지만(같은 칸), 주입 경로 동작 확인.
+  });
+
+  it("learnSubjectAliases: 여러 주치에서 최빈값 학습(특별활동 제외)", () => {
+    const std = slots([
+      [1, 5, "일어"],
+      [2, 5, "일어"],
+      [3, 5, "일어"],
+    ]);
+    // 3주치처럼: 대부분 일본어, 한 번 여름방학(특별→무시).
+    const act = slots([
+      [1, 5, "일본어"],
+      [2, 5, "일본어"],
+      [3, 5, "여름방학"],
+    ]);
+    const alias = learnSubjectAliases(std, act);
+    expect(alias.get("일어")).toBe("일본어");
+  });
+
+  it("buildAliasMapFromPairs: SQL 집계 쌍에서 별칭(특별 제외)", () => {
+    const alias = buildAliasMapFromPairs([
+      { std: "일어", act: "일본어", count: 8 },
+      { std: "일어", act: "여름방학", count: 3 }, // 특별 → 제외
+      { std: "생명", act: "생명과학", count: 10 },
+      { std: "생명", act: "물리학", count: 1 }, // 소수 정규 → 최빈 아님
+    ]);
+    expect(alias.get("일어")).toBe("일본어");
+    expect(alias.get("생명")).toBe("생명과학");
   });
 
   it("실제 학교 어휘 혼합: 여름방학은 강조, 정규 표기차는 무시", () => {
