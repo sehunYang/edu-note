@@ -219,13 +219,19 @@ export async function getTeacherProfile(
   return rows[0] ?? null;
 }
 
-/** 컴시간 설정 + 마지막 동기화 시각 upsert(owner 단일 행). */
+/**
+ * 컴시간 설정 + 마지막 동기화 시각 upsert(owner 단일 행).
+ *
+ * syncedAt = null 이면 학교·교사만 저장하고 **마지막 동기화 시각은 건드리지 않는다**.
+ * 축소 주간 가드에 막혀 시간표를 실제로 반영하지 않은 경우가 이에 해당한다(설정은 남기되
+ * 동기화한 척하지 않는다 — 최신성 배지가 거짓말하면 안 된다).
+ */
 export async function upsertTeacherComciganConfig(
   db: DB,
   ownerId: string,
   school: string,
   teacher: string,
-  syncedAt: Date,
+  syncedAt: Date | null,
 ): Promise<void> {
   const existing = await db
     .select({ id: teacherProfile.id })
@@ -238,7 +244,7 @@ export async function upsertTeacherComciganConfig(
       .set({
         comciganSchool: school,
         comciganTeacher: teacher,
-        lastTimetableSyncAt: syncedAt,
+        ...(syncedAt ? { lastTimetableSyncAt: syncedAt } : {}),
         updatedAt: new Date(),
       })
       .where(eq(teacherProfile.ownerId, ownerId));
@@ -247,7 +253,7 @@ export async function upsertTeacherComciganConfig(
       ownerId,
       comciganSchool: school,
       comciganTeacher: teacher,
-      lastTimetableSyncAt: syncedAt,
+      ...(syncedAt ? { lastTimetableSyncAt: syncedAt } : {}),
     });
   }
 }

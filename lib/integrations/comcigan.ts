@@ -113,7 +113,11 @@ export interface TimetableSlot {
   period: number; // 1교시 ..
   subject: string;
   teacher: string; // 학생뷰는 마스킹됨(예: "양세*")
-  code: number; // 원본 코드(teacher*1000+subject)
+  /**
+   * 원본 코드. ⚠ 인코딩이 출처마다 다르다 — `slots`(자료542)는 `과목×1000+학년·반`,
+   * `classSlots`(자료481)는 `교사×1000+과목`. 두 목록을 합치거나 code 로 비교하지 말 것.
+   */
+  code: number;
 }
 
 export interface DecodedTimetable {
@@ -122,7 +126,13 @@ export interface DecodedTimetable {
   subjects: string[]; // index 로 참조
   classCount: number[]; // [_, 1학년반수, 2학년반수, ...]
   classTimes: string[]; // 교시별 시작시간 "1(08:50)" ...
+  /** 교사별 배열(자료542) 기반 — **금주 반영본**(보강·변경 적용, 축소 주간엔 조각남). */
   slots: TimetableSlot[];
+  /**
+   * 학급별 배열(자료481) 기반 — **원본 표준 주간표**(변경 무관, 방학 중에도 온전).
+   * 탐지 실패 시 빈 배열(호출측이 안내). 담임반 표준 시간표의 정답 소스.
+   */
+  classSlots: TimetableSlot[];
 }
 
 function isStringArray(v: unknown): v is string[] {
@@ -143,12 +153,76 @@ function isTeacherTimetable(v: unknown[], teacherCount: number): boolean {
 }
 
 /**
+ * 학급별 시간표 배열(자료481/자료147) 판별: 길이 = 학년수+1, `v[학년][0]` = 그 학년의
+ * 반 수(학급수와 일치), `v[학년][반]` = [요일수, [교시수, code…], …].
+ *
+ * ⚠ 자료481(원본)과 자료147(금주 변경분)은 **형태가 완전히 동일**해서 모양만으로는
+ * 구분되지 않는다. 구분 기준은 값의 타입뿐 — 변경분은 `">27062"` 처럼 문자열이 섞인다
+ * (→ allNumericCodes 로 가려낸다).
+ */
+function isClassTimetable(v: unknown[], classCount: number[]): boolean {
+  if (classCount.length < 2 || v.length !== classCount.length) return false;
+  for (let g = 1; g < v.length; g++) {
+    // 반 수 0인 학년(미개설·패딩)은 판별에서 제외 — 있어도 배열 전체를 버리지 않는다.
+    if (classCount[g] === 0) continue;
+    const gd = v[g];
+    if (!Array.isArray(gd)) return false;
+    if (gd[0] !== classCount[g]) return false; // 반 수 일치(강한 판별자)
+    const cd = gd[1];
+    if (!Array.isArray(cd)) return false;
+    if (typeof cd[0] !== "number") return false; // 요일수
+    const day = cd[1];
+    if (!Array.isArray(day) || typeof day[0] !== "number") return false; // 교시수
+  }
+  return true;
+}
+
+/**
+ * 학급별 배열의 실제 수업 코드 수(0·문자열 제외). 원본(자료481)과 변경분(자료147)을
+ * 가르는 최종 기준.
+ *
+ * ⚠ "문자열이 섞였는가"만으로 가르면 안 된다: 그 주에 학교 전체 변경이 0건이면 자료147도
+ * 전부 숫자(대개 0)라 선착순으로 잘못 채택될 수 있고, 그러면 정상 시간표가 조각으로
+ * 덮어써진다(이 커밋이 없애려던 바로 그 손상). 코드 수가 최대인 배열을 고르면 무변경 주에도
+ * 안전하다 — 변경분은 언제나 원본의 부분집합이다.
+ */
+function countCodes(v: unknown[]): number {
+  let n = 0;
+  for (let g = 1; g < v.length; g++) {
+    const gd = v[g];
+    if (!Array.isArray(gd)) continue;
+    for (let c = 1; c < gd.length; c++) {
+      const cd = gd[c];
+      if (!Array.isArray(cd)) continue;
+      for (let d = 1; d < cd.length; d++) {
+        const day = cd[d];
+        if (!Array.isArray(day)) continue;
+        for (let p = 1; p < day.length; p++) {
+          if (typeof day[p] === "number" && day[p] !== 0) n += 1;
+        }
+      }
+    }
+  }
+  return n;
+}
+
+/**
  * 컴시간 응답 JSON(동적 키)에서 교사/과목/**교사별 시간표(자료542)**를 구조적으로
  * 탐지·디코딩. 키 이름(자료NNN)을 하드코딩하지 않는다.
  *
- * ⚠ 학급별 배열(자료481, `교사×1000+과목`)은 **반을 섞는 선택과목(물Ⅱ·생활과학 등)을
- * 누락**한다. 교사별 배열(자료542)은 선택과목 포함 교사의 전체 수업을 담으며,
- * 인코딩이 다르다: **`code = 과목index×1000 + (학년×100 + 반)`**.
+ * 두 배열은 용도가 다르다. **둘 다 필요하며 서로 대체하지 못한다**(2026-07 실측):
+ *
+ * | | 자료542 교사별 → `slots` | 자료481 학급별 → `classSlots` |
+ * |---|---|---|
+ * | 인코딩 | `과목×1000 + (학년×100+반)` | `교사×1000 + 과목` (학년·반은 배열 위치) |
+ * | 기준 주 | **금주 반영본**(보강·변경 적용) | **원본 표준**(변경 무관) |
+ * | 선택과목 | 교사의 전체 수업 포함 | 반 기준으론 포함, **교사 기준으론 누락** |
+ * | 용도 | 교사 본인 시간표·시수관리 | 담임반 표준(학생 공개 페이지) |
+ *
+ * 실측: 양세훈의 물Ⅱ·생과는 학급 그리드에서 다른 교사에게 귀속돼 교사별로 뽑으면
+ * 물리 9칸만 나온다(→ 교사 경로는 542 유지). 반대로 542 는 금주 반영본이라 방학 주간엔
+ * 전교 209칸/2개 요일로 쪼그라든다(원본은 893칸/5개 요일 → 담임반 경로는 481).
+ *
  * `>`로 시작하는 문자열 값은 **금주 변경분(보강 등)**이라 정규 시간표에서 제외한다.
  */
 export function decodeTimetable(raw: unknown): DecodedTimetable {
@@ -161,11 +235,24 @@ export function decodeTimetable(raw: unknown): DecodedTimetable {
   let teachers: string[] | null = null;
   let subjects: string[] | null = null;
   let teacherTT: unknown[] | null = null;
+  let classTT: unknown[] | null = null;
+  let classTTCount = 0;
 
   for (const key of Object.keys(result)) {
     if (key.indexOf("자료") === -1) continue;
     const v = result[key];
     if (!Array.isArray(v)) continue;
+
+    // 학급별 배열 후보(자료481 원본 / 자료147 금주 변경분): 형태가 같아 선착순으로 고르면
+    // 안 된다. 후보를 모아 뒀다가 루프 뒤에서 코드 수가 최대인 것(=원본)을 채택한다.
+    if (isClassTimetable(v, classCount)) {
+      const n = countCodes(v);
+      if (n > classTTCount) {
+        classTT = v;
+        classTTCount = n;
+      }
+      continue;
+    }
 
     // 교사명: 문자열 배열, 길이 ≈ 교사수+1
     if (!teachers && isStringArray(v) && Math.abs(v.length - (teacherCount + 1)) <= 1) {
@@ -223,6 +310,43 @@ export function decodeTimetable(raw: unknown): DecodedTimetable {
     }
   }
 
+  // 학급별 원본(자료481) → classSlots. 인코딩이 교사별과 다르다:
+  // **code = 교사index×1000 + 과목index** (교사별은 과목×1000 + 학년·반).
+  // 학년·반은 배열 위치가 곧 좌표라 code 에 들어있지 않다.
+  const classSlots: TimetableSlot[] = [];
+  if (classTT) {
+    for (let grade = 1; grade < classTT.length; grade++) {
+      const gd = classTT[grade];
+      if (!Array.isArray(gd)) continue;
+      for (let classNo = 1; classNo < gd.length; classNo++) {
+        const cd = gd[classNo];
+        if (!Array.isArray(cd)) continue;
+        for (let weekday = 1; weekday <= 5; weekday++) {
+          const day = cd[weekday];
+          if (!Array.isArray(day)) continue;
+          const periods = day[0];
+          for (let period = 1; period <= periods; period++) {
+            const code = day[period];
+            if (typeof code !== "number" || !code) continue; // 0=공강
+            // subjects[0] 은 과목 '개수'(number)라 code 가 1000 배수면 숫자가 잡힌다 →
+            // 타입까지 확인해야 .replace 에서 TypeError 로 액션이 죽지 않는다.
+            const subject = subjects[code % 1000];
+            if (typeof subject !== "string" || !subject) continue;
+            classSlots.push({
+              grade,
+              classNo,
+              weekday,
+              period,
+              subject: subject.replace(/_/g, ""),
+              teacher: teachers[Math.floor(code / 1000)] ?? "",
+              code,
+            });
+          }
+        }
+      }
+    }
+  }
+
   return {
     schoolName: String(result["학교명"] ?? ""),
     teachers,
@@ -230,7 +354,21 @@ export function decodeTimetable(raw: unknown): DecodedTimetable {
     classCount,
     classTimes: (result["일과시간"] as string[]) ?? [],
     slots,
+    classSlots,
   };
+}
+
+/**
+ * 전교 기준 요일 커버리지(1=월..5=금 중 수업이 있는 요일 수). 교사별 배열(자료542)은
+ * **금주 반영본**이라 방학·시험·행사 주간엔 요일이 통째로 빈다 — 그 상태로 동기화하면
+ * 정상 시간표가 조각으로 덮어써진다. 동기화 가드가 이 값으로 축소 주간을 판별한다.
+ */
+export function weekdayCoverage(slots: TimetableSlot[]): number {
+  const days = new Set<number>();
+  for (const s of slots) {
+    if (s.weekday >= 1 && s.weekday <= 5) days.add(s.weekday);
+  }
+  return days.size;
 }
 
 // ── 교사 매칭(학생뷰 마스킹 대응) ──

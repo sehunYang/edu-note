@@ -62,7 +62,7 @@ export function isSpecialTimetableEntry(subject: string): boolean {
 // 대부분 칸에서 NEIS 가 같은 이름(일본어)을 쓰므로, 최빈값으로 일어→일본어 별칭을
 // 자동 도출한다. 그 뒤 별칭으로 정규화해 실제 변화만 남긴다.
 
-export type OverlayKind = "special" | "swap" | "changed";
+export type OverlayKind = "special" | "swap" | "changed" | "none";
 export interface OverlaySlot {
   weekday: number;
   period: number;
@@ -155,6 +155,12 @@ export function buildAliasMapFromPairs(pairs: AliasPair[]): Map<string, string> 
  *  - special: 실제가 특별활동/행사(진로활동·제헌절·여름방학·보강 등)
  *  - swap:    실제가 같은 요일 '다른 교시'의 표준 과목과 일치(교시 교환)
  *  - changed: 그 외 정규과목 대체(다른 과목으로 바뀜)
+ *  - none:    그 요일에 NEIS 데이터는 있는데 이 교시만 없음 = **수업이 사라짐**(단축·조기하교)
+ *
+ * ⚠ '무데이터'와 '수업 없음'을 구분한다. 요일 전체가 NEIS 에 없으면(미동기화·주말) 판정을
+ * 포기하고 표준을 그대로 보여주지만, 그 요일에 다른 교시가 있는데 이 교시만 비었다면 그건
+ * 단축수업으로 없어진 교시다. 이전에는 둘 다 '변화 없음'이라 방학식날 4교시가 정상 수업처럼
+ * 표시됐다(2026-07-21 실측).
  */
 export function classifyWeeklyOverlay(
   standard: OverlaySlot[],
@@ -167,9 +173,14 @@ export function classifyWeeklyOverlay(
     if (v) stdBy.set(cellKey(s.weekday, s.period), v);
   }
   const actBy = new Map<string, string>();
+  // 요일별 NEIS 최대 교시. 0(=무데이터)이면 그 요일은 판정 자체를 포기한다.
+  const actMaxPeriod = new Map<number, number>();
   for (const a of actual) {
     const v = a.subject.trim();
-    if (v) actBy.set(cellKey(a.weekday, a.period), v);
+    if (v) {
+      actBy.set(cellKey(a.weekday, a.period), v);
+      actMaxPeriod.set(a.weekday, Math.max(actMaxPeriod.get(a.weekday) ?? 0, a.period));
+    }
   }
 
   // 별칭: 누적 학습 맵이 있으면 사용, 없으면 이번 주 actual 로 학습(하위호환 폴백).
@@ -192,11 +203,20 @@ export function classifyWeeklyOverlay(
   const result = new Map<string, OverlayResult>();
   // 표준 칸 기준으로 순회(빈 교시에 실제가 있어도 미표시 — 범위 한정).
   for (const [k, std] of stdBy) {
+    const [wd, p] = k.split("::").map(Number);
     const act = actBy.get(k);
-    if (act == null) continue; // NEIS 무데이터 → 표준 폴백(변화 아님)
+    if (act == null) {
+      // 그 요일 자체가 NEIS 에 없으면 판정 불가 → 표준 폴백.
+      const maxAct = actMaxPeriod.get(wd) ?? 0;
+      if (maxAct === 0) continue;
+      // **뒤쪽 절삭만** 단축으로 본다(p > 그날 NEIS 최대 교시). 중간이 비는 건 학교마다
+      // 창체·방과후를 NEIS 에 안 올리는 등록 관행이라 오탐이 된다 — 그 경우 표준 폴백.
+      if (p <= maxAct) continue;
+      result.set(k, { kind: "none", actual: "" });
+      continue;
+    }
     if (sameSubject(std, act)) continue; // 별칭 정규화 후 동일 → 변화 없음
 
-    const [wd, p] = k.split("::").map(Number);
     let kind: OverlayKind;
     if (isSpecialTimetableEntry(act)) {
       kind = "special";

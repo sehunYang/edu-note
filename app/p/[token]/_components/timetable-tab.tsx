@@ -142,6 +142,10 @@ function Timetable({
             {TT_PERIODS.map((p) => {
               const slot = byCell.get(`${weekday}::${p}`);
               const colorKey = slot ? slotColorKey(slot) : null;
+              // 표준에 없는 칸이라도 NEIS 실제가 있으면 보여준다 — 방학·행사처럼 '표준이
+              // 사라진' 정보가 학생에게 가장 중요한데, 표준 칸 기준으로만 그리면 영영
+              // 안 보인다(담임반 표준이 조각나 있을 때도 이 경로가 화면을 채운다).
+              const actualOnly = !slot ? actualByCell.get(`${weekday}::${p}`) : undefined;
               return (
                 <div key={p} className="flex min-h-[44px] items-center gap-3">
                   <span className="w-6 shrink-0 text-sm text-neutral-400">{p}</span>
@@ -154,6 +158,18 @@ function Timetable({
                         actual={actualByCell.get(`${weekday}::${p}`)}
                         overlay={overlayByCell.get(`${weekday}::${p}`)}
                       />
+                    ) : actualOnly ? (
+                      // 특별활동·행사만 ★ 앰버로 강조하고, 정규과목은 중립 표기 —
+                      // 마커가 아무데나 붙으면 신호 가치가 사라진다(overlayMarker 체계 일관).
+                      isSpecialTimetableEntry(actualOnly) ? (
+                        <div className="flex min-h-[44px] items-center truncate rounded border border-amber-300 bg-amber-50 px-2 text-sm text-amber-800">
+                          <span className="truncate">{actualOnly} ★</span>
+                        </div>
+                      ) : (
+                        <div className="flex min-h-[44px] items-center truncate rounded border border-hairline px-2 text-sm text-neutral-700">
+                          <span className="truncate">{actualOnly}</span>
+                        </div>
+                      )
                     ) : (
                       <span className="px-2 text-sm text-neutral-300">-</span>
                     )}
@@ -168,9 +184,11 @@ function Timetable({
   );
 }
 
-/** 변화 종류별 마커: 교환은 ⇄, 특별활동·대체는 ★. */
+/** 변화 종류별 마커: 교환은 ⇄, 없어진 교시는 ✕, 특별활동·대체는 ★. */
 function overlayMarker(kind: OverlayResult["kind"]): string {
-  return kind === "swap" ? "⇄" : "★";
+  if (kind === "swap") return "⇄";
+  if (kind === "none") return "✕";
+  return "★";
 }
 
 function TimetableCell({
@@ -202,7 +220,8 @@ function TimetableCell({
       return (
         <div className="min-h-[44px] truncate rounded border border-amber-300 bg-amber-50 px-2 py-1 text-sm text-amber-800">
           <span className="truncate">
-            {overlay.actual} {overlayMarker(overlay.kind)}
+            {overlay.kind === "none" ? "수업 없음" : overlay.actual}{" "}
+            {overlayMarker(overlay.kind)}
           </span>
           <span className="ml-1 text-xs text-amber-600/80">표준 {slot.subjectName}</span>
         </div>

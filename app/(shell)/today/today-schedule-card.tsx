@@ -123,7 +123,9 @@ export function TodayScheduleCard({
                   {l.subjectName} <span className="opacity-70">{l.label}</span>
                   {overlay && (
                     <span className="ml-1 text-xs text-amber-700">
-                      · 실제 {overlay.actual} {overlay.kind === "swap" ? "⇄" : "★"}
+                      {overlay.kind === "none"
+                        ? "· 수업 없음(단축) ✕"
+                        : `· 실제 ${overlay.actual} ${overlay.kind === "swap" ? "⇄" : "★"}`}
                     </span>
                   )}
                 </span>

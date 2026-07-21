@@ -123,18 +123,69 @@ describe("classifyWeeklyOverlay", () => {
     expect(out.get("1::2")).toEqual({ kind: "changed", actual: "물리학" });
   });
 
-  it("NEIS 무데이터 칸·표준 없는 칸은 미표시", () => {
+  it("요일 전체가 NEIS 무데이터면 표준 폴백(미표시)", () => {
     const std = slots([
       [1, 1, "수학"],
       [1, 2, "국어"],
+      [2, 1, "영어"], // 화요일은 NEIS 에 아예 없음 → 판정 불가
     ]);
     const act = slots([
-      [1, 1, "수학"], // 동일
-      // 1::2 는 NEIS 없음 → 표준 폴백
-      [1, 5, "진로활동"], // 표준 없는 칸 → 미표시(범위 한정)
+      [1, 1, "수학"],
+      [1, 2, "국어"],
     ]);
     const out = classifyWeeklyOverlay(std, act);
     expect(out.size).toBe(0);
+  });
+
+  it("표준 없는 칸은 미표시(범위 한정)", () => {
+    const std = slots([[1, 1, "수학"]]);
+    const act = slots([
+      [1, 1, "수학"],
+      [1, 5, "진로활동"], // 표준에 없는 칸 → 분류 대상 아님
+    ]);
+    expect(classifyWeeklyOverlay(std, act).size).toBe(0);
+  });
+
+  it("요일은 있는데 그 교시만 비면 '수업 없음'(단축) — 방학식날 회귀", () => {
+    // 2026-07-21 실측: 3-2 는 1~3교시만 하고 하교. 표준 4교시가 정상 수업처럼 표시됐다.
+    const std = slots([
+      [2, 1, "생과"],
+      [2, 2, "심리"],
+      [2, 4, "생과"],
+    ]);
+    const act = slots([
+      [2, 1, "생활과 과학"],
+      [2, 2, "심리학"],
+      [2, 3, "자율활동"],
+      // 4교시 없음 = 단축으로 사라진 교시
+    ]);
+    const alias = new Map([
+      ["생과", "생활과 과학"],
+      ["심리", "심리학"],
+    ]);
+    const out = classifyWeeklyOverlay(std, act, alias);
+    expect(out.get("2::4")).toEqual({ kind: "none", actual: "" });
+    expect(out.has("2::1")).toBe(false); // 별칭 정규화 → 변화 없음
+    expect(out.has("2::2")).toBe(false);
+    expect(out.size).toBe(1);
+  });
+
+  it("중간이 비는 건 '수업 없음'이 아니다 — 창체·방과후 미등록 관행 오탐 방지", () => {
+    // NEIS 에 7교시(창체)를 안 올리는 학교면, 요일 단위로만 판정할 경우 표준 7교시가
+    // 매주 전 요일 '수업 없음'으로 뜬다. 뒤쪽 절삭만 단축으로 본다.
+    const std = slots([
+      [1, 1, "국어"],
+      [1, 3, "수학"], // NEIS 최대(4)보다 앞의 구멍 → 무데이터로 취급
+      [1, 7, "창체"], // 최대보다 뒤 → 절삭으로 판정
+    ]);
+    const act = slots([
+      [1, 1, "국어"],
+      [1, 2, "영어"],
+      [1, 4, "체육"], // 3교시를 건너뛰고 등록된 상태
+    ]);
+    const out = classifyWeeklyOverlay(std, act);
+    expect(out.has("1::3")).toBe(false);
+    expect(out.get("1::7")).toEqual({ kind: "none", actual: "" });
   });
 
   it("누적 별칭 맵을 주입하면 이번주 데이터가 부실해도 어휘 정규화", () => {

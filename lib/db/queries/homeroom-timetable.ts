@@ -26,14 +26,24 @@ export interface HomeroomTimetableSlotRow {
  * 디코딩된 학년 전체 시간표에서 (grade, classNo) 의 (weekday, period) 슬롯을 도출한다.
  * 한 (요일,교시)에 여러 과목(반 섞인 선택과목)이 있으면 첫 과목만 캐시한다(시간표 한 칸 = 1행).
  * 슬롯이 비면(해당 반 수업 미발견) throw — 컴시간 구조 변경 가능.
+ *
+ * ⚠ 소스는 **classSlots(학급별 원본 자료481)** 다. slots(교사별 자료542)는 금주 반영본이라
+ * 방학·시험 주간에 동기화하면 시간표가 조각으로 덮어써진다(2026-07 실측: 2-9 이 29칸 →
+ * 7칸). 원본은 변경과 무관해 방학 중에도 온전하므로 담임반 표준의 정답 소스다.
+ * classSlots 가 비면(구조 변경) slots 로 폴백하지 않고 throw — 조용한 손상보다 실패가 낫다.
  */
 export function decodedToHomeroomSlots(
   decoded: DecodedTimetable,
   grade: number,
   classNo: number,
 ): HomeroomTimetableSlotRow[] {
+  if (decoded.classSlots.length === 0) {
+    throw new Error(
+      "컴시간 학급별 원본 시간표(자료481)를 찾지 못했습니다(서비스 구조 변경 가능).",
+    );
+  }
   const byCell = new Map<string, string>();
-  for (const s of decoded.slots) {
+  for (const s of decoded.classSlots) {
     if (s.grade !== grade || s.classNo !== classNo) continue;
     const key = `${s.weekday}::${s.period}`;
     if (!byCell.has(key)) byCell.set(key, s.subject);
@@ -41,6 +51,15 @@ export function decodedToHomeroomSlots(
   if (byCell.size === 0) {
     throw new Error(
       `${grade}학년 ${classNo}반 시간표 수업을 찾지 못했습니다(컴시간 구조 변경 가능).`,
+    );
+  }
+  // 조각 방지: 원본이면 반드시 월~금이 다 있다. 일부 요일만 나오면 원본이 아닌 배열을
+  // 집었거나 구조가 바뀐 것 — 그대로 replace 하면 정상 시간표가 조각으로 덮어써진다.
+  const days = new Set([...byCell.keys()].map((k) => Number(k.split("::")[0])));
+  if (days.size < 5) {
+    throw new Error(
+      `${grade}학년 ${classNo}반 시간표가 ${days.size}개 요일만 조회됐습니다(정상은 5일). ` +
+        `기존 시간표를 덮어쓰지 않았습니다 — 잠시 후 다시 시도하세요.`,
     );
   }
   const rows: HomeroomTimetableSlotRow[] = [];

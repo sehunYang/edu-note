@@ -3,7 +3,11 @@ import { revalidatePath } from "next/cache";
 import { getDb } from "@/lib/db";
 import { getOwnerId } from "@/lib/auth/owner";
 import { fetchTimetableBySchool } from "@/lib/integrations/comcigan-client";
-import { teacherSlots } from "@/lib/integrations/comcigan";
+import {
+  teacherSlots,
+  teacherNameMatches,
+  weekdayCoverage,
+} from "@/lib/integrations/comcigan";
 import {
   syncTeacherTimetable,
   upsertTeacherComciganConfig,
@@ -40,6 +44,42 @@ export async function syncTimetableAction(
 
     const res = await fetchTimetableBySchool(school);
     if (!res.ok) return { ok: false, message: `컴시간 조회 실패: ${res.error}` };
+
+    // 교사 존재 확인은 **교사 명부**로 한다(주 무관). 슬롯 유무로 판정하면 방학 주간에
+    // 멀쩡한 이름이 "찾지 못했습니다"로 반려된다.
+    const known = res.data.teachers.some(
+      (t) => typeof t === "string" && t.length > 0 && teacherNameMatches(t, teacher),
+    );
+    if (!known) {
+      return {
+        ok: false,
+        message: `'${teacher}' 교사를 찾지 못했습니다. 이름/학교명을 확인하세요.`,
+      };
+    }
+
+    const db = getDb();
+    // ⚠ 학교·교사 설정은 축소 주간 가드보다 **먼저** 저장한다. 가드에 막혀 저장까지 건너뛰면
+    // 방학 중 신규 사용자가 comciganSchool 을 영영 못 남기고, 그러면 담임반 동기화까지
+    // "학교가 설정되어 있지 않습니다"로 연쇄 차단된다 — 담임반은 원본(자료481) 기반이라
+    // 방학에도 안전한데 못 쓰게 되는 건 앞뒤가 안 맞는다.
+    await upsertTeacherComciganConfig(db, ownerId, school, teacher, null);
+
+    // 축소 주간 가드: 본인 시간표는 교사별 배열(자료542) = **금주 반영본**이라 방학·시험·
+    // 행사 주간엔 요일이 통째로 빈다. 그 상태로 저장하면 정상 시간표(16칸)가 조각(5칸)으로
+    // 덮어써지고 시수관리가 무너진다. 전교 기준 월~금이 다 채워진 주에만 허용한다.
+    // (공휴일이 낀 주도 막히지만, 그 주로 덮어쓰면 해당 요일이 통째로 사라지므로 의도된 동작.)
+    const coverage = weekdayCoverage(res.data.slots);
+    if (coverage < 5) {
+      return {
+        ok: false,
+        message:
+          `학교·교사 설정은 저장했습니다. 다만 컴시간에 이번 주 수업이 ${coverage}개 요일만 있어 ` +
+          `시간표는 반영하지 않았습니다(방학·시험·행사 주간으로 보입니다). 지금 덮어쓰면 기존 ` +
+          `시간표가 이번 주 조각으로 바뀝니다. 정상 수업 주간에 다시 눌러 주세요. ` +
+          `담임반 시간표 동기화는 원본 기준이라 지금 바로 쓸 수 있습니다.`,
+      };
+    }
+
     const slots = teacherSlots(res.data, teacher);
     if (slots.length === 0) {
       return {
@@ -48,7 +88,6 @@ export async function syncTimetableAction(
       };
     }
 
-    const db = getDb();
     const sync = await syncTeacherTimetable(db, ownerId, year, semester, slots);
     await upsertTeacherComciganConfig(db, ownerId, school, teacher, new Date());
     await writeAudit(db, ownerId, "sync_comcigan", null, {
