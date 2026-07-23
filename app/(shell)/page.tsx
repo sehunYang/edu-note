@@ -9,8 +9,11 @@ import {
   listHomeroomReservationsInRange,
   listTeacherNotes,
   listNoticeEvents,
+  listNeisActualForDate,
+  getVacationSpansInRange,
 } from "@/lib/db/queries";
 import { activeSemester } from "@/lib/domain/school-year";
+import { isVacationEntry, isDateInVacation } from "@/lib/domain/timetable-actual";
 import { NudgeBanner } from "./nudge-banner";
 import { NoticeWidget } from "./today/notice-widget";
 import { TodayScheduleCard } from "./today/today-schedule-card";
@@ -51,6 +54,7 @@ export default async function Home() {
   let weeklyReservations = 0;
   let publicNotes: string[] = [];
   let upcomingNotices: Awaited<ReturnType<typeof listNoticeEvents>> = [];
+  let vacationLabel: string | null = null;
   // 렌더에서도 필요(TodayScheduleCard date prop) — user 유무와 무관하게 산출.
   const { date, weekday } = kstToday();
 
@@ -61,8 +65,17 @@ export default async function Home() {
     const semester = activeSemester(now);
     const { weekStart, weekEnd } = weekRange(date);
 
-    const [nudgeR, lessonsR, mealsR, progressR, reservationsR, notesR, noticeR] =
-      await Promise.all([
+    const [
+      nudgeR,
+      lessonsR,
+      mealsR,
+      progressR,
+      reservationsR,
+      notesR,
+      noticeR,
+      neisTodayR,
+      vacationSpansR,
+    ] = await Promise.all([
         safe(collectNudges(db, user.id, year), EMPTY_NUDGES),
         safe(
           listTodayLessons(db, user.id, date, weekday, year, semester),
@@ -89,6 +102,14 @@ export default async function Home() {
           listNoticeEvents(db, user.id),
           [] as Awaited<ReturnType<typeof listNoticeEvents>>,
         ),
+        safe(
+          listNeisActualForDate(db, user.id, date),
+          [] as Awaited<ReturnType<typeof listNeisActualForDate>>,
+        ),
+        safe(
+          getVacationSpansInRange(db, user.id, date, date),
+          [] as Awaited<ReturnType<typeof getVacationSpansInRange>>,
+        ),
       ]);
 
     nudges = nudgeR;
@@ -99,6 +120,18 @@ export default async function Home() {
     weeklyReservations = reservationsR.length;
     publicNotes = notesR.filter((n) => n.targetScope === "all").map((n) => n.body);
     upcomingNotices = noticeR.filter((e) => e.date >= date).slice(0, 10);
+
+    // 오늘 방학 여부(/today 와 동일 로직): 오늘 NEIS 실제가 있으면 그걸로(경계 정확),
+    // 없으면 academic_vacations 날짜로 폴백. 홈도 오늘의 학교처럼 방학이면 수업 대신 안내.
+    const neisToday = neisTodayR.filter((a) => a.subjectName.trim());
+    vacationLabel =
+      neisToday.length > 0
+        ? neisToday.every((a) => isVacationEntry(a.subjectName))
+          ? (neisToday[0]?.subjectName.trim() || "방학")
+          : null
+        : isDateInVacation(date, vacationSpansR)
+          ? "방학"
+          : null;
   }
 
   return (
@@ -134,6 +167,7 @@ export default async function Home() {
         <TodayScheduleCard
           lessons={todayLessons}
           date={date}
+          vacationLabel={vacationLabel}
           className="md:col-span-7"
         />
         <MealsWidget todayMeals={todayMeals} className="md:col-span-5" />
