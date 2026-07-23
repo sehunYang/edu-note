@@ -49,6 +49,51 @@ export function listGradeClasses(
   return offerings;
 }
 
+export interface DetectedFixedClass {
+  subjectName: string;
+  isFixed: boolean;
+}
+
+/**
+ * 자료542(교사별 배열) 슬롯에서 담임반의 과목별 **공통(고정반)/선택(이동반)을 자동 판별**한다.
+ *
+ * 원리: 반을 쪼개는 선택과목은 같은 (요일,교시) 칸에 여러 교사가 서로 다른 과목을 편성한다
+ * (물Ⅱ 학생은 물Ⅱ 교사에게, 나머지는 화학 교사에게 → code=과목×1000+학년·반 이 같은
+ * (2,9,요일,교시) 에 물Ⅱ·화학 둘 다 등장). 공통과목은 한 교사가 반 전체라 그 칸에 1과목뿐.
+ * 따라서 **한 과목이 등장한 칸 중 하나라도 다중(≥2)이면 선택**(isFixed=false), 전부 단독이면
+ * 공통(isFixed=true) 으로 본다.
+ *
+ * ⚠ 소스가 자료542(금주 반영본)라 축소 주간(방학·시험·행사)엔 칸이 비어 판별이 무의미하다.
+ * 호출측이 weekdayCoverage 로 정상 주간인지 먼저 가드해야 오판을 막는다.
+ */
+export function detectFixedClasses(
+  decoded: DecodedTimetable,
+  grade: number,
+  classNo: number,
+): DetectedFixedClass[] {
+  // (요일,교시) → 그 칸에 편성된 과목 집합.
+  const cell = new Map<string, Set<string>>();
+  for (const s of decoded.slots) {
+    if (s.grade !== grade || s.classNo !== classNo) continue;
+    const key = `${s.weekday}::${s.period}`;
+    let set = cell.get(key);
+    if (!set) cell.set(key, (set = new Set()));
+    set.add(s.subject);
+  }
+  // 과목 → isFixed. 다중 칸에 한 번이라도 나오면 false 로 확정.
+  const verdict = new Map<string, boolean>();
+  for (const subs of cell.values()) {
+    const solo = subs.size < 2; // 이 칸이 단독(공통) 편성인가
+    for (const sub of subs) {
+      const prev = verdict.get(sub);
+      verdict.set(sub, prev === undefined ? solo : prev && solo);
+    }
+  }
+  return [...verdict]
+    .map(([subjectName, isFixed]) => ({ subjectName, isFixed }))
+    .sort((a, b) => a.subjectName.localeCompare(b.subjectName));
+}
+
 export interface FixedClassSettingRow {
   id: string;
   grade: number;

@@ -14,7 +14,11 @@ import {
   getTeacherSettings,
   decodedToHomeroomSlots,
   replaceHomeroomTimetable,
+  detectFixedClasses,
+  saveFixedClassSetting,
+  listFixedClassSettings,
   writeAudit,
+  type DetectedFixedClass,
 } from "@/lib/db/queries";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 
@@ -175,5 +179,202 @@ export async function syncHomeroomTimetableAction(
     return { ok: true, slots: count, grade, classNo };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "동기화 실패" };
+  }
+}
+
+/**
+ * 담임반 공통/선택 과목 **자동 감지(미리보기 전용)** 서버액션. 컴시간 교사별 배열(자료542)에서
+ * 같은 (요일,교시) 칸에 과목이 여러 개면 선택(이동반), 하나면 공통(고정반)으로 판별한다.
+ *
+ * ⚠ **저장하지 않는다.** 감지 결과를 교사에게 보여주고, 교사가 확인 후 applyFixedClassesAction
+ *   으로 저장한다(리뷰: 미검증 판별로 수동 설정을 조용히 덮어쓰지 않도록 미리보기 게이트).
+ * ⚠ 자료542 는 금주 반영본이라 방학·시험·행사 주간엔 칸이 비어 오판한다 → 축소 주간 가드로 거부.
+ *
+ * 반환:
+ *  - detected: 과목별 판정(공통/선택)
+ *  - changed:  현재 저장값과 달라지는 과목명(교사가 변경점을 바로 보게)
+ *  - unclassified: 담임반 표준(자료481)에는 있는데 이번 주 자료542 에 없어 판별 못 한 과목
+ *    (그 주 보강·변경으로 빠진 경우 — 교사가 수동 확인 필요, 저장 시 건드리지 않는다)
+ */
+export interface AutoDetectPreview {
+  subjectName: string;
+  isFixed: boolean;
+  changed: boolean; // 현재 저장값과 달라지는가(신규 포함)
+}
+export type AutoDetectState =
+  | {
+      ok: true;
+      phase: "preview";
+      detected: AutoDetectPreview[];
+      unclassified: string[];
+      grade: number;
+      classNo: number;
+    }
+  | { ok: false; message: string }
+  | null;
+
+export async function autoDetectFixedClassesAction(
+  _prev: AutoDetectState,
+  _formData: FormData,
+): Promise<AutoDetectState> {
+  try {
+    const ownerId = await getOwnerId();
+    const db = getDb();
+    const settings = await getTeacherSettings(db, ownerId);
+
+    if (
+      !settings?.isHomeroom ||
+      settings.homeroomGrade == null ||
+      settings.homeroomClassNo == null
+    ) {
+      return {
+        ok: false,
+        message: "담임 학년/반이 설정되어 있지 않습니다. 교사 기본설정에서 설정하세요.",
+      };
+    }
+    const school = (settings.comciganSchool ?? "").trim();
+    if (!school) {
+      return {
+        ok: false,
+        message:
+          "컴시간 학교가 설정되어 있지 않습니다. 위 본인 시간표 동기화를 먼저 하세요.",
+      };
+    }
+
+    const grade = settings.homeroomGrade;
+    const classNo = settings.homeroomClassNo;
+
+    const res = await fetchTimetableBySchool(school);
+    if (!res.ok) return { ok: false, message: `컴시간 조회 실패: ${res.error}` };
+
+    // 축소 주간 가드: 자료542 는 금주 반영본이라 방학·시험 주간엔 칸이 비어 오판한다.
+    const coverage = weekdayCoverage(res.data.slots);
+    if (coverage < 5) {
+      return {
+        ok: false,
+        message:
+          `컴시간에 이번 주 수업이 ${coverage}개 요일만 있습니다(방학·시험·행사 주간으로 보입니다). ` +
+          `공통/선택 자동 감지는 정상 수업 주간의 편성이 필요합니다. 개학 후(정상 주간) 다시 시도하세요.`,
+      };
+    }
+
+    const detected = detectFixedClasses(res.data, grade, classNo);
+    if (detected.length === 0) {
+      return {
+        ok: false,
+        message: `${grade}학년 ${classNo}반 과목을 찾지 못했습니다(컴시간 구조 변경 가능).`,
+      };
+    }
+
+    // 현재 저장값과 비교해 변경점 표시(교사가 무엇이 바뀌는지 보게).
+    const current = await listFixedClassSettings(db, ownerId, grade);
+    const currentByName = new Map(
+      current
+        .filter((r) => r.classNo === classNo)
+        .map((r) => [r.subjectName, r.isFixed]),
+    );
+    const preview: AutoDetectPreview[] = detected.map((d) => ({
+      subjectName: d.subjectName,
+      isFixed: d.isFixed,
+      changed: currentByName.get(d.subjectName) !== d.isFixed,
+    }));
+
+    // 표준(자료481) 담임반 과목 중 자료542 에 없어 판별 못 한 과목(그 주 보강·변경으로 빠짐).
+    const detectedNames = new Set(detected.map((d) => d.subjectName));
+    const classSubjects = new Set(
+      res.data.classSlots
+        .filter((s) => s.grade === grade && s.classNo === classNo)
+        .map((s) => s.subject),
+    );
+    const unclassified = [...classSubjects]
+      .filter((s) => !detectedNames.has(s))
+      .sort((a, b) => a.localeCompare(b));
+
+    return {
+      ok: true,
+      phase: "preview",
+      detected: preview,
+      unclassified,
+      grade,
+      classNo,
+    };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "자동 감지 실패" };
+  }
+}
+
+/**
+ * 자동 감지 미리보기를 교사가 확인한 뒤 **실제 저장**하는 액션. formData.detected 에 감지 결과
+ * JSON([{subjectName,isFixed}])을 담아 넘긴다. 담임 반은 서버가 settings 로 다시 확정하고,
+ * 저장은 트랜잭션으로 all-or-nothing(부분 쓰기 방지). fixed_class_settings 는 표시 전용이라
+ * 값 조작의 영향 범위는 자기 학생 페이지의 공통/선택 구분에 한정된다.
+ */
+export type ApplyFixedState =
+  | { ok: true; fixed: number; elective: number; grade: number; classNo: number }
+  | { ok: false; message: string }
+  | null;
+
+export async function applyFixedClassesAction(
+  _prev: ApplyFixedState,
+  formData: FormData,
+): Promise<ApplyFixedState> {
+  try {
+    const ownerId = await getOwnerId();
+    const db = getDb();
+    const settings = await getTeacherSettings(db, ownerId);
+    if (
+      !settings?.isHomeroom ||
+      settings.homeroomGrade == null ||
+      settings.homeroomClassNo == null
+    ) {
+      return { ok: false, message: "담임 학년/반이 설정되어 있지 않습니다." };
+    }
+    const grade = settings.homeroomGrade;
+    const classNo = settings.homeroomClassNo;
+
+    // 미리보기에서 넘어온 감지 결과 파싱·검증(형식 불량은 거부).
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(String(formData.get("detected") ?? "[]"));
+    } catch {
+      return { ok: false, message: "감지 결과 형식이 올바르지 않습니다. 다시 감지하세요." };
+    }
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return { ok: false, message: "적용할 감지 결과가 없습니다. 다시 감지하세요." };
+    }
+    const items: DetectedFixedClass[] = [];
+    for (const p of parsed) {
+      if (
+        typeof p === "object" &&
+        p !== null &&
+        typeof (p as Record<string, unknown>).subjectName === "string" &&
+        typeof (p as Record<string, unknown>).isFixed === "boolean"
+      ) {
+        const r = p as { subjectName: string; isFixed: boolean };
+        if (r.subjectName.trim()) items.push({ subjectName: r.subjectName, isFixed: r.isFixed });
+      }
+    }
+    if (items.length === 0) {
+      return { ok: false, message: "유효한 감지 결과가 없습니다. 다시 감지하세요." };
+    }
+
+    // 트랜잭션으로 all-or-nothing(중간 실패 시 부분 쓰기 방지).
+    await db.transaction(async (tx) => {
+      for (const d of items) {
+        await saveFixedClassSetting(tx, ownerId, grade, classNo, d.subjectName, d.isFixed);
+      }
+    });
+    const fixed = items.filter((d) => d.isFixed).length;
+    await writeAudit(db, ownerId, "sync_comcigan", null, {
+      scope: "auto_detect_fixed",
+      grade,
+      classNo,
+      fixed,
+      elective: items.length - fixed,
+    });
+    revalidatePath("/setting/courses");
+    return { ok: true, fixed, elective: items.length - fixed, grade, classNo };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "적용 실패" };
   }
 }
