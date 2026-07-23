@@ -10,8 +10,12 @@ import {
   eventChipClass,
   slotColorKey,
   subjectColorsForTimetable,
+  kstWeekDatesIso,
 } from "../_shared";
-import { vacationWeekdays } from "@/lib/domain/timetable-actual";
+import {
+  resolveVacationWeekdays,
+  isDateInVacation,
+} from "@/lib/domain/timetable-actual";
 import { NotifyCard } from "./notify-card";
 
 // ── 다중 교사 한마디(스와이프) ──────────────────────────────────────────────
@@ -132,24 +136,31 @@ function TodaySummary({
   timetable,
   meals,
   weeklyActual,
+  vacationSpans,
   onNavigate,
 }: {
   timetable: PublicPagePayload["timetable"];
   meals: PublicPagePayload["meals"];
   weeklyActual: PublicPagePayload["weeklyActual"];
+  vacationSpans: PublicPagePayload["vacationSpans"];
   onNavigate: () => void;
 }) {
   const todayWeekday = kstWeekday();
   const todayStr = kstToday();
-  // 오늘이 방학 요일이면(이번 주 NEIS 실제가 전부 방학) 수업 대신 방학 표시.
-  const vacationDays = vacationWeekdays(
-    weeklyActual.map((a) => ({
-      weekday: a.weekday,
-      period: a.period,
-      subject: a.subjectName,
-    })),
-  );
-  const isVacationToday = vacationDays.has(todayWeekday);
+  // 오늘 방학: 평일은 resolveVacationWeekdays(NEIS 우선 + 날짜 폴백)로 판정. 방학식날처럼
+  // NEIS 에 오전 수업이 있는 날을 방학으로 되돌리면 안 되므로 날짜 폴백은 **주말에만** 덧댄다
+  // (resolveVacationWeekdays 는 월~금만 스캔 — 주말은 이 항으로 커버).
+  const isVacationToday =
+    resolveVacationWeekdays(
+      weeklyActual.map((a) => ({
+        weekday: a.weekday,
+        period: a.period,
+        subject: a.subjectName,
+      })),
+      kstWeekDatesIso(),
+      vacationSpans.map((s) => ({ start: s.start, end: s.end })),
+    ).has(todayWeekday) ||
+    (todayWeekday >= 6 && isDateInVacation(todayStr, vacationSpans));
   // 빈 subjectName 을 건너뛰고 방학 슬롯의 실제 라벨을 뽑는다(빈 라벨 방지).
   const vacationLabel =
     weeklyActual
@@ -280,6 +291,7 @@ export function HomeTab({
         timetable={payload.timetable}
         meals={payload.meals}
         weeklyActual={payload.weeklyActual}
+        vacationSpans={payload.vacationSpans}
         onNavigate={onNavigateTimetable}
       />
       <UpcomingEvents todos={payload.weekTodos} onNavigate={onNavigateSchedule} />

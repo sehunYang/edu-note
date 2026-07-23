@@ -3,6 +3,8 @@ import {
   isSpecialTimetableEntry,
   isVacationEntry,
   vacationWeekdays,
+  isDateInVacation,
+  resolveVacationWeekdays,
   classifyWeeklyOverlay,
   learnSubjectAliases,
   buildAliasMapFromPairs,
@@ -100,6 +102,70 @@ describe("vacationWeekdays", () => {
 
   it("데이터 없는 요일은 판정하지 않음", () => {
     expect(vacationWeekdays(slots([[1, 1, "대수"]])).size).toBe(0);
+  });
+});
+
+describe("isDateInVacation", () => {
+  const spans = [{ start: "2026-07-21", end: "2026-08-12" }];
+  it("구간 안(양끝 포함)은 true", () => {
+    expect(isDateInVacation("2026-07-21", spans)).toBe(true);
+    expect(isDateInVacation("2026-08-01", spans)).toBe(true);
+    expect(isDateInVacation("2026-08-12", spans)).toBe(true);
+  });
+  it("구간 밖은 false", () => {
+    expect(isDateInVacation("2026-07-20", spans)).toBe(false);
+    expect(isDateInVacation("2026-08-13", spans)).toBe(false);
+  });
+});
+
+describe("resolveVacationWeekdays (NEIS 우선 + 날짜 폴백)", () => {
+  const spans = [{ start: "2026-07-21", end: "2026-08-12" }];
+  // 이번 주 = 7/20(월)~7/24(금).
+  const thisWeek = {
+    1: "2026-07-20",
+    2: "2026-07-21",
+    3: "2026-07-22",
+    4: "2026-07-23",
+    5: "2026-07-24",
+  };
+  // 다음 주(전부 방학) = 7/27(월)~7/31(금).
+  const nextWeek = {
+    1: "2026-07-27",
+    2: "2026-07-28",
+    3: "2026-07-29",
+    4: "2026-07-30",
+    5: "2026-07-31",
+  };
+
+  it("이번 주: NEIS 우선 — 방학식날(7/21 화)은 수업 있어 방학 아님", () => {
+    // 월화 수업(화는 자율활동), 수목금 여름방학. academic_vacations 는 7/21부터지만
+    // NEIS 가 우선이라 7/21(화)은 수업으로 정확히 살아난다.
+    const act = slots([
+      [1, 1, "대수"],
+      [2, 1, "대수"],
+      [2, 3, "자율활동"],
+      [3, 1, "여름방학"],
+      [4, 1, "여름방학"],
+      [5, 1, "여름방학"],
+    ]);
+    const out = resolveVacationWeekdays(act, thisWeek, spans);
+    expect([...out].sort()).toEqual([3, 4, 5]);
+  });
+
+  it("미래 방학주: NEIS 비어도 날짜로 전 요일 방학 판정", () => {
+    const out = resolveVacationWeekdays([], nextWeek, spans);
+    expect([...out].sort()).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("방학 아닌 정상 주간: NEIS 없고 날짜도 구간 밖이면 방학 없음", () => {
+    const normalWeek = {
+      1: "2026-09-07",
+      2: "2026-09-08",
+      3: "2026-09-09",
+      4: "2026-09-10",
+      5: "2026-09-11",
+    };
+    expect(resolveVacationWeekdays([], normalWeek, spans).size).toBe(0);
   });
 });
 

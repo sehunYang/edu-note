@@ -77,6 +77,7 @@ export function PublicPageView({
             weeklyActual={payload.weeklyActual}
             weeklyActualSyncedAt={payload.weeklyActualSyncedAt}
             subjectAliasPairs={payload.subjectAliasPairs}
+            vacationSpans={payload.vacationSpans}
           />
         )}
         {tab === "records" && (

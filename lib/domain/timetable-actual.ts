@@ -93,6 +93,44 @@ export function vacationWeekdays(actual: OverlaySlot[]): Set<number> {
   return result;
 }
 
+/** 날짜(YYYY-MM-DD)가 방학 구간 중 하나에 포함되는지(양끝 포함). */
+export function isDateInVacation(
+  date: string,
+  spans: { start: string; end: string }[],
+): boolean {
+  return spans.some((s) => date >= s.start && date <= s.end);
+}
+
+/**
+ * 이번 주 요일별 방학 판정(1=월..5=금). **NEIS 실제 우선, academic_vacations 날짜 폴백**.
+ *
+ *  - 그 요일에 NEIS 데이터가 있으면 그걸로 판정(경계 정확 — 방학식날 오전수업 등을 살린다).
+ *  - NEIS 데이터가 없으면(방학 중엔 크론이 갱신을 스킵) 그 요일 날짜가 방학 구간에 들면 방학.
+ *
+ * 이 조합이 vacationWeekdays 의 '이번 주 한정' 한계를 없앤다: 미래 방학주는 NEIS 가 비어도
+ * 날짜로 방학 판정된다. weekdayIso = 요일→이번주 YYYY-MM-DD(호출측이 KST 로 산출).
+ */
+export function resolveVacationWeekdays(
+  actual: OverlaySlot[],
+  weekdayIso: Record<number, string>,
+  spans: { start: string; end: string }[],
+): Set<number> {
+  const neisVac = vacationWeekdays(actual);
+  const neisDays = new Set<number>();
+  for (const a of actual) if (a.subject.trim()) neisDays.add(a.weekday);
+
+  const result = new Set<number>();
+  for (let wd = 1; wd <= 5; wd++) {
+    if (neisDays.has(wd)) {
+      if (neisVac.has(wd)) result.add(wd); // NEIS 우선
+    } else {
+      const date = weekdayIso[wd];
+      if (date && isDateInVacation(date, spans)) result.add(wd); // 날짜 폴백
+    }
+  }
+  return result;
+}
+
 // ── 주간 오버레이 분류(표준↔NEIS 변화 감지) ──────────────────────────────
 //
 // 목표: NEIS 실제가 표준(컴시간)과 다른 '모든 변화'를 강조하되, 어휘 표기차

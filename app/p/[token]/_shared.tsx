@@ -49,6 +49,19 @@ export function kstWeekDates(now: Date = new Date()): Record<number, string> {
   return map;
 }
 
+/** KST 기준 이번 주(월요일 시작) 월~금 요일→"YYYY-MM-DD" 맵. 방학 날짜 판정용. */
+export function kstWeekDatesIso(now: Date = new Date()): Record<number, string> {
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const isoDow = kstWeekday(now); // 1=월 .. 7=일
+  const monday = new Date(kst.getTime() - (isoDow - 1) * 24 * 60 * 60 * 1000);
+  const map: Record<number, string> = {};
+  for (let w = 1; w <= 5; w++) {
+    const d = new Date(monday.getTime() + (w - 1) * 24 * 60 * 60 * 1000);
+    map[w] = d.toISOString().slice(0, 10);
+  }
+  return map;
+}
+
 /** "YYYY-MM-DD" 포맷. */
 export function ymd(d: Date): string {
   const y = d.getFullYear();

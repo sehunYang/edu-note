@@ -8,7 +8,7 @@ import {
   classifyWeeklyOverlay,
   buildAliasMapFromPairs,
   isSpecialTimetableEntry,
-  vacationWeekdays,
+  resolveVacationWeekdays,
   type OverlayResult,
 } from "@/lib/domain/timetable-actual";
 import {
@@ -18,6 +18,7 @@ import {
   TT_PERIODS,
   kstToday,
   kstWeekday,
+  kstWeekDatesIso,
   slotColorKey,
   subjectColorsForTimetable,
 } from "../_shared";
@@ -29,6 +30,7 @@ export function TimetableTab({
   weeklyActual,
   weeklyActualSyncedAt,
   subjectAliasPairs,
+  vacationSpans,
 }: {
   token: string;
   slots: PublicPagePayload["timetable"];
@@ -36,6 +38,7 @@ export function TimetableTab({
   weeklyActual: PublicPagePayload["weeklyActual"];
   weeklyActualSyncedAt: string | null;
   subjectAliasPairs: PublicPagePayload["subjectAliasPairs"];
+  vacationSpans: PublicPagePayload["vacationSpans"];
 }) {
   return (
     <>
@@ -45,6 +48,7 @@ export function TimetableTab({
         weeklyActual={weeklyActual}
         weeklyActualSyncedAt={weeklyActualSyncedAt}
         subjectAliasPairs={subjectAliasPairs}
+        vacationSpans={vacationSpans}
       />
       <Meals meals={meals} />
     </>
@@ -58,12 +62,14 @@ function Timetable({
   weeklyActual,
   weeklyActualSyncedAt,
   subjectAliasPairs,
+  vacationSpans,
 }: {
   token: string;
   slots: PublicPagePayload["timetable"];
   weeklyActual: PublicPagePayload["weeklyActual"];
   weeklyActualSyncedAt: string | null;
   subjectAliasPairs: PublicPagePayload["subjectAliasPairs"];
+  vacationSpans: PublicPagePayload["vacationSpans"];
 }) {
   const byCell = useMemo(() => {
     const map = new Map<string, PublicPagePayload["timetable"][number]>();
@@ -95,17 +101,19 @@ function Timetable({
     const alias = buildAliasMapFromPairs(subjectAliasPairs);
     return classifyWeeklyOverlay(std, act, alias);
   }, [slots, weeklyActual, subjectAliasPairs]);
-  // 방학 요일(이번 주 NEIS 실제가 전부 방학인 요일). 그 요일은 시간표 칸 대신 방학 안내.
+  // 방학 요일: NEIS 실제 우선(경계 정확), 없으면 방학 구간 날짜로 폴백(미래 방학주 커버).
   const vacationDays = useMemo(
     () =>
-      vacationWeekdays(
+      resolveVacationWeekdays(
         weeklyActual.map((a) => ({
           weekday: a.weekday,
           period: a.period,
           subject: a.subjectName,
         })),
+        kstWeekDatesIso(),
+        vacationSpans.map((s) => ({ start: s.start, end: s.end })),
       ),
-    [weeklyActual],
+    [weeklyActual, vacationSpans],
   );
   // 방학 요일의 표시 라벨(그 요일 첫 '방학' 슬롯 원문 — "여름방학" 등). 빈 subjectName 은
   // 건너뛰어 빈 라벨을 피한다(dto 는 빈 문자열을 허용 — 첫 슬롯이 비면 라벨이 사라진다).
