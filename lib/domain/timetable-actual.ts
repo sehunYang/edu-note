@@ -54,6 +54,45 @@ export function isSpecialTimetableEntry(subject: string): boolean {
   return false;
 }
 
+/**
+ * NEIS 항목이 '방학'인지(여름방학·겨울방학·재량휴업일 등 수업이 아예 없는 날).
+ * 특별활동(★ 강조)과 달리 이건 **그 날/요일에 수업 자체가 없다**는 뜻이라, 표준 시간표를
+ * 덧칠 강조가 아니라 통째로 '방학'으로 대체해야 한다(사용자 요구: 방학은 그냥 방학으로).
+ *
+ * 판정은 academic_vacations(교사 입력)가 아니라 NEIS 실제를 쓴다: 방학식날(예 7/21)은
+ * academic_vacations 시작일에 걸쳐도 오전 정규수업이 있어 경계가 부정확하지만, NEIS 는
+ * 그 날 실제(7/21=수업, 7/22~=여름방학)를 반별로 정확히 담는다.
+ */
+export function isVacationEntry(subject: string): boolean {
+  return /방학|휴업/.test(subject.trim());
+}
+
+/**
+ * NEIS 이번 주 실제에서 '방학 요일' 집합(1=월..5=금). 그 요일에 슬롯이 하나라도 있고
+ * **전부** 방학이면 방학 요일. 데이터 없는 요일(미동기화·주말)은 판정하지 않는다.
+ * 학생 시간표 요일 뷰가 이 집합으로 해당 요일을 통째로 '방학'으로 표시한다.
+ *
+ * ⚠ 범위는 **이번 주 한정**이다. 방학 중엔 daily-brief 크론이 비수업일이라 NEIS 를 갱신하지
+ * 않아, 다음 주(미래 방학주)는 actual 이 비어 판정이 ∅ → 표준 시간표가 다시 보인다. 즉
+ * '방학이 이번 주에 시작하는 경우'만 커버한다(원 신고 케이스). 방학 전체 기간을 덮으려면
+ * academic_vacations 를 학생 payload 로 넘겨 날짜 기반으로 판정해야 한다(후속 과제).
+ */
+export function vacationWeekdays(actual: OverlaySlot[]): Set<number> {
+  const has = new Map<number, boolean>(); // 요일 → (지금까지 전부 방학인가)
+  const seen = new Set<number>();
+  for (const a of actual) {
+    const v = a.subject.trim();
+    if (!v) continue;
+    seen.add(a.weekday);
+    const prev = has.get(a.weekday);
+    const isVac = isVacationEntry(v);
+    has.set(a.weekday, prev === undefined ? isVac : prev && isVac);
+  }
+  const result = new Set<number>();
+  for (const wd of seen) if (has.get(wd)) result.add(wd);
+  return result;
+}
+
 // ── 주간 오버레이 분류(표준↔NEIS 변화 감지) ──────────────────────────────
 //
 // 목표: NEIS 실제가 표준(컴시간)과 다른 '모든 변화'를 강조하되, 어휘 표기차

@@ -23,6 +23,7 @@ import {
 import {
   classifyWeeklyOverlay,
   learnSubjectAliases,
+  isVacationEntry,
   type OverlayResult,
 } from "@/lib/domain/timetable-actual";
 import { TodayNudgeModal } from "./nudge-modal";
@@ -139,6 +140,17 @@ export default async function TodayPage() {
     }
   }
 
+  // 오늘 방학 여부: 오늘(date) NEIS 실제가 하나라도 있고 **전부** 방학이면 방학.
+  // academic_vacations(교사 입력)는 방학식날 경계가 부정확해 NEIS 실제로 판정한다.
+  // 빈 subjectName 은 학생 vacationWeekdays 와 동일하게 판정에서 제외(정책 일치).
+  const todayActual = neisActualRange.filter(
+    (a) => a.date === date && a.subjectName.trim(),
+  );
+  const vacationLabel =
+    todayActual.length > 0 && todayActual.every((a) => isVacationEntry(a.subjectName))
+      ? (todayActual[0]?.subjectName.trim() || "방학")
+      : null;
+
   // 담임반 명단으로 오늘 출결을 필터(공유 쿼리는 owner 전체 반환 — 룸 page.tsx와 동일 패턴).
   const homeroomIds = new Set(homeroomStudents.map((s) => s.id));
   const todayAttendance = attendanceToday.filter((r) => homeroomIds.has(r.studentYearId));
@@ -180,6 +192,7 @@ export default async function TodayPage() {
         <TodayScheduleCard
           lessons={todayLessons}
           date={date}
+          vacationLabel={vacationLabel}
           overlayByClassPeriod={overlayByClassPeriod}
           neisSyncedAt={
             teacherProfile?.lastNeisTimetableSyncAt

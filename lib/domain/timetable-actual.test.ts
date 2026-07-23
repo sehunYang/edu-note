@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   isSpecialTimetableEntry,
+  isVacationEntry,
+  vacationWeekdays,
   classifyWeeklyOverlay,
   learnSubjectAliases,
   buildAliasMapFromPairs,
@@ -54,10 +56,52 @@ describe("isSpecialTimetableEntry", () => {
   });
 });
 
+describe("isVacationEntry", () => {
+  it("방학·휴업은 true", () => {
+    for (const s of ["여름방학", "겨울방학", "재량휴업일", "휴업"]) {
+      expect(isVacationEntry(s), s).toBe(true);
+    }
+  });
+  it("수업·특별활동은 false(방학 아님)", () => {
+    for (const s of ["물리학", "자율활동", "제헌절", "지필평가"]) {
+      expect(isVacationEntry(s), s).toBe(false);
+    }
+  });
+});
+
 // 헬퍼: {weekday, period, subject} 슬롯 배열 생성.
 function slots(rows: [number, number, string][]): OverlaySlot[] {
   return rows.map(([weekday, period, subject]) => ({ weekday, period, subject }));
 }
+
+describe("vacationWeekdays", () => {
+  it("그 요일이 전부 방학이면 방학 요일 — 방학식 주간 회귀", () => {
+    // 2026-07 실측 주간: 월·화 정상(화는 방학식날 자율활동 포함), 수~금 전교시 여름방학.
+    const act = slots([
+      [1, 1, "대수"],
+      [2, 1, "대수"],
+      [2, 3, "자율·자치활동"], // 화요일은 수업 있음 → 방학 아님
+      [3, 1, "여름방학"],
+      [3, 2, "여름방학"],
+      [4, 1, "여름방학"],
+      [5, 1, "여름방학"],
+    ]);
+    const out = vacationWeekdays(act);
+    expect([...out].sort()).toEqual([3, 4, 5]);
+  });
+
+  it("한 교시라도 수업이면 방학 요일 아님", () => {
+    const act = slots([
+      [3, 1, "여름방학"],
+      [3, 2, "물리학"], // 섞이면 방학 아님
+    ]);
+    expect(vacationWeekdays(act).has(3)).toBe(false);
+  });
+
+  it("데이터 없는 요일은 판정하지 않음", () => {
+    expect(vacationWeekdays(slots([[1, 1, "대수"]])).size).toBe(0);
+  });
+});
 
 describe("classifyWeeklyOverlay", () => {
   it("어휘 표기차는 별칭 학습으로 변화 아님(오탐 제거)", () => {

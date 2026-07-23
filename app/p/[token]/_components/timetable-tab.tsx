@@ -8,6 +8,7 @@ import {
   classifyWeeklyOverlay,
   buildAliasMapFromPairs,
   isSpecialTimetableEntry,
+  vacationWeekdays,
   type OverlayResult,
 } from "@/lib/domain/timetable-actual";
 import {
@@ -94,6 +95,30 @@ function Timetable({
     const alias = buildAliasMapFromPairs(subjectAliasPairs);
     return classifyWeeklyOverlay(std, act, alias);
   }, [slots, weeklyActual, subjectAliasPairs]);
+  // 방학 요일(이번 주 NEIS 실제가 전부 방학인 요일). 그 요일은 시간표 칸 대신 방학 안내.
+  const vacationDays = useMemo(
+    () =>
+      vacationWeekdays(
+        weeklyActual.map((a) => ({
+          weekday: a.weekday,
+          period: a.period,
+          subject: a.subjectName,
+        })),
+      ),
+    [weeklyActual],
+  );
+  // 방학 요일의 표시 라벨(그 요일 첫 '방학' 슬롯 원문 — "여름방학" 등). 빈 subjectName 은
+  // 건너뛰어 빈 라벨을 피한다(dto 는 빈 문자열을 허용 — 첫 슬롯이 비면 라벨이 사라진다).
+  const vacationLabelByDay = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const a of weeklyActual) {
+      const v = a.subjectName.trim();
+      if (v && vacationDays.has(a.weekday) && !m.has(a.weekday)) {
+        m.set(a.weekday, v);
+      }
+    }
+    return m;
+  }, [weeklyActual, vacationDays]);
   // 과목별 안정 색(주간 전체 등장순 — 홈 탭 오늘 요약과 동일 맵, 오늘의학교 팔레트).
   const subjectColors = useMemo(() => subjectColorsForTimetable(slots), [slots]);
   // 오늘 요일(KST 날짜 경계). 시간표에는 월~금 데이터만 있으므로 토·일이면 월요일 기본 선택.
@@ -138,6 +163,15 @@ function Timetable({
               </button>
             ))}
           </div>
+          {vacationDays.has(weekday) ? (
+            <div className="mt-2 flex min-h-[120px] flex-col items-center justify-center gap-1 rounded-xl border border-amber-200 bg-amber-50 py-8 text-amber-700">
+              <span className="text-3xl">🏖️</span>
+              <span className="text-base font-normal">
+                {vacationLabelByDay.get(weekday) ?? "방학"}
+              </span>
+              <span className="text-xs text-amber-600/80">수업이 없습니다</span>
+            </div>
+          ) : (
           <div className="mt-2 space-y-1.5">
             {TT_PERIODS.map((p) => {
               const slot = byCell.get(`${weekday}::${p}`);
@@ -178,6 +212,7 @@ function Timetable({
               );
             })}
           </div>
+          )}
         </>
       )}
     </Card>

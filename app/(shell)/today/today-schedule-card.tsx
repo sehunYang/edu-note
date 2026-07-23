@@ -31,12 +31,15 @@ const PERIOD_TIMES: Record<number, string> = {
 export function TodayScheduleCard({
   lessons,
   date,
+  vacationLabel,
   overlayByClassPeriod,
   neisSyncedAt,
   className,
 }: {
   lessons: TodayLesson[];
   date: string;
+  /** 오늘이 방학이면 라벨("여름방학" 등) — 있으면 수업 목록 대신 방학 안내를 표시. */
+  vacationLabel?: string | null;
   /** NEIS 오늘 변화 분류: "{grade-classNo}::{period}" → OverlayResult(반별 classifyWeeklyOverlay). */
   overlayByClassPeriod?: Record<string, OverlayResult>;
   /** NEIS 마지막 갱신 ISO(최신성 배지). */
@@ -84,7 +87,13 @@ export function TodayScheduleCard({
           </span>
         )}
       </div>
-      {rows.length === 0 ? (
+      {vacationLabel ? (
+        <div className="mt-2 flex flex-col items-center justify-center gap-1 rounded-lg border border-amber-200 bg-amber-50 py-8 text-amber-700">
+          <span className="text-3xl">🏖️</span>
+          <span className="text-base">{vacationLabel}</span>
+          <span className="text-xs text-amber-600/80">오늘은 수업이 없습니다</span>
+        </div>
+      ) : rows.length === 0 ? (
         <p className="mt-2 text-sm text-neutral-400">
           오늘 수업이 없거나 시간표 미동기화.
         </p>

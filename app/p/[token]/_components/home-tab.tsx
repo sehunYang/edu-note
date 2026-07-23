@@ -11,6 +11,7 @@ import {
   slotColorKey,
   subjectColorsForTimetable,
 } from "../_shared";
+import { vacationWeekdays } from "@/lib/domain/timetable-actual";
 import { NotifyCard } from "./notify-card";
 
 // ── 다중 교사 한마디(스와이프) ──────────────────────────────────────────────
@@ -130,14 +131,30 @@ function PersonalMessage({ message }: { message: string }) {
 function TodaySummary({
   timetable,
   meals,
+  weeklyActual,
   onNavigate,
 }: {
   timetable: PublicPagePayload["timetable"];
   meals: PublicPagePayload["meals"];
+  weeklyActual: PublicPagePayload["weeklyActual"];
   onNavigate: () => void;
 }) {
   const todayWeekday = kstWeekday();
   const todayStr = kstToday();
+  // 오늘이 방학 요일이면(이번 주 NEIS 실제가 전부 방학) 수업 대신 방학 표시.
+  const vacationDays = vacationWeekdays(
+    weeklyActual.map((a) => ({
+      weekday: a.weekday,
+      period: a.period,
+      subject: a.subjectName,
+    })),
+  );
+  const isVacationToday = vacationDays.has(todayWeekday);
+  // 빈 subjectName 을 건너뛰고 방학 슬롯의 실제 라벨을 뽑는다(빈 라벨 방지).
+  const vacationLabel =
+    weeklyActual
+      .filter((a) => a.weekday === todayWeekday && a.subjectName.trim())
+      .map((a) => a.subjectName.trim())[0] ?? "방학";
   const todaySlots = [...timetable]
     .filter((s) => s.weekday === todayWeekday)
     .sort((a, b) => a.period - b.period);
@@ -153,7 +170,12 @@ function TodaySummary({
     >
       <h2 className="text-sm font-normal text-neutral-700">오늘 요약</h2>
       <div className="mt-2 space-y-1.5">
-        {todaySlots.length === 0 ? (
+        {isVacationToday ? (
+          <div className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            <span>🏖️</span>
+            <span>{vacationLabel} · 수업이 없습니다</span>
+          </div>
+        ) : todaySlots.length === 0 ? (
           <p className="text-sm text-neutral-400">오늘 수업이 없습니다</p>
         ) : (
           todaySlots.map((s) => {
@@ -257,6 +279,7 @@ export function HomeTab({
       <TodaySummary
         timetable={payload.timetable}
         meals={payload.meals}
+        weeklyActual={payload.weeklyActual}
         onNavigate={onNavigateTimetable}
       />
       <UpcomingEvents todos={payload.weekTodos} onNavigate={onNavigateSchedule} />
