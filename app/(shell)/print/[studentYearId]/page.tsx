@@ -88,7 +88,7 @@ export default async function StudentInspectPage({
           >
             배부용 인쇄 →
           </Link>
-          <Link href="/print" className="text-sm text-neutral-500 hover:underline">
+          <Link href="/print" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
             ← 인쇄실
           </Link>
         </div>

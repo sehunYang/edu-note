@@ -183,7 +183,7 @@ export default async function TodayPage() {
 
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-normal tracking-tight">오늘의 학교</h1>
-        <Link href="/" className="text-sm text-neutral-500 hover:underline">
+        <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
           ← 홈
         </Link>
       </div>

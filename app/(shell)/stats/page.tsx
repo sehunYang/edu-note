@@ -180,10 +180,10 @@ export default async function StatsPage({
           <span aria-hidden="true">📊</span> 통계실 ({year}학년도 {sem}학기)
         </h1>
         <div className="flex items-center gap-4">
-          <Link href="/print" className="text-sm text-neutral-500 hover:underline">
+          <Link href="/print" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
             인쇄실 →
           </Link>
-          <Link href="/" className="text-sm text-neutral-500 hover:underline">
+          <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
             ← 홈
           </Link>
         </div>

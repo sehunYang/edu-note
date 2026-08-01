@@ -61,7 +61,7 @@ export default async function PrintHomePage({
             학생 명렬표 인쇄 →
           </Link>
           {/* 다른 실과 동일하게 홈 복귀 링크를 둔다(사용성 개선 P1-5). */}
-          <Link href="/" className="text-sm text-neutral-500 hover:underline">
+          <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
             ← 홈
           </Link>
         </div>

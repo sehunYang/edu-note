@@ -42,7 +42,7 @@ export default async function ClubroomLayout({
             동아리실은 학기 구분 없이 사용합니다(교사당 동아리 1개).
           </p>
         </div>
-        <Link href="/" className="shrink-0 text-sm text-neutral-500 hover:underline">
+        <Link href="/" className="inline-flex min-h-11 shrink-0 items-center text-sm text-neutral-500 hover:underline">
           ← 홈
         </Link>
       </div>

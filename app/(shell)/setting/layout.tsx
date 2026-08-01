@@ -40,7 +40,7 @@ export default async function SettingLayout({
             {year}학년도 기초 환경을 순서대로 설정합니다.
           </p>
         </div>
-        <Link href="/" className="text-sm text-neutral-500 hover:underline">
+        <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
           ← 홈
         </Link>
       </div>

@@ -43,7 +43,7 @@ export default async function StaffroomPage() {
         <h1 className="text-2xl font-normal tracking-tight">
           <span aria-hidden="true">🗂️</span> 교무실
         </h1>
-        <Link href="/" className="text-sm text-neutral-500 hover:underline">
+        <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
           ← 홈
         </Link>
       </div>

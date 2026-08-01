@@ -36,7 +36,7 @@ export default function ClassroomLayout({
             수업 계획부터 세특 작성까지, 학기별 수업 운영을 한곳에서 관리합니다.
           </p>
         </div>
-        <Link href="/" className="text-sm text-neutral-500 hover:underline">
+        <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
           ← 홈
         </Link>
       </div>

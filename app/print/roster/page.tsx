@@ -25,7 +25,7 @@ export default async function PrintRosterPage() {
         <h1 className="text-2xl font-normal tracking-tight">인쇄실 ({year})</h1>
         <div className="flex items-center gap-4">
           <PrintButton />
-          <Link href="/print" className="text-sm text-neutral-500 hover:underline">
+          <Link href="/print" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
             ← 인쇄실
           </Link>
         </div>
