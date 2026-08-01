@@ -321,7 +321,7 @@ function TimetableCell({
       </button>
       {open && (
         <div className="space-y-1 pb-2">
-          <input
+          <input aria-label="과목명"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="과목명"
@@ -335,7 +335,7 @@ function TimetableCell({
           >
             저장
           </Button>
-          {err && <p className="text-xs text-red-600">{err}</p>}
+          {err && <p role="status" className="text-xs text-red-600">{err}</p>}
         </div>
       )}
     </div>

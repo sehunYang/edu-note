@@ -14,6 +14,15 @@ import { BottomTabBar } from "./bottom-tab-bar";
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-canvas">
+      {/* 본문 바로가기 (사용성 개선 P2-15). 사이드바가 링크 26개를 상시 렌더하므로
+          이게 없으면 키보드 사용자는 페이지를 옮길 때마다 26탭을 통과해야 본문에
+          닿는다. 평소엔 화면 밖(sr-only)이고 Tab 을 처음 누를 때만 나타난다. */}
+      <a
+        href="#content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:inline-flex focus:min-h-11 focus:items-center focus:rounded-full focus:border focus:border-white focus:bg-white focus:px-5 focus:text-sm focus:text-black print:hidden"
+      >
+        본문 바로가기
+      </a>
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <GlassHeader />

@@ -12,6 +12,7 @@ import {
 import type { AttendanceStudentRow } from "@/lib/db/queries";
 import { Button } from "@/app/ui/button";
 import { ATTENDANCE_KIND_CHIP, ATTENDANCE_REASON_CHIP } from "@/lib/domain/attendance-display";
+import { ConfirmButton } from "@/app/ui/confirm-button";
 
 /**
  * 출결 목록 클라이언트 (QC v4 US-4, AC-4.5~4.7).
@@ -89,7 +90,7 @@ export function EditableAttendanceTable({
                     onSubmit={() => setEditingId(null)}
                   >
                     <input type="hidden" name="id" value={r.id} />
-                    <select
+                    <select aria-label="출결 사유"
                       name="kind"
                       defaultValue={r.kind}
                       className="rounded border border-neutral-300 px-2 py-1 text-xs"
@@ -100,7 +101,7 @@ export function EditableAttendanceTable({
                         </option>
                       ))}
                     </select>
-                    <select
+                    <select aria-label="출결 성격"
                       name="reason"
                       defaultValue={r.reason}
                       className="rounded border border-neutral-300 px-2 py-1 text-xs"
@@ -111,7 +112,7 @@ export function EditableAttendanceTable({
                         </option>
                       ))}
                     </select>
-                    <input
+                    <input aria-label="비고"
                       name="noteField"
                       defaultValue={r.noteField ?? ""}
                       placeholder="비고"
@@ -209,7 +210,12 @@ export function EditableAttendanceTable({
                   </button>
                   <form action={deleteAttendanceAction} className="inline">
                     <input type="hidden" name="id" value={r.id} />
-                    <button className="text-xs text-red-500 hover:underline">삭제</button>
+                    <ConfirmButton
+                      message="이 출결 기록을 삭제할까요? 되돌릴 수 없습니다."
+                      className="text-xs text-red-500 hover:underline"
+                    >
+                      삭제
+                    </ConfirmButton>
                   </form>
                 </td>
               </tr>
@@ -261,6 +267,15 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
   }
   return (
     <>
+      {/* 등급 기준 표기 (사용성 개선 P2-13). '심각/위험' 이 무엇을 뜻하는지, 마감
+          옆 괄호 숫자가 무엇인지 화면에 없어 추측해야 했다. */}
+      <p className="mt-3 text-xs text-neutral-500">
+        마감일 경과 수업일 기준 —{" "}
+        <span className={TIER_CLASS.normal}>정상</span> 3일 이내 ·{" "}
+        <span className={TIER_CLASS.warning}>위험</span> 3일 초과 ·{" "}
+        <span className={TIER_CLASS.critical}>심각</span> 5일 초과. 마감 옆
+        괄호는 남은 수업일(음수면 초과일)입니다.
+      </p>
       <table className="mt-3 w-full text-sm">
         <thead className="text-left text-neutral-400">
           <tr>

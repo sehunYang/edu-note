@@ -11,6 +11,8 @@ import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { PlanStageNav } from "../plan-stage-nav";
 import { SemesterEditor, type SubjectSemesterView } from "./semester-editor";
 
+export const metadata = { title: "학기 계획" };
+
 export const dynamic = "force-dynamic";
 
 /**

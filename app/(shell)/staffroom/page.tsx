@@ -13,6 +13,9 @@ import {
 } from "./actions";
 import { Button } from "@/app/ui/button";
 import { CountUp } from "@/app/ui/count-up";
+import { ConfirmButton } from "@/app/ui/confirm-button";
+
+export const metadata = { title: "교무실" };
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +38,11 @@ export default async function StaffroomPage() {
   );
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-normal tracking-tight">교무실</h1>
+        <h1 className="text-2xl font-normal tracking-tight">
+          <span aria-hidden="true">🗂️</span> 교무실
+        </h1>
         <Link href="/" className="text-sm text-neutral-500 hover:underline">
           ← 홈
         </Link>
@@ -50,13 +55,13 @@ export default async function StaffroomPage() {
           action={createTaskAction}
           className="mt-3 flex flex-wrap items-center gap-2"
         >
-          <input
+          <input aria-label="업무 제목"
             name="title"
             required
             placeholder="업무 제목"
             className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
           />
-          <input
+          <input aria-label="업무 마감일"
             type="date"
             name="deadline"
             className="rounded border border-neutral-300 px-2 py-1.5 text-sm"
@@ -92,9 +97,12 @@ export default async function StaffroomPage() {
                     </span>
                     <form action={deleteTaskAction} className="inline">
                       <input type="hidden" name="id" value={t.id} />
-                      <button className="text-xs text-red-500 hover:underline">
+                      <ConfirmButton
+                        message={`업무 '${t.title}' 을(를) 삭제할까요? 되돌릴 수 없습니다.`}
+                        className="text-xs text-red-500 hover:underline"
+                      >
                         삭제
-                      </button>
+                      </ConfirmButton>
                     </form>
                   </div>
                   <form
@@ -102,7 +110,7 @@ export default async function StaffroomPage() {
                     className="mt-2 flex items-center gap-2"
                   >
                     <input type="hidden" name="id" value={t.id} />
-                    <input
+                    <input aria-label="진행률(%)"
                       type="number"
                       name="progress"
                       min={0}
@@ -135,13 +143,13 @@ export default async function StaffroomPage() {
           action={createBudgetAction}
           className="mt-3 flex flex-wrap items-center gap-2"
         >
-          <input
+          <input aria-label="예산 영역(예: 동아리 운영비)"
             name="area"
             required
             placeholder="예산 영역(예: 동아리 운영비)"
             className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
           />
-          <input
+          <input aria-label="계획액(원)"
             type="number"
             name="plannedAmount"
             min={0}
@@ -173,9 +181,12 @@ export default async function StaffroomPage() {
                     <h3 className="font-normal">{b.area}</h3>
                     <form action={deleteBudgetAction} className="inline">
                       <input type="hidden" name="id" value={b.id} />
-                      <button className="text-xs text-red-500 hover:underline">
+                      <ConfirmButton
+                        message={`예산 '${b.area}' 을(를) 삭제할까요? 등록된 지출 내역도 함께 사라집니다.`}
+                        className="text-xs text-red-500 hover:underline"
+                      >
                         삭제
-                      </button>
+                      </ConfirmButton>
                     </form>
                   </div>
                   <p className="mt-1 text-xs text-neutral-500">
@@ -224,13 +235,13 @@ export default async function StaffroomPage() {
                     className="mt-3 flex flex-wrap items-center gap-2 border-t border-neutral-100 pt-3"
                   >
                     <input type="hidden" name="budgetId" value={b.id} />
-                    <input
+                    <input aria-label="지출 날짜"
                       type="date"
                       name="date"
                       defaultValue={today}
                       className="rounded border border-neutral-300 px-2 py-1 text-sm"
                     />
-                    <input
+                    <input aria-label="금액(원)"
                       type="number"
                       name="amount"
                       min={0}
@@ -238,7 +249,7 @@ export default async function StaffroomPage() {
                       placeholder="금액(원)"
                       className="w-28 rounded border border-neutral-300 px-2 py-1 text-sm"
                     />
-                    <input
+                    <input aria-label="메모(선택)"
                       name="memo"
                       placeholder="메모(선택)"
                       className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -253,6 +264,6 @@ export default async function StaffroomPage() {
           </div>
         )}
       </section>
-    </main>
+    </>
   );
 }

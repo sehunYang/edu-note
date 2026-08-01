@@ -4,6 +4,8 @@ import { listHomeroomStudents, listBehaviorNotes } from "@/lib/db/queries";
 import { activeSchoolYear } from "@/lib/domain/school-year";
 import { BehaviorClient, type HomeroomStudent } from "./behavior-client";
 
+export const metadata = { title: "행동특성 기록" };
+
 export const dynamic = "force-dynamic";
 
 /**

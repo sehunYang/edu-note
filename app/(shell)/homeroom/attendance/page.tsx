@@ -18,6 +18,8 @@ import { FieldTripSection } from "./field-trip-client";
 import type { AttendanceReason } from "@/lib/domain/types";
 import { Button } from "@/app/ui/button";
 
+export const metadata = { title: "출결 관리" };
+
 export const dynamic = "force-dynamic";
 
 /** 사유 필터(전체 + 4종). QC v6 ③ — 월별/학생별 검색에서 사유 기준 검색. */
@@ -123,7 +125,7 @@ export default async function AttendancePage({
           <form method="get" className="mt-4 flex items-center gap-2 text-sm">
             <input type="hidden" name="view" value="today" />
             <label className="text-neutral-500">날짜</label>
-            <input
+            <input aria-label="날짜"
               type="date"
               name="date"
               defaultValue={date}
@@ -187,14 +189,14 @@ export default async function AttendancePage({
           <form method="get" className="flex flex-wrap items-center gap-2 text-sm">
             <input type="hidden" name="view" value="month" />
             <label className="text-neutral-500">월</label>
-            <input
+            <input aria-label="월"
               type="month"
               name="month"
               defaultValue={month}
               className="rounded border border-neutral-300 px-2 py-1"
             />
             <label className="text-neutral-500">사유</label>
-            <select
+            <select aria-label="사유"
               name="reason"
               defaultValue={reasonFilter ?? ""}
               className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -222,7 +224,7 @@ export default async function AttendancePage({
           <form method="get" className="flex flex-wrap items-center gap-2 text-sm">
             <input type="hidden" name="view" value="student" />
             <label className="text-neutral-500">학생</label>
-            <select
+            <select aria-label="학생"
               name="studentYearId"
               defaultValue={selectedStudentId}
               className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -235,7 +237,7 @@ export default async function AttendancePage({
               ))}
             </select>
             <label className="text-neutral-500">사유</label>
-            <select
+            <select aria-label="사유"
               name="reason"
               defaultValue={reasonFilter ?? ""}
               className="rounded border border-neutral-300 px-2 py-1 text-sm"

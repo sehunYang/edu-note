@@ -47,7 +47,7 @@ export function Sidebar() {
           aria-current={pathname === "/" ? "page" : undefined}
           className="flex min-w-0 items-center gap-2 text-sm text-white"
         >
-          <span className="text-lg leading-none">{logo.icon}</span>
+          <span aria-hidden="true" className="text-lg leading-none">{logo.icon}</span>
           {!collapsed && (
             <span className="truncate font-medium tracking-tight">
               {logo.label}
@@ -86,7 +86,7 @@ export function Sidebar() {
                         : "text-neutral-500 hover:bg-white/5"
                     }`}
                   >
-                    <span className="w-5 shrink-0 text-center text-base leading-none">
+                    <span aria-hidden="true" className="w-5 shrink-0 text-center text-base leading-none">
                       {space.icon}
                     </span>
                     {!collapsed && <span className="truncate">{space.label}</span>}

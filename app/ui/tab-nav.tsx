@@ -14,9 +14,18 @@ type Tab = { href: string; label: string };
 export function TabNav({
   tabs,
   ariaLabel,
+  mobileOnly = false,
 }: {
   tabs: Tab[];
   ariaLabel?: string;
+  /**
+   * 데스크톱에서 이 탭 바를 숨긴다(사용성 개선 P1-6). 교실·담임 교실·동아리실은
+   * 같은 하위 링크를 사이드바가 이미 펼쳐 보여주므로, 데스크톱에서 탭 바까지
+   * 렌더하면 동일 href 6개가 한 화면에 두 번 나오고(실측 중복 href 10개) 첫
+   * 과업 컨트롤이 뷰포트 321px 지점까지 밀린다. 사이드바가 없는 모바일에서는
+   * 이 탭이 유일한 실 내부 이동 수단이라 그대로 유지한다.
+   */
+  mobileOnly?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -29,7 +38,10 @@ export function TabNav({
   }
 
   return (
-    <nav className="flex flex-wrap gap-2" aria-label={ariaLabel}>
+    <nav
+      className={`flex flex-wrap gap-2 ${mobileOnly ? "md:hidden" : ""}`}
+      aria-label={ariaLabel}
+    >
       {tabs.map((t) => {
         const active = t.href === activeHref;
         return (
@@ -37,7 +49,7 @@ export function TabNav({
             key={t.href}
             href={t.href}
             aria-current={active ? "page" : undefined}
-            className={`rounded-full border px-3 py-2 text-sm transition-colors ${
+            className={`inline-flex min-h-11 items-center rounded-full border px-3 text-sm transition-colors ${
               active
                 ? "border-white/60 bg-white/10 text-white"
                 : "border-white/25 text-neutral-700 hover:border-neutral-500 hover:bg-white/10"

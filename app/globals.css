@@ -50,6 +50,50 @@ body {
     outline-offset: 2px;
     border-radius: 2px;
   }
+
+  /* ── 터치 타깃 최소 크기 (사용성 개선 P1-8) ─────────────────────────────
+     실측: 모바일 390px 출결 화면에서 조작 요소 32개 중 27개(84%)가 44px 미만,
+     9개는 24px 미만이었다(라디오 히트영역 41×20, 셀렉트 높이 27, "이동" 버튼
+     38×25). WCAG 2.2 SC 2.5.8(AA)은 24×24, Apple HIG·Material 은 44/48을
+     권한다. 컴포넌트 200여 개에 클래스를 흩뿌리는 대신 여기서 바닥을 깐다.
+
+     - 모든 포인터: 24px 바닥 → SC 2.5.8 통과.
+     - coarse 포인터(손가락): 44px 바닥 → HIG 권장치 충족.
+     인라인 <a>(문단 속 링크)는 인라인 박스라 min-height 가 적용되지 않으므로
+     본문 줄 간격이 깨지지 않는다. 높이를 직접 지정한 요소는 그 값이 더 크면
+     그대로 유지된다(min-* 이므로). */
+  button,
+  select,
+  textarea,
+  [role="button"],
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]) {
+    min-height: 24px;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  @media (pointer: coarse) {
+    button,
+    select,
+    textarea,
+    [role="button"],
+    input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]) {
+      min-height: 44px;
+    }
+
+    /* 라디오·체크박스는 상자 자체를 44px 로 키우면 시각적으로 과하다. 감싼
+       <label> 을 44px 로 만들어 히트영역만 넓힌다(실측 41×20 → 44 이상). */
+    label:has(> input[type="checkbox"]),
+    label:has(> input[type="radio"]) {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+    }
+  }
 }
 
 @layer utilities {

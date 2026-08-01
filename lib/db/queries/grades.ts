@@ -86,6 +86,12 @@ export async function upsertPerformanceScores(
   subjectId: string,
   itemName: string,
   rows: PerformanceUpsertInput[],
+  /**
+   * 점수만 갱신하고 기존 서술(prose)은 건드리지 않는다(사용성 개선 P2-12).
+   * 표 인라인 편집은 점수 칸만 다루므로, 이 플래그 없이 prose:null 을 넘기면
+   * 이미 적어 둔 서술형 평가가 통째로 지워진다.
+   */
+  options?: { preserveProse?: boolean },
 ): Promise<UpsertResult> {
   const sidMap = await sidToStudentYearId(db, ownerId, subjectId);
 
@@ -145,7 +151,11 @@ export async function upsertPerformanceScores(
     if (existing) {
       await db
         .update(performanceAssessments)
-        .set({ score, prose, updatedAt: new Date() })
+        .set(
+          options?.preserveProse
+            ? { score, updatedAt: new Date() }
+            : { score, prose, updatedAt: new Date() },
+        )
         .where(eq(performanceAssessments.id, existing.id));
     } else {
       await db

@@ -51,7 +51,7 @@ export function ReportSelector({
     <div className="mt-4 grid gap-3 md:grid-cols-2">
       <div>
         <label className="text-xs font-normal text-neutral-600">분반</label>
-        <select
+        <select aria-label="분반"
           value={selectedSection}
           onChange={(e) => pushWith({ section: e.target.value })}
           className="mt-1 w-full rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -66,7 +66,7 @@ export function ReportSelector({
       </div>
       <div>
         <label className="text-xs font-normal text-neutral-600">학생</label>
-        <select
+        <select aria-label="학생"
           value={selectedStudent}
           onChange={(e) => pushWith({ student: e.target.value })}
           disabled={!selectedSection}

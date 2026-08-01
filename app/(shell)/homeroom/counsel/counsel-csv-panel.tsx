@@ -55,7 +55,7 @@ export function CounselCsvPanel({ year, getCsvAction }: Props) {
 
         {/* 결과 CSV 업로드 */}
         <form onSubmit={handleImport} className="flex items-center gap-2">
-          <input
+          <input aria-label="상담 결과 CSV 파일 선택"
             ref={fileRef}
             type="file"
             name="file"

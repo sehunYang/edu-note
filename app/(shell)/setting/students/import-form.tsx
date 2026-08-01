@@ -29,7 +29,7 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <div className="flex items-center gap-2">
           <label className="text-neutral-600">학년도</label>
-          <input
+          <input aria-label="학년도"
             name="year"
             type="number"
             defaultValue={defaultYear}
@@ -56,7 +56,7 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
         </Button>
       </div>
 
-      <textarea
+      <textarea aria-label="학생 명단 CSV"
         name="csv"
         rows={5}
         value={csv}
@@ -74,7 +74,7 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
       </Button>
 
       {state && state.ok && (
-        <div className="rounded border border-green-200 bg-green-50 p-3 text-sm">
+        <div role="status" className="rounded border border-green-200 bg-green-50 p-3 text-sm">
           ✅ 신규 {state.created}명 · 갱신 {state.updated}명
           {state.errors.length > 0 && (
             <details className="mt-2">
@@ -93,7 +93,7 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
         </div>
       )}
       {state && !state.ok && (
-        <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p role="status" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {state.message}
         </p>
       )}

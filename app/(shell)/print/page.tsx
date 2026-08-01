@@ -12,6 +12,8 @@ import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import type { StudentReport } from "@/lib/db/queries/student-report";
 import { Badge, TrendBadge, RankBadge } from "./badges";
 
+export const metadata = { title: "인쇄실" };
+
 export const dynamic = "force-dynamic";
 
 type Scope = "homeroom" | "section";
@@ -42,18 +44,27 @@ export default async function PrintHomePage({
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-normal text-neutral-800">인쇄실</h2>
+          {/* 다른 실과 같은 h1 + 이모지 형식으로 통일(사용성 개선 P1-5). */}
+          <h1 className="text-2xl font-normal tracking-tight">
+            <span aria-hidden="true">🖨️</span> 인쇄실
+          </h1>
           <p className="mt-1 text-sm text-neutral-500">
             담임반 또는 분반을 골라 학생별 점검 화면으로 이동하거나, 배부용 인쇄물을
             준비하세요.
           </p>
         </div>
-        <Link
-          href="/print/roster"
-          className="shrink-0 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
-        >
-          학생 명렬표 인쇄 →
-        </Link>
+        <div className="flex shrink-0 items-center gap-4">
+          <Link
+            href="/print/roster"
+            className="inline-flex min-h-11 items-center rounded-md border border-neutral-300 px-3 text-sm text-neutral-700 hover:bg-white/10"
+          >
+            학생 명렬표 인쇄 →
+          </Link>
+          {/* 다른 실과 동일하게 홈 복귀 링크를 둔다(사용성 개선 P1-5). */}
+          <Link href="/" className="text-sm text-neutral-500 hover:underline">
+            ← 홈
+          </Link>
+        </div>
       </div>
 
       {/* 범위 토글 */}

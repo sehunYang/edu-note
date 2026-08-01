@@ -115,6 +115,8 @@ export type AuditEvent =
   | "club_plan_update"
   | "club_entry_common_save"
   | "club_entry_override_save"
+  // 사용성 개선 P2-11: 차시×부원 전체를 폼 하나로 묶은 일괄 저장
+  | "club_entry_bulk_save"
   | "club_record_save"
   // QC v6 수업계획실 시험구간 계획 (US-1) + 학생 캘린더 메모 (US-5)
   | "exam_segment_plan_save"

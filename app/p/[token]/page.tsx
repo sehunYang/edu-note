@@ -18,6 +18,7 @@ import { PublicPageView } from "./public-page-view";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
+  title: "학생 안내",
   robots: { index: false, follow: false },
 };
 

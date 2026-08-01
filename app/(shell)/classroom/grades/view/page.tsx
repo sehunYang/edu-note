@@ -4,6 +4,8 @@ import { getDb } from "@/lib/db";
 import { listSubjectsWithSections, getStoredGradeTables } from "@/lib/db/queries";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 
+export const metadata = { title: "성적 저장 테이블" };
+
 export const dynamic = "force-dynamic";
 
 /**

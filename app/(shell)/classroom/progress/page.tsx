@@ -14,6 +14,8 @@ import {
   type PopupView,
 } from "./progress-board";
 
+export const metadata = { title: "진척도" };
+
 export const dynamic = "force-dynamic";
 
 const STATUS_LABEL: Record<string, string> = {

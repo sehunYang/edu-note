@@ -38,6 +38,8 @@ import { TodayScheduleCard } from "./today-schedule-card";
 import { TodayAttendanceCard } from "./today-attendance-card";
 import { kstToday, readMeals, weekRange } from "./today-lib";
 
+export const metadata = { title: "오늘의 학교" };
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -176,7 +178,7 @@ export default async function TodayPage() {
   const upcomingNotices = noticeEvents.filter((e) => e.date >= date).slice(0, 10);
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <>
       <TodayNudgeModal nudges={nudges} />
 
       <div className="flex items-center justify-between">
@@ -266,6 +268,6 @@ export default async function TodayPage() {
           </div>
         </section>
       </div>
-    </main>
+    </>
   );
 }

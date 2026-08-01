@@ -31,7 +31,7 @@ export default async function HomeroomLayout({
   const settings = await getTeacherSettings(db, ownerId);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    <div>
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-normal tracking-tight">🏠 담임 교실</h1>
@@ -63,7 +63,7 @@ export default async function HomeroomLayout({
       ) : (
         <>
           <div className="mt-6">
-            <TabNav tabs={TABS} ariaLabel="담임 교실 탭" />
+            <TabNav tabs={TABS} ariaLabel="담임 교실 탭" mobileOnly />
           </div>
 
           <section className="mt-8">{children}</section>

@@ -115,7 +115,7 @@ export function TodayScheduleCard({
                     : colorBySubject.get(l.subjectName) ?? "border-neutral-200"
                 } ${done ? "opacity-60" : ""}`}
               >
-                <input
+                <input aria-label="수업 완료 표시"
                   type="checkbox"
                   checked={done}
                   disabled={pending}

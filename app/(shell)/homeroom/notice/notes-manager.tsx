@@ -11,6 +11,7 @@ import {
 } from "./actions";
 import type { TeacherNoteRow } from "@/lib/db/queries";
 import { Button } from "@/app/ui/button";
+import { ConfirmButton } from "@/app/ui/confirm-button";
 
 /** 공개 페이지 대상 학생 옵션(학번 라벨). */
 export interface NoteStudentOption {
@@ -73,7 +74,7 @@ export function NotesManager({
                     >
                       <input type="hidden" name="id" value={n.id} />
                       <div className="flex flex-wrap gap-2">
-                        <input
+                        <input aria-label="공지 내용"
                           name="body"
                           defaultValue={n.body}
                           required
@@ -120,9 +121,12 @@ export function NotesManager({
                           className="inline"
                         >
                           <input type="hidden" name="id" value={n.id} />
-                          <button className="text-xs text-red-500 hover:underline">
+                          <ConfirmButton
+                            message="이 공지를 삭제할까요? 되돌릴 수 없습니다."
+                            className="text-xs text-red-500 hover:underline"
+                          >
                             삭제
-                          </button>
+                          </ConfirmButton>
                         </form>
                       </span>
                     </div>
@@ -155,7 +159,7 @@ function AllNoticeForm() {
         모든 학생에게 공통으로 노출됩니다.
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
-        <input
+        <input aria-label="전체 공지 내용"
           name="body"
           required
           placeholder="전체 공지 내용"
@@ -197,7 +201,7 @@ function IndividualNoticeForm({ students }: { students: NoteStudentOption[] }) {
       ))}
 
       <div className="mt-2 flex flex-wrap gap-2">
-        <input
+        <input aria-label="개별 공지 내용"
           name="body"
           required
           placeholder="개별 공지 내용"

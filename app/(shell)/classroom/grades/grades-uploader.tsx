@@ -3,6 +3,7 @@ import { useMemo, useState, useActionState, type ChangeEvent } from "react";
 import {
   uploadPerformanceCsvAction,
   uploadJipilCsvAction,
+  saveInlineGradesAction,
   type GradeUploadState,
 } from "./actions";
 import { performanceCsvExample, jipilCsvExample } from "@/lib/csv/grades";
@@ -62,7 +63,7 @@ export function GradesUploader({ subjects }: { subjects: SubjectGradeView[] }) {
     <div className="mt-6 space-y-5">
       <div className="flex items-center gap-2">
         <label className="text-sm text-neutral-600">과목</label>
-        <select
+        <select aria-label="과목"
           value={selectedId}
           onChange={(e) => setSelectedId(e.target.value)}
           className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -125,6 +126,7 @@ export function GradesUploader({ subjects }: { subjects: SubjectGradeView[] }) {
 
       {/* 환산 미리보기(요소별 분해) */}
       <GradePreview
+        subjectId={selected.subjectId}
         rows={selected.grades}
         performanceItems={selected.performanceItems}
         midEnabled={selected.jipilMidEnabled}
@@ -272,13 +274,13 @@ function UploadResult({ state }: { state: GradeUploadState | null }) {
   if (!state) return null;
   if (!state.ok) {
     return (
-      <p className="rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+      <p role="status" className="rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
         {state.message}
       </p>
     );
   }
   return (
-    <div className="space-y-1 rounded border border-green-200 bg-green-50 p-2 text-xs">
+    <div role="status" className="space-y-1 rounded border border-green-200 bg-green-50 p-2 text-xs">
       <p className="text-green-800">✅ 저장 {state.saved ?? 0}건</p>
       {state.skipped && state.skipped.length > 0 && (
         <details>
@@ -322,18 +324,63 @@ function UploadResult({ state }: { state: GradeUploadState | null }) {
   );
 }
 
+/** 셀 키: `<sid>|jipil|<회차>` 또는 `<sid>|perf|<항목명>`. */
+function cellKey(sid: string, kind: "jipil" | "perf", slot: string): string {
+  return `${sid}|${kind}|${slot}`;
+}
+
+/**
+ * 환산 미리보기 — 표에서 바로 편집 (사용성 개선 P2-12).
+ *
+ * 이전에는 읽기 전용이라 점수 한 칸을 고치려 해도 CSV 다운로드→편집→업로드
+ * 왕복이 필요했다. 각 점수 칸을 입력 필드로 바꾸고, 바뀐 셀만 모아 한 번에
+ * 저장한다. 합계는 입력에 맞춰 즉시 다시 계산해 보여준다(저장 전 확인용).
+ * CSV 업로드는 대량 입력용으로 그대로 남는다.
+ */
 function GradePreview({
+  subjectId,
   rows,
   performanceItems,
   midEnabled,
   finalEnabled,
 }: {
+  subjectId: string;
   rows: GradeRow[];
   performanceItems: string[];
   midEnabled: boolean;
   finalEnabled: boolean;
 }) {
-  const hasAny = useMemo(() => rows.some((r) => r.total !== 0), [rows]);
+  const initial = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const r of rows) {
+      map[cellKey(r.sid, "jipil", "1")] = String(r.jipilMid ?? "");
+      map[cellKey(r.sid, "jipil", "2")] = String(r.jipilFinal ?? "");
+      for (const item of performanceItems) {
+        const v = r.performanceByItem[item];
+        map[cellKey(r.sid, "perf", item)] = v == null ? "" : String(v);
+      }
+    }
+    return map;
+  }, [rows, performanceItems]);
+
+  const [values, setValues] = useState<Record<string, string>>(initial);
+  const [state, formAction, pending] = useActionState(
+    saveInlineGradesAction,
+    null as GradeUploadState | null,
+  );
+
+  // 과목을 바꾸면 표가 통째로 갈리므로 편집 상태도 초기화한다.
+  const [snapshot, setSnapshot] = useState(initial);
+  if (snapshot !== initial) {
+    setSnapshot(initial);
+    setValues(initial);
+  }
+
+  const dirty = Object.keys(initial).filter(
+    (k) => (values[k] ?? "") !== (initial[k] ?? ""),
+  );
+
+  const hasAny = rows.some((r) => r.total !== 0);
   if (rows.length === 0) {
     return (
       <p className="text-xs text-neutral-400">
@@ -341,14 +388,68 @@ function GradePreview({
       </p>
     );
   }
+
+  /** 입력값 기준 합계(저장 전 즉시 반영). */
+  function liveTotal(r: GradeRow): number {
+    let sum = 0;
+    if (midEnabled) sum += Number(values[cellKey(r.sid, "jipil", "1")] || 0);
+    if (finalEnabled) sum += Number(values[cellKey(r.sid, "jipil", "2")] || 0);
+    for (const item of performanceItems) {
+      sum += Number(values[cellKey(r.sid, "perf", item)] || 0);
+    }
+    return Math.round(sum * 10) / 10;
+  }
+
+  const edits = dirty.map((k) => {
+    const [sid, kind, slot] = k.split("|");
+    return kind === "jipil"
+      ? { sid, kind: "jipil" as const, ordinal: (slot === "2" ? 2 : 1) as 1 | 2, value: values[k] }
+      : { sid, kind: "performance" as const, itemName: slot, value: values[k] };
+  });
+
+  function Cell({ k, label }: { k: string; label: string }) {
+    return (
+      <input
+        aria-label={label}
+        inputMode="decimal"
+        value={values[k] ?? ""}
+        onChange={(e) => setValues((p) => ({ ...p, [k]: e.target.value }))}
+        className={`w-16 rounded border px-1 py-0.5 text-right text-xs ${
+          (values[k] ?? "") !== (initial[k] ?? "")
+            ? "border-amber-400 bg-amber-500/10"
+            : "border-neutral-300 bg-transparent"
+        }`}
+      />
+    );
+  }
+
   return (
     <section>
-      <h3 className="text-sm font-normal text-neutral-700">
-        환산 미리보기{!hasAny && " (입력된 성적 없음)"}
-      </h3>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-normal text-neutral-700">
+          환산 미리보기{!hasAny && " (입력된 성적 없음)"}
+        </h3>
+        <form action={formAction} className="flex items-center gap-2">
+          <input type="hidden" name="subjectId" value={subjectId} />
+          <input type="hidden" name="edits" value={JSON.stringify(edits)} />
+          <span role="status" className="text-xs text-neutral-500">
+            {pending ? "저장 중…" : dirty.length > 0 ? `변경 ${dirty.length}칸` : ""}
+          </span>
+          <Button
+            type="submit"
+            variant="solid"
+            disabled={pending || dirty.length === 0}
+            className="px-3 py-1 text-xs disabled:opacity-40"
+          >
+            변경 저장
+          </Button>
+        </form>
+      </div>
       <p className="mt-0.5 text-xs text-neutral-400">
-        지필은 활성 회차별, 수행은 항목별로 분해됩니다. 미시행 지필 열은 숨깁니다.
+        칸을 직접 고친 뒤 <strong>변경 저장</strong>을 누르세요. 대량 입력은 위의 CSV
+        업로드를 쓰면 됩니다. 지필은 활성 회차별, 수행은 항목별로 분해됩니다.
       </p>
+      {state && <UploadResult state={state} />}
       <div className="mt-2 overflow-x-auto">
         <table className="min-w-full text-xs">
           <thead>
@@ -371,17 +472,32 @@ function GradePreview({
                 <td className="px-2 py-1">{r.sid}</td>
                 <td className="px-2 py-1">{r.name}</td>
                 {midEnabled && (
-                  <td className="px-2 py-1 text-right">{r.jipilMid}</td>
+                  <td className="px-2 py-1 text-right">
+                    <Cell
+                      k={cellKey(r.sid, "jipil", "1")}
+                      label={`${r.name} 지필중간`}
+                    />
+                  </td>
                 )}
                 {finalEnabled && (
-                  <td className="px-2 py-1 text-right">{r.jipilFinal}</td>
+                  <td className="px-2 py-1 text-right">
+                    <Cell
+                      k={cellKey(r.sid, "jipil", "2")}
+                      label={`${r.name} 지필기말`}
+                    />
+                  </td>
                 )}
                 {performanceItems.map((item) => (
                   <td key={item} className="px-2 py-1 text-right">
-                    {r.performanceByItem[item] ?? "–"}
+                    <Cell
+                      k={cellKey(r.sid, "perf", item)}
+                      label={`${r.name} ${item}`}
+                    />
                   </td>
                 ))}
-                <td className="px-2 py-1 text-right font-normal">{r.total}</td>
+                <td className="px-2 py-1 text-right font-normal tabular-nums">
+                  {liveTotal(r)}
+                </td>
               </tr>
             ))}
           </tbody>

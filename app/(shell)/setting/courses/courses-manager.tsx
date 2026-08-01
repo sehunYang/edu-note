@@ -15,6 +15,7 @@ import {
 } from "../actions";
 import type { SectionRoleRow, EvalSettingsView, StudentOption } from "@/lib/db/queries";
 import { Button } from "@/app/ui/button";
+import { ConfirmButton } from "@/app/ui/confirm-button";
 
 export interface SubjectView {
   subjectId: string;
@@ -70,12 +71,12 @@ export function CoursesManager({
           </form>
         </div>
         {matState && matState.ok && (
-          <p className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
+          <p role="status" className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
             ✅ 과목×시험 {matState.count}건 반영
           </p>
         )}
         {matState && !matState.ok && (
-          <p className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+          <p role="status" className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
             {matState.message}
           </p>
         )}
@@ -242,13 +243,13 @@ function SectionBlock({
 
       <form action={enroll} className="mt-2 flex flex-wrap items-center gap-2 text-xs">
         <input type="hidden" name="sectionId" value={section.id} />
-        <input
+        <input aria-label="학년"
           name="grade"
           type="number"
           placeholder="학년"
           className="w-16 rounded border border-neutral-300 px-1 py-0.5"
         />
-        <input
+        <input aria-label="반(빈=전체)"
           name="classNo"
           type="number"
           placeholder="반(빈=전체)"
@@ -271,7 +272,7 @@ function SectionBlock({
 
       {/* 개별 등록(학번/이름 검색 — cross-class, AC-D2) */}
       <div className="mt-2 text-xs">
-        <input
+        <input aria-label="개별 등록: 학번/이름 검색"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="개별 등록: 학번/이름 검색"
@@ -320,7 +321,7 @@ function SectionBlock({
             ))}
             <form action={addSectionRoleAction} className="flex items-center gap-1">
               <input type="hidden" name="enrollmentId" value={e.enrollmentId} />
-              <input
+              <input aria-label="역할"
                 name="title"
                 placeholder="역할"
                 className="w-20 rounded border border-neutral-200 px-1 py-0.5"
@@ -332,12 +333,13 @@ function SectionBlock({
             {/* 수강 삭제(AC-D3) */}
             <form action={unenrollAction} className="ml-auto inline">
               <input type="hidden" name="enrollmentId" value={e.enrollmentId} />
-              <button
+              <ConfirmButton
+                message="이 학생의 수강을 삭제할까요? 이 분반 명단에서 빠집니다."
                 title="수강 삭제"
                 className="rounded border border-neutral-200 px-1.5 py-0.5 text-neutral-400 hover:border-red-300 hover:text-red-600"
               >
                 수강 삭제
-              </button>
+              </ConfirmButton>
             </form>
           </div>
         ))}

@@ -5,6 +5,7 @@ import { saveStudentMemoAction, deleteStudentMemoAction } from "../actions";
 import { VACATION_BAND_BG } from "@/lib/domain/event-kind-display";
 import { Button } from "@/app/ui/button";
 import { kstToday, ymd, Card, type DayEvent, eventChipClass } from "../_shared";
+import { ConfirmButton } from "@/app/ui/confirm-button";
 
 // ── 일정 안내(월간 달력 + 네비 + 인라인 날짜 상세) ─────────────────────────
 function ScheduleTab({
@@ -260,7 +261,7 @@ function DayDetailPanel({
             <li key={m.id} className="rounded border border-neutral-200 px-2 py-1.5 text-sm">
               {editingId === m.id ? (
                 <div className="space-y-1">
-                  <textarea
+                  <textarea aria-label="메모 내용"
                     value={editBody}
                     onChange={(e) => setEditBody(e.target.value)}
                     rows={2}
@@ -298,14 +299,15 @@ function DayDetailPanel({
                     >
                       수정
                     </button>
-                    <button
+                    <ConfirmButton
                       type="button"
+                      message="이 메모를 삭제할까요?"
                       disabled={pending}
                       onClick={() => remove(m.id)}
                       className="min-h-[44px] inline-flex items-center px-1 text-xs text-red-500 hover:underline disabled:opacity-50"
                     >
                       삭제
-                    </button>
+                    </ConfirmButton>
                   </span>
                 </div>
               )}
@@ -315,14 +317,14 @@ function DayDetailPanel({
       </div>
 
       <div className="mt-3 space-y-1">
-        <textarea
+        <textarea aria-label="메모/일정 추가"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={2}
           placeholder="메모/일정 추가"
           className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
         />
-        {err && <p className="text-xs text-red-600">{err}</p>}
+        {err && <p role="status" className="text-xs text-red-600">{err}</p>}
         <Button
           type="button"
           loading={pending}

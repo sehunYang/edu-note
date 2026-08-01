@@ -15,6 +15,8 @@ import {
   type SectionOption,
 } from "./report-selector";
 
+export const metadata = { title: "학생 보고서" };
+
 export const dynamic = "force-dynamic";
 
 /**

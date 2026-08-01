@@ -55,7 +55,9 @@ export const SPACES: Space[] = [
     ],
   },
   { href: "/setting", label: "세팅실", icon: "⚙️" },
-  { href: "/stats", label: "통계", icon: "📊" },
+  // 라벨은 페이지 제목·홈 카드와 같아야 한다 — 예전엔 사이드바만 "통계"라
+  // 같은 화면을 두 이름으로 부르고 있었다(사용성 개선 P1-5).
+  { href: "/stats", label: "통계실", icon: "📊" },
   { href: "/print", label: "인쇄실", icon: "🖨️" },
   { href: "/staffroom", label: "교무실", icon: "🗂️" },
 ];

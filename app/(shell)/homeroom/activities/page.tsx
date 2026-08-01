@@ -11,6 +11,8 @@ import {
   type ActivityEntry,
 } from "./activities-client";
 
+export const metadata = { title: "자율·진로활동" };
+
 export const dynamic = "force-dynamic";
 
 /**

@@ -152,7 +152,7 @@ export function ObservationsClient({
           {/* 학생 선택 */}
           <div>
             <label className="text-xs font-normal text-neutral-600">학생</label>
-            <select
+            <select aria-label="학생"
               value={studentId}
               onChange={(e) => onPickStudent(e.target.value)}
               required
@@ -172,7 +172,7 @@ export function ObservationsClient({
             <label className="text-xs font-normal text-neutral-600">
               분반 (필수)
             </label>
-            <select
+            <select aria-label="분반 (필수)"
               value={sectionId}
               onChange={(e) => onPickSection(e.target.value)}
               required
@@ -215,7 +215,7 @@ export function ObservationsClient({
 
         <div>
           <label className="text-xs font-normal text-neutral-600">관찰일</label>
-          <input
+          <input aria-label="관찰일"
             type="date"
             value={observedOn}
             onChange={(e) => setObservedOn(e.target.value)}
@@ -223,7 +223,7 @@ export function ObservationsClient({
           />
         </div>
 
-        <textarea
+        <textarea aria-label="관찰 내용(사실 위주)"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           required
@@ -231,7 +231,7 @@ export function ObservationsClient({
           placeholder="관찰 내용(사실 위주)"
           className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
         />
-        <input
+        <input aria-label="키워드(콤마로 구분, 공백 포함 단어 가능)"
           value={keywords}
           onChange={(e) => setKeywords(e.target.value)}
           placeholder="키워드(콤마로 구분, 공백 포함 단어 가능)"
@@ -302,19 +302,19 @@ function ObservationRow({ obs }: { obs: RecentObservation }) {
   if (editing) {
     return (
       <li className="rounded border border-neutral-200 p-3 text-sm">
-        <input
+        <input aria-label="관찰일"
           type="date"
           value={observedOn}
           onChange={(e) => setObservedOn(e.target.value)}
           className="rounded border border-neutral-300 px-2 py-1 text-xs"
         />
-        <textarea
+        <textarea aria-label="관찰 내용"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
           className="mt-2 w-full rounded border border-neutral-300 px-3 py-2 text-sm"
         />
-        <input
+        <input aria-label="키워드(콤마로 구분, 공백 포함 단어 가능)"
           value={keywords}
           onChange={(e) => setKeywords(e.target.value)}
           placeholder="키워드(콤마로 구분, 공백 포함 단어 가능)"

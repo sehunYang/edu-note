@@ -3,6 +3,9 @@ import { getDb } from "@/lib/db";
 import { getOwnerClub } from "@/lib/db/queries";
 import { createClubAction, deleteClubAction } from "./actions";
 import { Button } from "@/app/ui/button";
+import { ConfirmButton } from "@/app/ui/confirm-button";
+
+export const metadata = { title: "동아리 개설" };
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +38,12 @@ export default async function ClubroomCreatePage() {
             </div>
             <form action={deleteClubAction} className="inline">
               <input type="hidden" name="id" value={club.id} />
-              <button className="text-xs text-red-500 hover:underline">
+              <ConfirmButton
+                message={`'${club.name}' 동아리를 삭제할까요? 부원 ${club.memberCount}명 배정과 활동 차시가 함께 삭제되며 되돌릴 수 없습니다.`}
+                className="text-xs text-red-500 hover:underline"
+              >
                 동아리 삭제
-              </button>
+              </ConfirmButton>
             </form>
           </div>
           <p className="mt-3 text-xs text-neutral-400">
@@ -48,7 +54,7 @@ export default async function ClubroomCreatePage() {
         <section className="mt-6 rounded-lg border border-neutral-200 p-5">
           <h3 className="text-sm font-normal text-neutral-700">새 동아리</h3>
           <form action={createClubAction} className="mt-3 flex flex-wrap gap-2">
-            <input
+            <input aria-label="동아리명"
               name="name"
               required
               placeholder="동아리명"

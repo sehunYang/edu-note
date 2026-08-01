@@ -30,7 +30,7 @@ export default async function ClubroomLayout({
   const club = await getOwnerClub(db, ownerId);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10">
+    <div>
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-normal tracking-tight">🎬 동아리실</h1>
@@ -48,7 +48,7 @@ export default async function ClubroomLayout({
       </div>
 
       <div className="mt-6">
-        <TabNav tabs={TABS} ariaLabel="동아리실 탭" />
+        <TabNav tabs={TABS} ariaLabel="동아리실 탭" mobileOnly />
       </div>
 
       {!club && (

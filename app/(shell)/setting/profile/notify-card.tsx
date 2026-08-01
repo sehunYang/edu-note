@@ -130,7 +130,7 @@ export function NotifyCard() {
         </div>
       )}
 
-      {message && <p className="mt-3 text-xs text-neutral-500">{message}</p>}
+      {message && <p role="status" className="mt-3 text-xs text-neutral-500">{message}</p>}
     </section>
   );
 }

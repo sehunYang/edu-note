@@ -66,7 +66,7 @@ export function BottomTabBar() {
                           : "text-neutral-500 hover:bg-white/5"
                       }`}
                     >
-                      <span className="text-base leading-none">{space.icon}</span>
+                      <span aria-hidden="true" className="text-base leading-none">{space.icon}</span>
                       <span className="truncate">{space.label}</span>
                     </Link>
                   </li>
@@ -93,7 +93,7 @@ export function BottomTabBar() {
                 active ? "text-white" : "text-neutral-500 hover:text-white"
               }`}
             >
-              <span className="text-lg leading-none">{space.icon}</span>
+              <span aria-hidden="true" className="text-lg leading-none">{space.icon}</span>
               <span className="truncate">{item.label}</span>
             </Link>
           );

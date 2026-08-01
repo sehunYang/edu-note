@@ -6,8 +6,11 @@ import { SwRegister } from "./sw-register";
 // 메타데이터가 이 태그들을 <body>로 흘려보낸 뒤 하이드레이션 때 <head>로 끌어올리는데,
 // Chrome의 manifest 연결(installability)이 이 늦은 삽입에서 깨진다(실측:
 // Page.getAppManifest 빈 값 → 설치 커밋 조용히 실패). 아래 <head>에 정적으로 직접 넣는다.
+// title.template: 각 page 가 `title: "출결 관리"` 만 선언하면 "출결 관리 · Edu_Note"
+// 가 된다(사용성 개선 P0-4). 이전에는 50개 페이지 중 2개만 제목을 설정해 모든
+// 브라우저 탭·방문기록·북마크가 "Edu_Note" 하나로 뭉개졌다.
 export const metadata: Metadata = {
-  title: "Edu_Note",
+  title: { default: "Edu_Note", template: "%s · Edu_Note" },
   description: "고등학교 교사 1인용 교수-수업-평가-기록 일체화 플랫폼",
 };
 

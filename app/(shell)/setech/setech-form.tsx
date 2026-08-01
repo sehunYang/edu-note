@@ -84,7 +84,7 @@ export function SetechForm({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        <select
+        <select aria-label="학생"
           value={studentId}
           onChange={(e) => setStudentId(e.target.value)}
           className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -95,7 +95,7 @@ export function SetechForm({
             </option>
           ))}
         </select>
-        <select
+        <select aria-label="기록 종류"
           value={noteType}
           onChange={(e) => setNoteType(e.target.value as SpecialNoteType)}
           className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -107,7 +107,7 @@ export function SetechForm({
           ))}
         </select>
         {noteType === "subject" && subjects.length > 0 && (
-          <select
+          <select aria-label="과목"
             value={subjectId}
             onChange={(e) => setSubjectId(e.target.value)}
             className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -128,7 +128,7 @@ export function SetechForm({
         </Button>
       </div>
 
-      {msg && <p className="text-xs text-neutral-500">{msg}</p>}
+      {msg && <p role="status" className="text-xs text-neutral-500">{msg}</p>}
 
       {prompt && (
         <div className="space-y-2">
@@ -143,7 +143,7 @@ export function SetechForm({
               복사
             </Button>
           </div>
-          <textarea
+          <textarea aria-label="코워크 붙여넣기용 프롬프트"
             readOnly
             value={prompt}
             rows={8}
@@ -156,7 +156,7 @@ export function SetechForm({
         <label className="text-xs font-normal text-neutral-600">
           ② 코워크 결과 붙여넣기 → 검수 후 저장
         </label>
-        <textarea
+        <textarea aria-label="코워크(Claude Code)에서 생성된 세특 본문을 붙여넣으세요."
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={6}

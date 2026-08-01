@@ -4,6 +4,8 @@ import { getDb } from "@/lib/db";
 import { listStudents } from "@/lib/db/queries";
 import { PrintButton } from "../print-button";
 
+export const metadata = { title: "학생 명렬표" };
+
 export const dynamic = "force-dynamic";
 
 /**

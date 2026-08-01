@@ -11,6 +11,8 @@ import {
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { Badge, TrendBadge, RankBadge } from "../badges";
 
+export const metadata = { title: "학생 점검" };
+
 export const dynamic = "force-dynamic";
 
 const ATTENDANCE_KIND_LABELS: Record<string, string> = {

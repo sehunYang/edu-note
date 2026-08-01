@@ -21,7 +21,7 @@ export function TimetableSync({
       <div className="flex flex-wrap gap-3">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-neutral-500">학교명</label>
-          <input
+          <input aria-label="예: 인천해송고등학교"
             name="school"
             defaultValue={defaultSchool}
             placeholder="예: 인천해송고등학교"
@@ -30,7 +30,7 @@ export function TimetableSync({
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-neutral-500">교사명(본인)</label>
-          <input
+          <input aria-label="예: 양세훈"
             name="teacher"
             defaultValue={defaultTeacher}
             placeholder="예: 양세훈"
@@ -48,13 +48,13 @@ export function TimetableSync({
       </Button>
 
       {state && state.ok && (
-        <p className="rounded border border-green-200 bg-green-50 p-3 text-sm">
+        <p role="status" className="rounded border border-green-200 bg-green-50 p-3 text-sm">
           ✅ {state.teacher} 시간표 동기화 — 과목 {state.subjects} · 분반{" "}
           {state.sections} · 수업 {state.slots}개
         </p>
       )}
       {state && !state.ok && (
-        <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p role="status" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {state.message}
         </p>
       )}

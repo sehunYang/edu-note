@@ -91,7 +91,7 @@ export function AttendancePeriodClient({
   return (
     <form onSubmit={onSubmit} className="mt-3 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <select
+        <select aria-label="학생"
           value={studentId}
           onChange={(e) => setStudentId(e.target.value)}
           required
@@ -104,7 +104,7 @@ export function AttendancePeriodClient({
             </option>
           ))}
         </select>
-        <select
+        <select aria-label="출결 사유"
           value={kind}
           onChange={(e) =>
             setKind(e.target.value as typeof kind)
@@ -116,7 +116,7 @@ export function AttendancePeriodClient({
           <option value="absent_period">결과</option>
           <option value="absent">결석</option>
         </select>
-        <select
+        <select aria-label="출결 성격"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -126,7 +126,7 @@ export function AttendancePeriodClient({
           <option value="unaccepted">미인정</option>
           <option value="etc">기타</option>
         </select>
-        <input
+        <input aria-label="비고(예: 생리통)"
           value={noteField}
           onChange={(e) => setNoteField(e.target.value)}
           placeholder="비고(예: 생리통)"
@@ -183,7 +183,7 @@ export function AttendancePeriodClient({
             결석 기간(종료일 비우면 당일만)
           </legend>
           <span className="text-xs text-neutral-500">{date} ~</span>
-          <input
+          <input aria-label="결석 종료일"
             type="date"
             value={rangeEnd}
             min={date}

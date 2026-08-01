@@ -8,6 +8,8 @@ import { GoogleCalendarCard } from "./google-calendar-card";
 import { InstallAppCard } from "./install-app-card";
 import { NotifyCard } from "./notify-card";
 
+export const metadata = { title: "교사 기본 설정" };
+
 export const dynamic = "force-dynamic";
 
 /** C2 교사 기본 설정 — 이름·학교명·담임여부·담임반 + NEIS/comcigan 학교 동시 해석. */

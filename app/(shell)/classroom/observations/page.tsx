@@ -8,6 +8,8 @@ import {
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { ObservationsClient, type SectionOption } from "./observations-client";
 
+export const metadata = { title: "교과 관찰" };
+
 export const dynamic = "force-dynamic";
 
 /**

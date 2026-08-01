@@ -8,6 +8,7 @@ import type {
   CounselReservationRow,
 } from "@/lib/db/queries";
 import { Button } from "@/app/ui/button";
+import { ConfirmButton } from "@/app/ui/confirm-button";
 
 /**
  * 상담실 목록 클라이언트 (QC v4 US-8, AC-8.2). 서버 컴포넌트의 슬롯·상담기록
@@ -138,7 +139,7 @@ export function CounselSlotList({
                   className="mt-2 flex flex-wrap gap-2"
                 >
                   <input type="hidden" name="slotId" value={slot.id} />
-                  <select
+                  <select aria-label="학생"
                     name="studentYearId"
                     className="rounded border border-neutral-300 px-2 py-1 text-xs"
                   >
@@ -213,9 +214,12 @@ export function CounselLogList({
                   <span>{l.date}</span>
                   <form action={deleteCounselingAction} className="inline">
                     <input type="hidden" name="id" value={l.id} />
-                    <button className="text-red-500 hover:underline">
+                    <ConfirmButton
+                      message="이 상담 일지를 삭제할까요? 되돌릴 수 없습니다."
+                      className="text-red-500 hover:underline"
+                    >
                       삭제
-                    </button>
+                    </ConfirmButton>
                   </form>
                 </span>
               </div>
@@ -234,7 +238,7 @@ export function CounselLogList({
                 >
                   <input type="hidden" name="id" value={l.id} />
                   <div className="flex flex-wrap gap-2">
-                    <select
+                    <select aria-label="상담 대상"
                       name="target"
                       defaultValue={l.target}
                       className="rounded border border-neutral-300 px-2 py-1 text-xs"
@@ -242,14 +246,14 @@ export function CounselLogList({
                       <option value="student">학생</option>
                       <option value="parent">학부모</option>
                     </select>
-                    <input
+                    <input aria-label="상담일"
                       type="date"
                       name="date"
                       defaultValue={l.date}
                       className="rounded border border-neutral-300 px-2 py-1 text-xs"
                     />
                   </div>
-                  <textarea
+                  <textarea aria-label="상담 내용"
                     name="body"
                     defaultValue={l.body}
                     rows={3}

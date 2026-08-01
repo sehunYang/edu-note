@@ -54,13 +54,13 @@ export function LegacyYears({
       ))}
 
       {state && state.ok && (
-        <p className="rounded border border-green-200 bg-green-50 p-3 text-sm">
+        <p role="status" className="rounded border border-green-200 bg-green-50 p-3 text-sm">
           ✅ {state.year}학년도 삭제 · 학적 {state.removedStudentYears}건 제거 ·
           참조 영속학생 {state.preservedPersons}명 보존
         </p>
       )}
       {state && !state.ok && (
-        <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p role="status" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {state.message}
         </p>
       )}
@@ -92,7 +92,7 @@ function DeleteForm({
   return (
     <form action={action} className="flex items-center gap-2">
       <input type="hidden" name="year" value={year} />
-      <input
+      <input aria-label="삭제 확인용 연도 입력"
         name="confirm"
         type="number"
         placeholder={`${year} 입력`}

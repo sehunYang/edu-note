@@ -15,6 +15,8 @@ import { NotesManager } from "./notes-manager";
 import { EventsManager } from "./events-manager";
 import { FixedClassPanel } from "./fixed-class-panel";
 
+export const metadata = { title: "공지실" };
+
 export const dynamic = "force-dynamic";
 
 /**

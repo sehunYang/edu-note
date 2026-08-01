@@ -100,12 +100,12 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
           </form>
         </div>
         {syncState && syncState.ok && (
-          <p className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
+          <p role="status" className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
             ✅ 수업일 {syncState.schoolDays}일 · 이벤트 {syncState.events}건 동기화
           </p>
         )}
         {syncState && !syncState.ok && (
-          <p className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+          <p role="status" className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
             {syncState.message}
           </p>
         )}
@@ -133,12 +133,12 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
           </form>
         </div>
         {saveState && saveState.ok && (
-          <p className="mt-2 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
+          <p role="status" className="mt-2 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
             ✅ {saveState.count}건 저장 · 경고 해제
           </p>
         )}
         {saveState && !saveState.ok && (
-          <p className="mt-2 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+          <p role="status" className="mt-2 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
             {saveState.message}
           </p>
         )}
@@ -171,7 +171,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
                     )}
                     {e.title}
                   </span>
-                  <select
+                  <select aria-label="일정 종류"
                     value={d.eventKind}
                     onChange={(ev) =>
                       patch(e.id, { eventKind: ev.target.value as EventKind })
@@ -186,7 +186,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
                   </select>
                   {d.eventKind === "exam" && (
                     <>
-                      <select
+                      <select aria-label="시험 학기"
                         value={d.examSemester}
                         onChange={(ev) =>
                           patch(e.id, { examSemester: ev.target.value })
@@ -197,7 +197,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
                         <option value="1">1학기</option>
                         <option value="2">2학기</option>
                       </select>
-                      <select
+                      <select aria-label="시험 회차"
                         value={d.examOrdinal}
                         onChange={(ev) =>
                           patch(e.id, { examOrdinal: ev.target.value })

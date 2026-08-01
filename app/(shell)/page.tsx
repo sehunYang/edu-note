@@ -23,6 +23,8 @@ import { kstToday, readMeals, weekRange } from "./today/today-lib";
 import type { NudgeResult } from "@/lib/domain/nudge";
 import { Button } from "@/app/ui/button";
 
+export const metadata = { title: "홈" };
+
 export const dynamic = "force-dynamic";
 
 const EMPTY_NUDGES: NudgeResult = {
@@ -135,7 +137,7 @@ export default async function Home() {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-12">
+    <>
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-normal tracking-tight">📆 Edu_Note</h1>
@@ -234,7 +236,7 @@ export default async function Home() {
           백업 내보내기(JSON)
         </a>
       </div>
-    </main>
+    </>
   );
 }
 

@@ -14,6 +14,8 @@ import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { PlanStageNav } from "../plan-stage-nav";
 import { SessionEditor, type SubjectSessionView } from "./session-editor";
 
+export const metadata = { title: "차시 계획" };
+
 export const dynamic = "force-dynamic";
 
 /**

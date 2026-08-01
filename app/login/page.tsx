@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth/owner";
 import { CoveLight } from "@/app/ui/cove-light";
 import { GoogleLoginButton } from "./login-button";
 
+export const metadata = { title: "로그인" };
+
 /** 로그인 화면 (계획 §3.2). 이미 로그인+허용계정이면 홈으로. */
 export default async function LoginPage({
   searchParams,

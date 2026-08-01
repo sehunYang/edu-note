@@ -60,7 +60,7 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
           찾습니다. 못 찾아도 수동 입력으로 진행할 수 있습니다.
         </p>
         <form action={resolve} className="mt-3 flex flex-wrap gap-2">
-          <input
+          <input aria-label="예: 인천해송고등학교"
             name="schoolName"
             value={schoolName}
             onChange={(e) => setSchoolName(e.target.value)}
@@ -77,7 +77,7 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
         </form>
 
         {resolveState && !resolveState.ok && (
-          <p className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+          <p role="status" className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
             {resolveState.message}
           </p>
         )}
@@ -135,7 +135,7 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
       {/* 기본 설정 저장 */}
       <form action={save} className="space-y-4">
         <Field label="이름">
-          <input
+          <input aria-label="이름"
             name="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -143,7 +143,7 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
           />
         </Field>
         <Field label="학교명">
-          <input
+          <input aria-label="학교명"
             name="schoolName"
             value={schoolName}
             onChange={(e) => setSchoolName(e.target.value)}
@@ -165,7 +165,7 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
         {isHomeroom && (
           <div className="flex gap-3">
             <Field label="담임 학년">
-              <input
+              <input aria-label="담임 학년"
                 name="homeroomGrade"
                 type="number"
                 defaultValue={initial?.homeroomGrade ?? ""}
@@ -173,7 +173,7 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
               />
             </Field>
             <Field label="담임 반">
-              <input
+              <input aria-label="담임 반"
                 name="homeroomClassNo"
                 type="number"
                 defaultValue={initial?.homeroomClassNo ?? ""}

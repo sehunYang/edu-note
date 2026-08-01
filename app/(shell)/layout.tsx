@@ -20,10 +20,20 @@ export default function ShellLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   // CoveLight는 template.tsx의 transform 애니메이션 조상 바깥(AppShell 형제)에
   // 두어야 fixed 앵커링이 유지된다(cove-lighting 계획 AC-6/RC4).
+  //
+  // 사용성 개선 P1-5/P2-15: <main> 컨테이너를 여기 하나로 모았다. 이전에는 각
+  // 페이지·실 레이아웃이 제각기 컨테이너를 선언해 본문 폭이 4종(max-w-3xl/4xl/
+  // 5xl/컨테이너 없음)으로 갈렸고, 실 사이를 오갈 때 본문이 좌우로 최대 256px
+  // 튀었다. 동시에 <main> 랜드마크가 있는 페이지와 없는 페이지가 섞여 있었는데
+  // 이제 모든 셸 하위 화면이 정확히 하나의 <main>을 갖는다.
   return (
     <>
       <CoveLight />
-      <AppShell>{children}</AppShell>
+      <AppShell>
+        <main id="content" className="mx-auto w-full max-w-5xl px-6 py-10">
+          {children}
+        </main>
+      </AppShell>
     </>
   );
 }

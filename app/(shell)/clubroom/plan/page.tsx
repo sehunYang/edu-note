@@ -6,6 +6,9 @@ import {
 } from "@/lib/db/queries";
 import { reconcileAction, updatePlanAction } from "./actions";
 import { Button } from "@/app/ui/button";
+import { EmptyState } from "@/app/ui/empty-state";
+
+export const metadata = { title: "동아리 활동 계획" };
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +26,11 @@ export default async function ClubroomPlanPage() {
     return (
       <div>
         <h2 className="text-lg font-normal text-neutral-800">활동 계획</h2>
-        <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          아직 개설된 동아리가 없습니다. <strong>동아리 개설</strong> 탭에서 먼저
-          동아리를 만드세요.
-        </p>
+        <div className="mt-8">
+          <EmptyState actions={[{ href: "/clubroom/create", label: "동아리 개설" }]}>
+            아직 개설된 동아리가 없습니다. 먼저 동아리를 만드세요.
+          </EmptyState>
+        </div>
       </div>
     );
   }
@@ -71,7 +75,7 @@ export default async function ClubroomPlanPage() {
                 className="mt-2 flex flex-wrap items-center gap-2"
               >
                 <input type="hidden" name="sessionId" value={s.id} />
-                <input
+                <input aria-label="예정 활동"
                   name="plannedActivity"
                   defaultValue={s.plannedActivity ?? ""}
                   placeholder="예정 활동"

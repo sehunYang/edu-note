@@ -22,6 +22,8 @@ import { CounselCsvPanel } from "./counsel-csv-panel";
 import { CounselSlotList, CounselLogList } from "./counsel-lists-client";
 import { Button } from "@/app/ui/button";
 
+export const metadata = { title: "상담실" };
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -72,7 +74,7 @@ export default async function CounselPage() {
         ) : (
           <form action={createCounselingAction} className="mt-3 space-y-3">
             <div className="flex flex-wrap gap-3">
-              <select
+              <select aria-label="학생"
                 name="studentYearId"
                 required
                 className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -83,7 +85,7 @@ export default async function CounselPage() {
                   </option>
                 ))}
               </select>
-              <select
+              <select aria-label="상담 대상"
                 name="target"
                 defaultValue="student"
                 className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -91,14 +93,14 @@ export default async function CounselPage() {
                 <option value="student">학생</option>
                 <option value="parent">학부모</option>
               </select>
-              <input
+              <input aria-label="상담일"
                 type="date"
                 name="date"
                 defaultValue={today}
                 className="rounded border border-neutral-300 px-2 py-1 text-sm"
               />
             </div>
-            <textarea
+            <textarea aria-label="상담 내용"
               name="body"
               required
               rows={4}
@@ -120,7 +122,7 @@ export default async function CounselPage() {
         <form action={openSlotAction} className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-neutral-500">날짜</label>
-            <input
+            <input aria-label="날짜"
               type="date"
               name="date"
               defaultValue={today}
@@ -130,7 +132,7 @@ export default async function CounselPage() {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-neutral-500">정원</label>
-            <input
+            <input aria-label="정원"
               type="number"
               name="capacity"
               defaultValue={1}

@@ -12,6 +12,8 @@ import { StageGate } from "../stage-gate";
 import { LockedNotice } from "../locked-notice";
 import { CalendarAttrs } from "./calendar-attrs";
 
+export const metadata = { title: "학사일정 설정" };
+
 export const dynamic = "force-dynamic";
 
 function todayStr(): string {

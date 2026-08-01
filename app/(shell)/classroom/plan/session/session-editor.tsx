@@ -117,7 +117,7 @@ export function SessionEditor({ subjects }: { subjects: SubjectSessionView[] }) 
     <div className="mt-6 space-y-4">
       <div className="flex items-center gap-2">
         <label className="text-sm text-neutral-600">과목</label>
-        <select
+        <select aria-label="과목"
           value={selectedId}
           onChange={(e) => setSelectedId(e.target.value)}
           className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -428,7 +428,7 @@ function SessionRow({
 
       <div className="mt-2 flex items-center gap-2">
         <label className="text-xs text-neutral-500">단원 코드</label>
-        <input
+        <input aria-label="6자리"
           value={row.code}
           onChange={(e) =>
             onChange({ code: e.target.value.replace(/[^0-9]/g, "").slice(0, 6) })
@@ -475,14 +475,14 @@ function SessionRow({
       )}
       {codeError && <p className="mt-1 text-xs text-red-600">{codeError}</p>}
 
-      <textarea
+      <textarea aria-label="수업내용"
         value={row.content}
         onChange={(e) => onChange({ content: e.target.value })}
         rows={3}
         placeholder="수업내용"
         className="mt-2 w-full rounded border border-neutral-300 px-3 py-2 text-sm"
       />
-      <input
+      <input aria-label="핵심개념(콤마·#로 구분, 공백 포함 단어 가능)"
         value={row.keywords}
         onChange={(e) => onChange({ keywords: e.target.value })}
         placeholder="핵심개념(콤마·#로 구분, 공백 포함 단어 가능)"

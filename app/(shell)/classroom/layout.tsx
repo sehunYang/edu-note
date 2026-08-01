@@ -28,7 +28,7 @@ export default function ClassroomLayout({
   const defaultSemester = activeSemester(new Date());
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10">
+    <div>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-normal tracking-tight">🏫 교실</h1>
@@ -42,7 +42,7 @@ export default function ClassroomLayout({
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <TabNav tabs={TABS} ariaLabel="교실 탭" />
+        <TabNav tabs={TABS} ariaLabel="교실 탭" mobileOnly />
         <SemesterSelector defaultSemester={defaultSemester} />
       </div>
 

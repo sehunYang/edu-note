@@ -258,7 +258,7 @@ function CounselSlotRow({
       </span>
       {slot.reserved ? (
         <span className="flex items-center gap-2">
-          {err && <span className="text-xs text-red-600">{err}</span>}
+          {err && <span role="status" className="text-xs text-red-600">{err}</span>}
           <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">
             신청됨
           </span>
@@ -279,7 +279,7 @@ function CounselSlotRow({
         </span>
       ) : (
         <span className="flex items-center gap-2">
-          {err && <span className="text-xs text-red-600">{err}</span>}
+          {err && <span role="status" className="text-xs text-red-600">{err}</span>}
           <Button
             type="button"
             disabled={pending || slot.remaining <= 0}

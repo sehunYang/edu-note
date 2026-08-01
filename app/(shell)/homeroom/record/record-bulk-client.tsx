@@ -131,7 +131,7 @@ export function RecordBulkClient({
         <h3 className="text-sm font-normal text-neutral-700">
           ② 코워크 결과 CSV 업로드(학번 매칭)
         </h3>
-        <input
+        <input aria-label="코워크 결과 CSV 파일 선택"
           type="file"
           accept=".csv,text/csv"
           onChange={onImport}
@@ -150,7 +150,7 @@ export function RecordBulkClient({
         )}
       </section>
 
-      {msg && <p className="text-xs text-neutral-500">{msg}</p>}
+      {msg && <p role="status" className="text-xs text-neutral-500">{msg}</p>}
 
       {/* 저장된 초안(현재 영역) */}
       <section>

@@ -81,7 +81,7 @@ export function BehaviorClient({
             <label className="text-xs font-normal text-neutral-600">
               학생 (담임반)
             </label>
-            <select
+            <select aria-label="학생 (담임반)"
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
               required
@@ -97,7 +97,7 @@ export function BehaviorClient({
           </div>
           <div>
             <label className="text-xs font-normal text-neutral-600">기록일</label>
-            <input
+            <input aria-label="기록일"
               type="date"
               value={notedOn}
               onChange={(e) => setNotedOn(e.target.value)}
@@ -106,7 +106,7 @@ export function BehaviorClient({
           </div>
         </div>
 
-        <textarea
+        <textarea aria-label="행동특성(사실 위주)"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           required
@@ -114,7 +114,7 @@ export function BehaviorClient({
           placeholder="행동특성(사실 위주)"
           className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
         />
-        <input
+        <input aria-label="키워드(콤마로 구분, 공백 포함 단어 가능)"
           value={keywords}
           onChange={(e) => setKeywords(e.target.value)}
           placeholder="키워드(콤마로 구분, 공백 포함 단어 가능)"
@@ -183,19 +183,19 @@ function BehaviorRow({ note }: { note: RecentBehaviorNote }) {
   if (editing) {
     return (
       <li className="rounded border border-neutral-200 p-3 text-sm">
-        <input
+        <input aria-label="기록일"
           type="date"
           value={notedOn}
           onChange={(e) => setNotedOn(e.target.value)}
           className="rounded border border-neutral-300 px-2 py-1 text-xs"
         />
-        <textarea
+        <textarea aria-label="행동특성 내용"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
           className="mt-2 w-full rounded border border-neutral-300 px-3 py-2 text-sm"
         />
-        <input
+        <input aria-label="키워드(콤마로 구분, 공백 포함 단어 가능)"
           value={keywords}
           onChange={(e) => setKeywords(e.target.value)}
           placeholder="키워드(콤마로 구분, 공백 포함 단어 가능)"

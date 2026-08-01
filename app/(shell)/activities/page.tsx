@@ -4,6 +4,9 @@ import { getDb } from "@/lib/db";
 import { listStudents, listStudentActivities } from "@/lib/db/queries";
 import { createActivityAction, deleteActivityAction } from "./actions";
 import { SubmitButton } from "./submit-button";
+import { ConfirmButton } from "@/app/ui/confirm-button";
+
+export const metadata = { title: "활동 기입" };
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +36,7 @@ export default async function ActivitiesPage() {
   const nameById = new Map(students.map((s) => [s.id, s]));
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-normal tracking-tight">활동 기입 ({year})</h1>
         <Link href="/" className="text-sm text-neutral-500 hover:underline">
@@ -58,7 +61,7 @@ export default async function ActivitiesPage() {
         ) : (
           <form action={createActivityAction} className="mt-3 space-y-3">
             <div className="flex flex-wrap gap-3">
-              <select
+              <select aria-label="학생"
                 name="studentYearId"
                 required
                 className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -69,7 +72,7 @@ export default async function ActivitiesPage() {
                   </option>
                 ))}
               </select>
-              <select
+              <select aria-label="활동 구분"
                 name="tag"
                 defaultValue="autonomy"
                 className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -79,7 +82,7 @@ export default async function ActivitiesPage() {
                 <option value="both">자율+진로</option>
               </select>
             </div>
-            <textarea
+            <textarea aria-label="활동 내용(관찰 사실 위주)"
               name="body"
               required
               rows={3}
@@ -117,7 +120,12 @@ export default async function ActivitiesPage() {
                       <span>→ {PLACEMENT_LABEL[a.placement]}</span>
                       <form action={deleteActivityAction} className="inline">
                         <input type="hidden" name="id" value={a.id} />
-                        <button className="text-red-500 hover:underline">삭제</button>
+                        <ConfirmButton
+                          message="이 활동 기입을 삭제할까요? 되돌릴 수 없습니다."
+                          className="text-red-500 hover:underline"
+                        >
+                          삭제
+                        </ConfirmButton>
                       </form>
                     </span>
                   </div>
@@ -128,6 +136,6 @@ export default async function ActivitiesPage() {
           </ul>
         )}
       </section>
-    </main>
+    </>
   );
 }

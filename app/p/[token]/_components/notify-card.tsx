@@ -165,8 +165,8 @@ export function NotifyCard({ token }: { token: string }) {
         </div>
       )}
 
-      {status && <p className="mt-2 text-xs text-green-700">{status}</p>}
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {status && <p role="status" className="mt-2 text-xs text-green-700">{status}</p>}
+      {error && <p role="status" className="mt-2 text-xs text-red-600">{error}</p>}
     </section>
   );
 }

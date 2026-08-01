@@ -111,7 +111,7 @@ export function RecordClient({
             {byteCount}/{byteLimit} byte
           </span>
         </div>
-        <textarea
+        <textarea aria-label="원천자료를 참고해 생기부 본문을 작성하세요."
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={6}
@@ -125,7 +125,7 @@ export function RecordClient({
         >
           초안 저장
         </Button>
-        {msg && <p className="mt-2 text-xs text-neutral-500">{msg}</p>}
+        {msg && <p role="status" className="mt-2 text-xs text-neutral-500">{msg}</p>}
       </section>
 
       <section>

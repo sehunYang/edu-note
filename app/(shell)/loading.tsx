@@ -9,7 +9,7 @@
 export default function ShellLoading() {
   return (
     <div
-      className="mx-auto max-w-5xl animate-pulse px-4 py-8"
+      className="animate-pulse"
       aria-busy="true"
       aria-label="불러오는 중"
     >

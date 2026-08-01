@@ -10,6 +10,8 @@ import {
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { SetechBulkClient } from "./setech-bulk-client";
 
+export const metadata = { title: "세특 작성" };
+
 export const dynamic = "force-dynamic";
 
 /**

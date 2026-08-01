@@ -50,12 +50,12 @@ export function HomeroomTimetableSync() {
         </div>
 
         {state && state.ok && (
-          <p className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
+          <p role="status" className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
             ✅ {state.grade}학년 {state.classNo}반 시간표 {state.slots}칸 동기화
           </p>
         )}
         {state && !state.ok && (
-          <p className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+          <p role="status" className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
             {state.message}
           </p>
         )}
@@ -84,7 +84,7 @@ export function HomeroomTimetableSync() {
             </Button>
           </div>
           {detectState && !detectState.ok && (
-            <p className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+            <p role="status" className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
               {detectState.message}
             </p>
           )}
@@ -137,7 +137,7 @@ export function HomeroomTimetableSync() {
                 {applying ? "적용 중…" : "이대로 적용"}
               </Button>
               {applyState && !applyState.ok && (
-                <p className="mt-2 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+                <p role="status" className="mt-2 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
                   {applyState.message}
                 </p>
               )}
@@ -146,7 +146,7 @@ export function HomeroomTimetableSync() {
         )}
 
         {applyState && applyState.ok && (
-          <p className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
+          <p role="status" className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
             ✅ {applyState.grade}학년 {applyState.classNo}반 — 공통 {applyState.fixed}과목 ·
             선택 {applyState.elective}과목으로 저장했습니다.
           </p>

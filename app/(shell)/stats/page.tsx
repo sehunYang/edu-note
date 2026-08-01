@@ -16,17 +16,22 @@ import {
   attendanceSurge,
   gradeDrop,
   recordGap,
+  summarizeAlerts,
   RECORD_GAP_DAYS,
+  type AlertReason,
 } from "@/lib/domain/stats-alerts";
 import { histogram, basicStats, coverageMatrix } from "@/lib/domain/stats-insights";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { SectionSelector } from "./section-selector";
+import { AlertPanel, type AlertPanelEntry } from "./alert-panel";
 import {
   HistogramChart,
   SectionComparisonChart,
   PerformanceFillChart,
   type SectionComparisonDatum,
 } from "./ui/grade-charts";
+
+export const metadata = { title: "통계실" };
 
 export const dynamic = "force-dynamic";
 
@@ -89,34 +94,50 @@ export default async function StatsPage({
       : [];
   const subjectNameById = new Map(subjectNameRows.map((s) => [s.id, s.name]));
 
-  interface AlertEntry {
-    studentYearId: string;
-    name: string;
-    reasons: string[];
-  }
-  const alertEntries: AlertEntry[] = [];
+  const alertEntries: AlertPanelEntry[] = [];
   for (const row of alertInputs) {
-    const reasons: string[] = [];
+    const reasons: AlertReason[] = [];
     if (attendanceSurge(row.attendanceRecent30, row.attendancePrev30)) {
-      reasons.push(`출결 ${row.attendanceRecent30}건(직전 ${row.attendancePrev30}건)`);
+      reasons.push({
+        kind: "attendance",
+        text: `출결 ${row.attendanceRecent30}건(직전 ${row.attendancePrev30}건)`,
+      });
     }
     for (const d of flaggedDropsByStudent.get(row.studentYearId) ?? []) {
       const subjectName = subjectNameById.get(d.subjectId) ?? "과목";
-      reasons.push(
-        `${subjectName} 중간${Math.round(d.mid)}→기말${Math.round(d.final)}(${Math.round(
+      reasons.push({
+        kind: "gradeDrop",
+        text: `${subjectName} 중간${Math.round(d.mid)}→기말${Math.round(d.final)}(${Math.round(
           d.mid - d.final,
         )}점↓)`,
-      );
+      });
     }
     if (recordGap(row.obsCount21d, row.behaviorCount21d, row.isHomeroomStudent)) {
-      reasons.push(
-        row.isHomeroomStudent
+      reasons.push({
+        kind: "recordGap",
+        text: row.isHomeroomStudent
           ? `관찰·행특 0건(최근 ${RECORD_GAP_DAYS}일)`
           : `관찰 0건(최근 ${RECORD_GAP_DAYS}일)`,
-      );
+      });
     }
-    if (reasons.length > 0) alertEntries.push({ studentYearId: row.studentYearId, name: row.name, reasons });
+    if (reasons.length > 0) {
+      alertEntries.push({
+        studentYearId: row.studentYearId,
+        name: row.name,
+        reasons,
+        isHomeroomStudent: row.isHomeroomStudent,
+      });
+    }
   }
+
+  // 모집단 과반 종류 접기 + 심각도 정렬. cohort 는 해당 학년도 학생 전원
+  // (alertInputs 가 studentYears 전수를 담는다).
+  const alertSummary = summarizeAlerts(alertEntries, alertInputs.length);
+  const homeroomById = new Map(alertEntries.map((e) => [e.studentYearId, e.isHomeroomStudent]));
+  const individualAlerts: AlertPanelEntry[] = alertSummary.individual.map((e) => ({
+    ...e,
+    isHomeroomStudent: homeroomById.get(e.studentYearId) ?? false,
+  }));
 
   // ── ② 성적 분석: URL ?section= (없으면 첫 분반) ──
   const requestedSectionId = sp.section?.trim() ?? "";
@@ -153,10 +174,10 @@ export default async function StatsPage({
   ];
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-normal tracking-tight">
-          통계실 ({year}학년도 {sem}학기)
+          <span aria-hidden="true">📊</span> 통계실 ({year}학년도 {sem}학기)
         </h1>
         <div className="flex items-center gap-4">
           <Link href="/print" className="text-sm text-neutral-500 hover:underline">
@@ -169,25 +190,11 @@ export default async function StatsPage({
       </div>
 
       {/* ① 이상징후 경보 */}
-      <section className="mt-6 rounded-lg border border-neutral-200 p-4">
-        <h2 className="text-sm font-normal text-neutral-700">이상징후 경보</h2>
-        {alertEntries.length === 0 ? (
-          <p className="mt-2 text-sm text-neutral-400">특이사항 없음</p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {alertEntries.map((a) => (
-              <li key={a.studentYearId} className="rounded-md bg-red-50 p-3 text-sm">
-                <span className="font-normal text-red-700">{a.name}</span>
-                <ul className="mt-1 space-y-0.5 text-xs text-red-600">
-                  {a.reasons.map((r, i) => (
-                    <li key={i}>· {r}</li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <AlertPanel
+        individual={individualAlerts}
+        systemic={alertSummary.systemic}
+        cohortSize={alertInputs.length}
+      />
 
       {/* ② 성적 분석 */}
       <section className="mt-6 rounded-lg border border-neutral-200 p-4">
@@ -313,7 +320,7 @@ export default async function StatsPage({
           </div>
         </div>
       </section>
-    </main>
+    </>
   );
 }
 

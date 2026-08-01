@@ -7,6 +7,8 @@ import {
 import { activeSchoolYear } from "@/lib/domain/school-year";
 import { RecordBulkClient } from "./record-bulk-client";
 
+export const metadata = { title: "생기부 작성" };
+
 export const dynamic = "force-dynamic";
 
 /**

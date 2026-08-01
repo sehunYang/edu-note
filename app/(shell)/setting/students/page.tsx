@@ -17,6 +17,8 @@ import { LockedNotice } from "../locked-notice";
 import { StudentRoster } from "./student-roster";
 import { ImportForm } from "./import-form";
 
+export const metadata = { title: "학생 명단 관리" };
+
 export const dynamic = "force-dynamic";
 
 /** C4 학생 명단 — 동명이인 매칭/상속 큐 + 학급역할 + 담임반 표시 + 공개링크(담임만). */

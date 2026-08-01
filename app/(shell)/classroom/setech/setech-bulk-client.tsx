@@ -12,6 +12,7 @@ import {
 import { downloadCsv } from "@/lib/ui/download-csv";
 import { bulkResultCsvExample } from "@/lib/setech";
 import { Button } from "@/app/ui/button";
+import { ConfirmButton } from "@/app/ui/confirm-button";
 
 const PAGE_SIZE = 10;
 
@@ -120,7 +121,7 @@ export function SetechBulkClient({
       <section className="rounded-lg border border-neutral-200 p-4">
         <h3 className="text-sm font-normal text-neutral-700">① 원천자료 내보내기</h3>
         <div className="mt-3 flex flex-wrap gap-2">
-          <select
+          <select aria-label="과목"
             value={subjectId}
             onChange={(e) => {
               setSubjectId(e.target.value);
@@ -134,7 +135,7 @@ export function SetechBulkClient({
               </option>
             ))}
           </select>
-          <select
+          <select aria-label="분반"
             value={sectionId}
             onChange={(e) => setSectionId(e.target.value)}
             className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -172,7 +173,7 @@ export function SetechBulkClient({
             ⬇ 예시 CSV 다운로드
           </Button>
         </div>
-        <input
+        <input aria-label="코워크 결과 CSV 파일 선택"
           type="file"
           accept=".csv,text/csv"
           onChange={onImport}
@@ -194,7 +195,7 @@ export function SetechBulkClient({
               </div>
             )}
             {importResult.rejected.length > 0 && (
-              <div className="rounded border border-red-200 bg-red-50 p-2">
+              <div role="status" className="rounded border border-red-200 bg-red-50 p-2">
                 <p className="font-normal text-red-700">거부 {importResult.rejected.length}(바이트 초과·빈 내용)</p>
                 {importResult.rejected.map((r, i) => (
                   <p key={i} className="text-red-600">
@@ -225,7 +226,7 @@ export function SetechBulkClient({
         extraNotes={extraNotes}
       />
 
-      {msg && <p className="text-xs text-neutral-500">{msg}</p>}
+      {msg && <p role="status" className="text-xs text-neutral-500">{msg}</p>}
 
       {/* 저장된 초안 */}
       <section>
@@ -323,7 +324,7 @@ function ExtraNoteForm({
         아닌 활동 서술을 기입하세요.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <select
+        <select aria-label="과목"
           value={subjectId}
           onChange={(e) => {
             setSubjectId(e.target.value);
@@ -337,7 +338,7 @@ function ExtraNoteForm({
             </option>
           ))}
         </select>
-        <select
+        <select aria-label="학생"
           value={effectiveStudentId}
           onChange={(e) => setStudentYearId(e.target.value)}
           className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -353,7 +354,7 @@ function ExtraNoteForm({
           )}
         </select>
       </div>
-      <textarea
+      <textarea aria-label="자율 탐구 등 추가 내역(사실 위주)"
         value={body}
         onChange={(e) => setBody(e.target.value)}
         rows={3}
@@ -367,7 +368,7 @@ function ExtraNoteForm({
       >
         추가 입력 저장
       </Button>
-      {msg && <p className="mt-1 text-xs text-neutral-500">{msg}</p>}
+      {msg && <p role="status" className="mt-1 text-xs text-neutral-500">{msg}</p>}
 
       {/* AC-4.3 저장된 추가 입력 목록(수정/삭제) */}
       <div className="mt-4 border-t border-neutral-100 pt-3">
@@ -463,19 +464,21 @@ function ExtraNoteItem({
               >
                 수정
               </button>
-              <button
+              <ConfirmButton
+                type="button"
+                message="이 추가 입력을 삭제할까요? 되돌릴 수 없습니다."
                 onClick={onDelete}
                 disabled={pending}
                 className="text-red-500 hover:underline disabled:opacity-50"
               >
                 삭제
-              </button>
+              </ConfirmButton>
             </>
           )}
         </span>
       </div>
       {editing ? (
-        <textarea
+        <textarea aria-label="추가 입력 내용"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}

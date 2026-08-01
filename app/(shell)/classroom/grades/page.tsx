@@ -7,6 +7,8 @@ import { subjects, performanceItems } from "@/lib/db/schema/classes";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { GradesUploader, type SubjectGradeView } from "./grades-uploader";
 
+export const metadata = { title: "성적 기록" };
+
 export const dynamic = "force-dynamic";
 
 /**

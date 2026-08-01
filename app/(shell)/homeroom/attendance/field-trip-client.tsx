@@ -54,7 +54,7 @@ export function FieldTripSection({
           action={addFieldTripAction}
           className="mt-3 flex flex-wrap items-center gap-2"
         >
-          <select
+          <select aria-label="학생"
             name="studentYearId"
             required
             className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -66,14 +66,14 @@ export function FieldTripSection({
             ))}
           </select>
           <label className="text-xs text-neutral-500">시작</label>
-          <input
+          <input aria-label="시작"
             type="date"
             name="startDate"
             required
             className="rounded border border-neutral-300 px-2 py-1 text-sm"
           />
           <label className="text-xs text-neutral-500">종료(선택=당일)</label>
-          <input
+          <input aria-label="종료(선택=당일)"
             type="date"
             name="endDate"
             className="rounded border border-neutral-300 px-2 py-1 text-sm"

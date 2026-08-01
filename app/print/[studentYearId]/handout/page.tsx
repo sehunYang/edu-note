@@ -13,6 +13,8 @@ import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import type { JipilTrend } from "@/lib/domain/student-report";
 import { PrintButton } from "../../print-button";
 
+export const metadata = { title: "학생 배부물" };
+
 export const dynamic = "force-dynamic";
 
 const ATTENDANCE_KIND_LABELS: Record<string, string> = {

@@ -15,6 +15,8 @@ import {
   VACATION_BAND_BG,
 } from "@/lib/domain/event-kind-display";
 import { Button } from "@/app/ui/button";
+import { ConfirmButton } from "@/app/ui/confirm-button";
+import { CalendarLegend } from "./calendar-legend";
 
 /**
  * 오늘의 학교 학사일정 캘린더 (QC v5 c7 B.3/B.4). 다가오는 학사일정을 월간 캘린더로
@@ -210,6 +212,7 @@ export function EventsCalendar({
           ›
         </Button>
       </div>
+      <CalendarLegend />
       <div className="grid grid-cols-7 gap-px text-center text-xs">
         {WK.map((w) => (
           <div key={w} className="py-1 font-normal text-neutral-400">
@@ -440,20 +443,20 @@ function DayDetailModal({
                   {editId === m.id ? (
                     <>
                       <div className="min-w-0 flex-1 space-y-1">
-                        <input
+                        <input aria-label="메모 내용"
                           value={editText}
                           onChange={(e) => setEditText(e.target.value)}
                           className="w-full rounded border border-neutral-300 px-1.5 py-0.5 text-sm"
                         />
                         <div className="flex items-center gap-1 text-xs">
-                          <input
+                          <input aria-label="시작 시간"
                             type="time"
                             value={editStartTime}
                             onChange={(e) => setEditStartTime(e.target.value)}
                             className="rounded border border-neutral-300 px-1 py-0.5"
                           />
                           <span className="text-neutral-400">~</span>
-                          <input
+                          <input aria-label="종료 시간"
                             type="time"
                             value={editEndTime}
                             onChange={(e) => setEditEndTime(e.target.value)}
@@ -493,14 +496,15 @@ function DayDetailModal({
                         >
                           수정
                         </button>
-                        <button
+                        <ConfirmButton
                           type="button"
+                          message="이 메모를 삭제할까요? 되돌릴 수 없습니다."
                           onClick={() => remove(m.id)}
                           disabled={pending}
                           className="rounded px-1 text-xs text-red-500 hover:bg-red-50 disabled:opacity-50"
                         >
                           삭제
-                        </button>
+                        </ConfirmButton>
                       </span>
                     </>
                   )}
@@ -511,7 +515,7 @@ function DayDetailModal({
 
           <div className="mt-3 space-y-1.5">
             <div className="flex gap-2">
-              <input
+              <input aria-label="일정/메모 입력"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -531,14 +535,14 @@ function DayDetailModal({
             </div>
             <div className="flex items-center gap-1 text-xs text-neutral-500">
               <span>시간(선택, 비우면 종일)</span>
-              <input
+              <input aria-label="시작 시간"
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 className="rounded border border-neutral-300 px-1 py-0.5"
               />
               <span className="text-neutral-400">~</span>
-              <input
+              <input aria-label="종료 시간"
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}

@@ -112,13 +112,13 @@ export function StudentRoster({
           </form>
         </div>
         {linkState && linkState.ok && (
-          <p className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
+          <p role="status" className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
             ✅ 자동상속 {linkState.autoLinked} · 보류 {linkState.pending} · 신규{" "}
             {linkState.newPerson}
           </p>
         )}
         {linkState && !linkState.ok && (
-          <p className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
+          <p role="status" className="mt-3 rounded border border-red-200 bg-red-50 p-2 text-xs text-red-700">
             {linkState.message}
           </p>
         )}
@@ -144,7 +144,7 @@ export function StudentRoster({
           </h3>
           {/* 필터(client-side, AC-C6) */}
           <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <select
+            <select aria-label="학년 필터"
               value={fGrade}
               onChange={(e) => setFilter(setFGrade, e.target.value)}
               className="rounded border border-neutral-300 px-1.5 py-0.5"
@@ -156,7 +156,7 @@ export function StudentRoster({
                 </option>
               ))}
             </select>
-            <select
+            <select aria-label="반 필터"
               value={fClass}
               onChange={(e) => setFilter(setFClass, e.target.value)}
               className="rounded border border-neutral-300 px-1.5 py-0.5"
@@ -168,13 +168,13 @@ export function StudentRoster({
                 </option>
               ))}
             </select>
-            <input
+            <input aria-label="번호"
               value={fNumber}
               onChange={(e) => setFilter(setFNumber, e.target.value)}
               placeholder="번호"
               className="w-14 rounded border border-neutral-300 px-1.5 py-0.5"
             />
-            <input
+            <input aria-label="이름 검색"
               value={fName}
               onChange={(e) => setFilter(setFName, e.target.value)}
               placeholder="이름 검색"
@@ -401,7 +401,7 @@ function StudentCard({ student }: { student: StudentRow }) {
         ))}
         <form action={addClassRoleAction} className="flex items-center gap-1">
           <input type="hidden" name="studentYearId" value={student.id} />
-          <input
+          <input aria-label="역할 추가"
             name="roleName"
             placeholder="역할 추가"
             className="w-24 rounded border border-neutral-200 px-2 py-0.5 text-xs"
@@ -466,7 +466,7 @@ function InlineEdit({
       >
         {busy ? "저장…" : "저장"}
       </button>
-      {state && !state.ok && <span className="text-red-700">{state.message}</span>}
+      {state && !state.ok && <span role="status" className="text-red-700">{state.message}</span>}
     </form>
   );
 }

@@ -9,6 +9,7 @@ import {
 } from "./actions";
 import type { NoticeEventRow } from "@/lib/db/queries";
 import { Button } from "@/app/ui/button";
+import { ConfirmButton } from "@/app/ui/confirm-button";
 
 const PAGE_SIZE = 10;
 
@@ -41,13 +42,13 @@ export function EventsManager({
 
       <form action={addNoticeEventAction} className="mt-3 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <input
+          <input aria-label="일정 날짜"
             type="date"
             name="date"
             defaultValue={today}
             className="rounded border border-neutral-300 px-2 py-1.5 text-sm"
           />
-          <input
+          <input aria-label="공지/할 일 제목"
             name="title"
             required
             placeholder="공지/할 일 제목"
@@ -57,7 +58,7 @@ export function EventsManager({
             추가
           </Button>
         </div>
-        <textarea
+        <textarea aria-label="내용(선택) — 공개 페이지 본문에 함께 표시"
           name="content"
           rows={2}
           placeholder="내용(선택) — 공개 페이지 본문에 함께 표시"
@@ -89,20 +90,20 @@ export function EventsManager({
                   >
                     <input type="hidden" name="id" value={e.id} />
                     <div className="flex flex-wrap items-center gap-2">
-                      <input
+                      <input aria-label="일정 날짜"
                         type="date"
                         name="date"
                         defaultValue={e.date}
                         className="rounded border border-neutral-300 px-2 py-1 text-sm"
                       />
-                      <input
+                      <input aria-label="일정 제목"
                         name="title"
                         defaultValue={e.title}
                         required
                         className="min-w-0 flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
                       />
                     </div>
-                    <textarea
+                    <textarea aria-label="내용(선택)"
                       name="content"
                       rows={2}
                       defaultValue={e.content ?? ""}
@@ -172,9 +173,12 @@ export function EventsManager({
                     </button>
                     <form action={deleteNoticeEventAction} className="inline">
                       <input type="hidden" name="id" value={e.id} />
-                      <button className="text-xs text-red-500 hover:underline">
+                      <ConfirmButton
+                        message="이 일정을 삭제할까요? 되돌릴 수 없습니다."
+                        className="text-xs text-red-500 hover:underline"
+                      >
                         삭제
-                      </button>
+                      </ConfirmButton>
                     </form>
                   </span>
                 </div>

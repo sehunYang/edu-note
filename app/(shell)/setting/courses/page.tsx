@@ -22,6 +22,8 @@ import { TimetableSync } from "./timetable-sync";
 import { HomeroomTimetableSync } from "./homeroom-timetable-sync";
 import { WeeklyGrid } from "./weekly-grid";
 
+export const metadata = { title: "수업 관리" };
+
 export const dynamic = "force-dynamic";
 
 /** C5 수업 관리 — 학기 모델 + 평가설정 100%검증 + 일괄등록 + 시험일 파생 + 분반역할. */

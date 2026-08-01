@@ -11,6 +11,8 @@ import { GenerateButton } from "./generate-button";
 import { setBoundaryAction, setStatusAction } from "./actions";
 import { Button } from "@/app/ui/button";
 
+export const metadata = { title: "시수" };
+
 export const dynamic = "force-dynamic";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -45,7 +47,7 @@ export default async function SessionsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-10">
+    <>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-normal tracking-tight">시수 관리 ({year})</h1>
         <Link href="/" className="text-sm text-neutral-500 hover:underline">
@@ -85,7 +87,7 @@ export default async function SessionsPage() {
                   >
                     <input type="hidden" name="subjectId" value={subject.subjectId} />
                     <label className="text-xs text-neutral-500">시험 날짜</label>
-                    <input
+                    <input aria-label="시험 날짜"
                       type="date"
                       name="date"
                       defaultValue={subject.boundary ?? ""}
@@ -111,7 +113,7 @@ export default async function SessionsPage() {
           })}
         </div>
       )}
-    </main>
+    </>
   );
 }
 

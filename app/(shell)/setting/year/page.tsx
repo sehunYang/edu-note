@@ -5,6 +5,8 @@ import { activeSchoolYear, schoolYearRange } from "@/lib/domain/school-year";
 import { StageGate } from "../stage-gate";
 import { LegacyYears } from "./legacy-years";
 
+export const metadata = { title: "학년도 설정" };
+
 export const dynamic = "force-dynamic";
 
 /** C1 학년도 — 활성 학년도 자동 산정 + 레거시 연도 조회/삭제 + 단계 완료. */

@@ -138,7 +138,7 @@ function ActivityRow({
       <li className="rounded border border-neutral-200 p-3 text-sm">
         <div className="mb-2 flex items-center gap-2">
           <span className="font-normal">{label}</span>
-          <select
+          <select aria-label="활동 구분"
             value={tag}
             onChange={(e) => setTag(e.target.value as ActivityTag)}
             className="rounded border border-neutral-300 px-2 py-0.5 text-xs"
@@ -148,7 +148,7 @@ function ActivityRow({
             <option value="both">자율+진로</option>
           </select>
         </div>
-        <textarea
+        <textarea aria-label="활동 내용"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
@@ -250,7 +250,7 @@ function ScheduledActivitySection({
       <form onSubmit={onSubmit} className="space-y-3">
         <div>
           <label className="text-xs font-normal text-neutral-600">활동 일정</label>
-          <select
+          <select aria-label="활동 일정"
             value={eventId}
             onChange={(e) => setEventId(e.target.value)}
             required
@@ -300,7 +300,7 @@ function ScheduledActivitySection({
               </div>
             </div>
 
-            <textarea
+            <textarea aria-label="특기 내역을 입력하세요"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               required
@@ -400,7 +400,7 @@ function FreeActivitySection({ students }: { students: HomeroomStudent[] }) {
 
       {mode === "common" ? (
         <form onSubmit={onSubmitCommon} className="space-y-2">
-          <textarea
+          <textarea aria-label="전체 학생에게 공통으로 기입할 활동 내역"
             value={commonBody}
             onChange={(e) => setCommonBody(e.target.value)}
             required
@@ -423,7 +423,7 @@ function FreeActivitySection({ students }: { students: HomeroomStudent[] }) {
               <span className="w-20 shrink-0 pt-2 text-xs text-neutral-600">
                 {s.sid} {s.name}
               </span>
-              <textarea
+              <textarea aria-label="활동 내역"
                 value={individualBodies[s.id] ?? ""}
                 onChange={(e) =>
                   setIndividualBodies((prev) => ({

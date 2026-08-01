@@ -10,6 +10,8 @@ import {
 import { sixDigitCode } from "@/lib/domain/lesson-unit";
 import { computeUnitOrdinalSum } from "@/lib/domain/lesson-plan";
 import { Button } from "@/app/ui/button";
+import { ConfirmButton } from "@/app/ui/confirm-button";
+import { EmptyState } from "@/app/ui/empty-state";
 
 /**
  * 학기 계획 클라이언트 에디터 (QC v4 US-2). 과목 선택 → 세부단원 트리 편집 +
@@ -81,7 +83,7 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
     <div className="mt-6 space-y-6">
       <div className="flex items-center gap-2">
         <label className="text-sm text-neutral-600">과목</label>
-        <select
+        <select aria-label="과목"
           value={selectedId}
           onChange={(e) => setSelectedId(e.target.value)}
           className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -134,11 +136,19 @@ function ExamSegmentSection({ subject }: { subject: SubjectSemesterView }) {
         <h3 className="text-sm font-normal text-neutral-700">
           시험 구간 차시 계획
         </h3>
-        <p className="mt-1 text-xs text-neutral-400">
-          이 과목이 보는 시험이 없습니다. 세팅실 학사일정에 시험(1차/2차)을 등록하고,
-          수업 관리의 평가설정에서 중간/기말 지필 시행을 체크하면 구간별 진행
-          차시·여유 차시를 계획할 수 있습니다.
-        </p>
+        <div className="mt-2">
+          <EmptyState
+            tone="neutral"
+            actions={[
+              { href: "/setting/calendar", label: "학사일정에 시험 등록" },
+              { href: "/setting/courses", label: "수업 관리 평가설정" },
+            ]}
+          >
+            이 과목이 보는 시험이 없습니다. 세팅실 학사일정에 시험(1차/2차)을
+            등록하고, 수업 관리의 평가설정에서 중간/기말 지필 시행을 체크하면
+            구간별 진행 차시·여유 차시를 계획할 수 있습니다.
+          </EmptyState>
+        </div>
       </section>
     );
   }
@@ -300,9 +310,12 @@ function UnitRow({
           <form action={deleteAction}>
             <input type="hidden" name="subjectId" value={subjectId} />
             <input type="hidden" name="unitId" value={unit.id} />
-            <button className="text-xs text-neutral-400 hover:text-red-600">
+            <ConfirmButton
+              message="이 단원을 삭제할까요? 이 단원에 배치된 차시 계획도 함께 사라집니다."
+              className="text-xs text-neutral-400 hover:text-red-600"
+            >
               삭제
-            </button>
+            </ConfirmButton>
           </form>
         </div>
       )}
@@ -344,7 +357,7 @@ function UnitRow({
         {/* ", " join — parseKeywords 가 콤마/# 구분(공백은 단어 내부)이므로 재저장
             시 공백 포함 키워드("운동 에너지")가 하나로 합쳐지지 않도록 표시도
             콤마로 되돌린다. */}
-        <input
+        <input aria-label="핵심개념(콤마·#로 구분, 공백 포함 단어 가능)"
           name="keywords"
           defaultValue={(unit?.keywords ?? []).join(", ")}
           placeholder="핵심개념(콤마·#로 구분, 공백 포함 단어 가능)"
@@ -352,7 +365,7 @@ function UnitRow({
         />
         <div className="flex items-center gap-2">
           <label className="text-xs text-neutral-500">최소 차시</label>
-          <input
+          <input aria-label="최소 차시"
             type="number"
             name="minOrdinals"
             min={1}
@@ -397,8 +410,11 @@ function NumName({
     <div className="space-y-1">
       <div className="flex items-center gap-1">
         <span className="text-xs text-neutral-500">{label}</span>
+        {/* 대/중/소단원 3벌이 같은 화면에 나란히 놓이므로 이름에 단원 구분을
+            포함한다 — 전부 "번호"라고만 하면 보조기술에서 구분이 불가능하다. */}
         {controlled ? (
           <input
+            aria-label={`${label} 번호`}
             type="number"
             name={noName}
             min={0}
@@ -410,6 +426,7 @@ function NumName({
           />
         ) : (
           <input
+            aria-label={`${label} 번호`}
             type="number"
             name={noName}
             min={0}
@@ -422,6 +439,7 @@ function NumName({
       </div>
       {controlled ? (
         <input
+          aria-label={`${label}명`}
           name={nameName}
           value={nameVal ?? ""}
           onChange={(e) => onNameChange?.(e.target.value)}
@@ -430,6 +448,7 @@ function NumName({
         />
       ) : (
         <input
+          aria-label={`${label}명`}
           name={nameName}
           defaultValue={nameVal ?? ""}
           placeholder={`${label}명`}
