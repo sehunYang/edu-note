@@ -530,7 +530,8 @@ function ExceedModal({
   onCancel: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+    // 오버레이 좌우 여백은 본문 거터(px-6)와 맞춘다(모달 정렬 통일).
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-6 py-4">
       <div className="w-full max-w-md rounded-lg bg-card p-5 border border-neutral-200">
         <h3 className="text-base text-neutral-800">
           학기 계획을 변경하시겠습니까?

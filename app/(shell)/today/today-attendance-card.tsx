@@ -46,8 +46,10 @@ export function TodayAttendanceCard({
   // 담임반 미보유(홈룸 학생 0명)면 카드 자체를 렌더하지 않는다.
   if (students.length === 0) return null;
 
+  // 안쪽 여백은 p-4 — /today 의 다른 카드가 전부 p-4 인데 여기만 p-5 라
+  // 제목·본문이 4px 안쪽에서 시작해 세로선이 어긋나 보였다(실측 40.7 vs 44.7).
   return (
-    <section className="rounded-lg border border-neutral-200 p-5 md:col-span-2">
+    <section className="rounded-lg border border-neutral-200 p-4 md:col-span-2">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm text-neutral-700">오늘 출결 입력</h2>
         <span className="text-xs text-neutral-400">{date}</span>

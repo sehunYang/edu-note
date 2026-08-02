@@ -376,9 +376,11 @@ function DayDetailModal({
     });
   }
 
+  // 오버레이 좌우 여백은 본문 거터(px-6)와 맞춘다 — p-4 였을 때 모바일에서
+  // 패널이 뒤 카드보다 8px 씩 넓어 보였다(nudge-modal 과 동일 원인).
   return (
     <div
-      className="fixed inset-0 z-50 flex animate-fade-in-up items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex animate-fade-in-up items-center justify-center bg-black/40 px-6 py-4"
       role="dialog"
       aria-modal="true"
       onClick={onClose}

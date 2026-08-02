@@ -29,9 +29,14 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
 
   // body 포털: 진입 직후(template fade 진행 중)에 열리므로, 조상 transform의
   // containing block에 걸리지 않게 뷰포트 기준으로 띄운다.
+  //
+  // 오버레이 좌우 여백은 px-6 — 본문 <main> 의 거터와 같은 값이다. p-4(16px)였을
+  // 때 모바일에서 모달 패널이 좌우로 8px 씩 더 넓어(패널 L16/R374 vs 카드
+  // L24/R366) 뒤에 깔린 카드들과 세로선이 어긋났다. 데스크톱은 max-w-md
+  // 중앙정렬이라 이 값에 영향받지 않는다.
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex animate-fade-in-up items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex animate-fade-in-up items-center justify-center bg-black/40 px-6 py-4"
       role="dialog"
       aria-modal="true"
       onClick={close}
