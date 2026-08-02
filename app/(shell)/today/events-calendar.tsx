@@ -186,7 +186,7 @@ export function EventsCalendar({
 
   return (
     <section className="rounded-lg border border-neutral-200 p-4 md:col-span-2">
-      <h2 className="text-sm font-normal text-neutral-700">학사일정 · 상담 · 메모</h2>
+      <h2 className="text-sm text-neutral-700">학사일정 · 상담 · 메모</h2>
       {googleSyncError && (
         <p className="mt-1 text-xs text-red-600">
           ⚠ 구글 동기화 오류 — 세팅실 프로필에서 확인하세요.
@@ -383,7 +383,7 @@ function DayDetailModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-normal text-neutral-800">{date}</h2>
+          <h2 className="text-base text-neutral-800">{date}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -430,7 +430,7 @@ function DayDetailModal({
         )}
 
         <div className="mt-4">
-          <h3 className="text-xs font-normal text-neutral-500">메모</h3>
+          <h3 className="text-xs text-neutral-500">메모</h3>
           {memos.length === 0 ? (
             <p className="mt-1 text-xs text-neutral-400">메모가 없습니다.</p>
           ) : (

@@ -225,7 +225,7 @@ function DayDetailPanel({
   return (
     <div className="rounded-xl border border-hairline bg-card p-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-normal text-neutral-800">{date}</h3>
+        <h3 className="text-neutral-800">{date}</h3>
         <button
           type="button"
           onClick={onClose}
@@ -237,7 +237,7 @@ function DayDetailPanel({
 
       {events.length > 0 && (
         <div className="mt-3">
-          <h4 className="text-xs font-normal text-neutral-500">학사일정</h4>
+          <h4 className="text-xs text-neutral-500">학사일정</h4>
           <ul className="mt-1 space-y-1 text-sm">
             {events.map((e, i) => (
               <li
@@ -252,7 +252,7 @@ function DayDetailPanel({
       )}
 
       <div className="mt-3">
-        <h4 className="text-xs font-normal text-neutral-500">내 메모/일정</h4>
+        <h4 className="text-xs text-neutral-500">내 메모/일정</h4>
         <ul className="mt-1 space-y-1.5">
           {memos.length === 0 && (
             <li className="text-xs text-neutral-400">등록한 메모가 없습니다.</li>

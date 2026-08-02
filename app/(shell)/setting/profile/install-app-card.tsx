@@ -96,7 +96,7 @@ export function InstallAppCard() {
 
   return (
     <section className="mt-6 rounded-lg border border-neutral-200 p-4">
-      <h3 className="text-sm font-normal text-neutral-700">앱으로 설치</h3>
+      <h3 className="text-sm text-neutral-700">앱으로 설치</h3>
       <p className="mt-1 text-xs text-neutral-400">
         데스크톱·Android·iOS에 독립 앱처럼 설치해 홈 화면·작업표시줄에서 바로
         실행할 수 있습니다. 인터넷 연결이 있어야 정상 동작합니다.

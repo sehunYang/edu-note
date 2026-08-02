@@ -43,7 +43,7 @@ export function NotesManager({
 
   return (
     <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-      <h2 className="text-sm font-normal text-neutral-700">교사 한마디 (다중)</h2>
+      <h2 className="text-sm text-neutral-700">교사 한마디 (다중)</h2>
       <p className="mt-1 text-xs text-neutral-400">
         여러 개를 등록하면 공개 페이지에서 순서대로 노출됩니다. 위/아래 버튼으로
         순서를 바꿀 수 있습니다.
@@ -154,7 +154,7 @@ function AllNoticeForm() {
       action={createAllTeacherNoteAction}
       className="rounded-lg border border-neutral-200 p-3"
     >
-      <h3 className="text-xs font-normal text-neutral-700">전체 공지</h3>
+      <h3 className="text-xs text-neutral-700">전체 공지</h3>
       <p className="mt-0.5 text-[11px] text-neutral-400">
         모든 학생에게 공통으로 노출됩니다.
       </p>
@@ -190,7 +190,7 @@ function IndividualNoticeForm({ students }: { students: NoteStudentOption[] }) {
       action={bulkCreateIndividualNotesAction}
       className="rounded-lg border border-neutral-200 p-3"
     >
-      <h3 className="text-xs font-normal text-neutral-700">개별 공지</h3>
+      <h3 className="text-xs text-neutral-700">개별 공지</h3>
       <p className="mt-0.5 text-[11px] text-neutral-400">
         선택한 학생 각자에게 같은 내용의 개별 공지가 따로 생성됩니다(이후 각각
         수정·삭제 가능).

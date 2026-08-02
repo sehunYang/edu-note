@@ -35,7 +35,7 @@ export function HomeroomTimetableSync() {
       <form action={action}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h4 className="font-normal">담임반 시간표 동기화</h4>
+            <h4>담임반 시간표 동기화</h4>
             <p className="mt-1 text-xs text-neutral-500">
               컴시간에서 담임반 시간표를 가져와 학생 안내 페이지에 표시합니다.
             </p>
@@ -65,7 +65,7 @@ export function HomeroomTimetableSync() {
         <form action={detectAction}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h4 className="font-normal">공통·선택 과목 자동 감지</h4>
+              <h4>공통·선택 과목 자동 감지</h4>
               <p className="mt-1 text-xs text-neutral-500">
                 컴시간 편성으로 반 전체 공통과목과 학생별 선택과목을 자동 구분합니다.
                 감지 결과를 확인한 뒤 적용합니다.

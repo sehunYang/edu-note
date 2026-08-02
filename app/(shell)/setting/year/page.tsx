@@ -22,7 +22,7 @@ export default async function YearStagePage() {
 
   return (
     <div>
-      <h2 className="text-lg font-normal">1. 학년도</h2>
+      <h2 className="text-lg">1. 학년도</h2>
       <p className="mt-1 text-sm text-neutral-500">
         활성 학년도는 오늘 날짜로 자동 산정됩니다(3/1 경계).
       </p>
@@ -39,7 +39,7 @@ export default async function YearStagePage() {
       </div>
 
       <section className="mt-8">
-        <h3 className="text-sm font-normal text-neutral-700">
+        <h3 className="text-sm text-neutral-700">
           레거시 연도 (조회 · 연도 단위 삭제)
         </h3>
         <p className="mt-1 text-xs text-neutral-400">

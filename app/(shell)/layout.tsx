@@ -30,7 +30,11 @@ export default function ShellLayout({
     <>
       <CoveLight />
       <AppShell>
-        <main id="content" className="mx-auto w-full max-w-5xl px-6 py-10">
+        {/* 밀도 개선 D-3: py-10(80px) → py-6(48px). 위로는 56px 스티키 헤더,
+            아래로는 실 헤더가 이미 있어 콘텐츠 첫 줄이 200px 아래에서
+            시작했다. max-w는 5xl(1024) 유지 — 본문 가독 폭이며, 넓은 표는
+            개별 화면에서 max-w-none 으로 풀어 준다. */}
+        <main id="content" className="mx-auto w-full max-w-5xl px-6 py-6">
           {children}
         </main>
       </AppShell>

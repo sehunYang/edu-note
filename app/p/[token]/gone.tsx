@@ -10,7 +10,7 @@ export function GoneNotice({ reason }: { reason: "revoked" | "expired" }) {
       : "이 링크는 유효 기간이 지났습니다.";
   return (
     <main className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
-      <h1 className="text-xl font-normal">접근할 수 없는 링크</h1>
+      <h1 className="text-xl">접근할 수 없는 링크</h1>
       <p className="mt-2 text-sm text-neutral-500">{message}</p>
       <p className="mt-1 text-xs text-neutral-400">
         담임 선생님께 새 링크를 요청하세요.

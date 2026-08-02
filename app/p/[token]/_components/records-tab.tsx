@@ -156,7 +156,7 @@ function Attendance2DTable({
           {sel && (
             <div className="pt-1">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-normal text-neutral-800">
+                <h3 className="text-sm text-neutral-800">
                   {sel.kindLabel} · {REASON_LABEL[sel.reason]}{" "}
                   <span className="text-sm text-neutral-400">
                     {detailRecords.length}회

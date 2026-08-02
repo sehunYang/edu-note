@@ -21,8 +21,8 @@ export default async function ClubroomCreatePage() {
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">동아리 개설</h2>
-      <p className="mt-1 text-sm text-neutral-500">
+      <h2 className="text-base">동아리 개설</h2>
+      <p className="mt-0.5 text-xs text-neutral-400">
         담당 동아리를 1개 만듭니다. 부원 배정·활동 계획·활동 입력·생기부 작성은
         동아리를 만든 뒤 사용할 수 있습니다.
       </p>
@@ -31,7 +31,7 @@ export default async function ClubroomCreatePage() {
         <section className="mt-6 rounded-lg border border-neutral-200 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-normal text-neutral-800">{club.name}</h3>
+              <h3 className="text-neutral-800">{club.name}</h3>
               <p className="mt-1 text-xs text-neutral-400">
                 부원 {club.memberCount}명
               </p>
@@ -52,7 +52,7 @@ export default async function ClubroomCreatePage() {
         </section>
       ) : (
         <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-          <h3 className="text-sm font-normal text-neutral-700">새 동아리</h3>
+          <h3 className="text-sm text-neutral-700">새 동아리</h3>
           <form action={createClubAction} className="mt-3 flex flex-wrap gap-2">
             <input aria-label="동아리명"
               name="name"

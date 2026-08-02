@@ -44,7 +44,7 @@ export function PublicPageView({
   return (
     <div className="mx-auto max-w-2xl px-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-6">
       <header>
-        <h1 className="text-2xl font-normal tracking-tight">
+        <h1 className="text-2xl tracking-tight">
           {payload.studentName ? `${payload.studentName} 학생 안내 페이지` : "학생 안내 페이지"}
         </h1>
         <p className="mt-1 text-xs text-neutral-400">

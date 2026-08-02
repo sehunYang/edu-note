@@ -93,7 +93,7 @@ export function StudentRoster({
       <section className="rounded-lg border border-neutral-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-normal text-neutral-700">
+            <h3 className="text-sm text-neutral-700">
               동명이인 매칭
             </h3>
             <p className="mt-1 text-xs text-neutral-400">
@@ -126,7 +126,7 @@ export function StudentRoster({
 
       {pending.length > 0 && (
         <section>
-          <h3 className="text-sm font-normal text-amber-700">
+          <h3 className="text-sm text-amber-700">
             상속 보류 큐 ({pending.length})
           </h3>
           <div className="mt-2 space-y-2">
@@ -139,7 +139,7 @@ export function StudentRoster({
 
       <section>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-normal text-neutral-700">
+          <h3 className="text-sm text-neutral-700">
             학생 ({filtered.length}/{students.length})
           </h3>
           {/* 필터(client-side, AC-C6) */}
@@ -271,8 +271,20 @@ function StudentCard({ student }: { student: StudentRow }) {
     }
   }
 
+  /** 값이 있는 속성만. 빈 칸은 그리지 않는다(D-9). */
+  const facts: { label: string; value: string }[] = [
+    student.phone ? { label: "연락처", value: student.phone } : null,
+    student.career ? { label: "희망진로", value: student.career } : null,
+    student.priorSids.length > 0
+      ? { label: "과거학번", value: student.priorSids.join(", ") }
+      : null,
+    student.subjects.length > 0
+      ? { label: "수강", value: student.subjects.join(", ") }
+      : null,
+  ].filter((f): f is { label: string; value: string } => f !== null);
+
   return (
-    <div className="rounded border border-neutral-200 px-4 py-3 text-sm">
+    <div className="rounded border border-neutral-200 px-3 py-2 text-sm">
       <div className="flex items-start justify-between gap-2">
         <span>
           {student.isHomeroom && <span className="mr-1">🏠</span>}
@@ -331,29 +343,24 @@ function StudentCard({ student }: { student: StudentRow }) {
         <p className="mt-1 text-xs text-red-700">{delState.message}</p>
       )}
 
-      {/* 속성 표시(AC-C1) */}
-      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-neutral-600 sm:grid-cols-3">
-        <div>
-          <dt className="inline text-neutral-400">연락처 </dt>
-          <dd className="inline">{student.phone ?? "—"}</dd>
-        </div>
-        <div>
-          <dt className="inline text-neutral-400">희망진로 </dt>
-          <dd className="inline">{student.career ?? "—"}</dd>
-        </div>
-        <div>
-          <dt className="inline text-neutral-400">과거학번 </dt>
-          <dd className="inline">
-            {student.priorSids.length > 0 ? student.priorSids.join(", ") : "—"}
-          </dd>
-        </div>
-        <div className="col-span-2 sm:col-span-3">
-          <dt className="inline text-neutral-400">수강중인수업 </dt>
-          <dd className="inline">
-            {student.subjects.length > 0 ? student.subjects.join(", ") : "—"}
-          </dd>
-        </div>
-      </dl>
+      {/* 속성 표시(AC-C1).
+
+          밀도 개선 D-9: 이전에는 연락처·희망진로·과거학번·수강중인수업 네 칸을
+          값이 없어도 항상 그렸다. 실측 118명 전원이 대부분 미입력이라 화면에
+          "—" 가 400개 넘게 깔렸고, 학생 한 명이 74px·한 페이지가 3,654px 였다.
+          빈 칸은 정보가 아니라 잡음이다(밀도 칼럼: 데이터를 없애는 게 아니라
+          드러낼 것을 골라 드러내라). 값이 있는 항목만 한 줄로 잇고, 전부
+          비었으면 줄 자체를 그리지 않는다 — 채워진 학생은 오히려 눈에 띈다. */}
+      {facts.length > 0 && (
+        <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-neutral-600">
+          {facts.map((f) => (
+            <div key={f.label}>
+              <dt className="inline text-neutral-400">{f.label} </dt>
+              <dd className="inline">{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
 
       {/* 인라인 수정(AC-C2) — 이름/연락처/희망진로 */}
       {editing && (
@@ -385,8 +392,11 @@ function StudentCard({ student }: { student: StudentRow }) {
         <p className="mt-2 text-xs text-red-700">{linkState.message}</p>
       )}
 
-      {/* 학급역할 */}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      {/* 학급역할 — 칩은 값이 있을 때만, 추가 폼은 "수정"을 눌렀을 때만(D-9).
+          이전에는 역할이 하나도 없는 학생에게도 "역할 추가" 입력칸이 카드마다
+          한 줄씩 붙어, 명단 한 페이지에 쓰이지 않는 입력칸이 20개 있었다. */}
+      {(student.roles.length > 0 || editing) && (
+      <div className="mt-1.5 flex flex-wrap items-center gap-2">
         {student.roles.map((r) => (
           <span
             key={r.id}
@@ -399,18 +409,21 @@ function StudentCard({ student }: { student: StudentRow }) {
             </form>
           </span>
         ))}
-        <form action={addClassRoleAction} className="flex items-center gap-1">
-          <input type="hidden" name="studentYearId" value={student.id} />
-          <input aria-label="역할 추가"
-            name="roleName"
-            placeholder="역할 추가"
-            className="w-24 rounded border border-neutral-200 px-2 py-0.5 text-xs"
-          />
-          <Button className="px-1.5 py-0.5 text-xs">
-            +
-          </Button>
-        </form>
+        {editing && (
+          <form action={addClassRoleAction} className="flex items-center gap-1">
+            <input type="hidden" name="studentYearId" value={student.id} />
+            <input aria-label="역할 추가"
+              name="roleName"
+              placeholder="역할 추가"
+              className="w-24 rounded border border-neutral-200 px-2 py-0.5 text-xs"
+            />
+            <Button className="px-1.5 py-0.5 text-xs">
+              +
+            </Button>
+          </form>
+        )}
       </div>
+      )}
     </div>
   );
 }

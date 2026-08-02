@@ -13,7 +13,7 @@ export function MealsWidget({
 }) {
   return (
     <section className={`rounded-lg border border-neutral-200 p-4 ${className ?? ""}`}>
-      <h2 className="text-sm font-normal text-neutral-700">오늘 급식</h2>
+      <h2 className="text-sm text-neutral-700">오늘 급식</h2>
       {todayMeals.length === 0 ? (
         <p className="mt-2 text-sm text-neutral-400">급식 정보가 없습니다.</p>
       ) : (

@@ -8,6 +8,7 @@ import type { SessionStatus } from "@/lib/domain/types";
 import { Paginator } from "@/lib/ui/paginator";
 import { paginate } from "@/lib/db/pagination";
 import { Button } from "@/app/ui/button";
+import { Disclosure } from "@/app/ui/disclosure";
 
 /** 분반별 진척도 통계 뷰(서버 getSectionProgressStats 결과 미러). */
 export interface StatView {
@@ -97,7 +98,7 @@ export function ProgressBoard({
 
       {/* 분반별 전체 차시 */}
       <section>
-        <h3 className="border-b border-neutral-200 pb-2 font-normal text-neutral-800">
+        <h3 className="border-b border-neutral-200 pb-2 text-neutral-800">
           분반별 차시
         </h3>
         {sections.length === 0 ? (
@@ -105,7 +106,7 @@ export function ProgressBoard({
             이 학기에 등록된 분반이 없습니다. 먼저 세팅실에서 수업·시간표를 등록하세요.
           </p>
         ) : (
-          <div className="mt-3 space-y-6">
+          <div className="mt-3 space-y-1.5">
             {sections.map((sec) => (
               <SectionBlock
                 key={sec.sectionId}
@@ -144,7 +145,7 @@ function PopupSection({
   );
   return (
     <section>
-      <h3 className="border-b border-neutral-200 pb-2 font-normal text-neutral-800">
+      <h3 className="border-b border-neutral-200 pb-2 text-neutral-800">
         이번주 · 연체 예정 차시 ({popup.length})
       </h3>
       {popup.length === 0 ? (
@@ -204,7 +205,7 @@ function StatsHeader({ stats }: { stats: StatView[] }) {
     r > 1 ? "100% (시험 경과)" : `${Math.round(r * 100)}%`;
   return (
     <section className="rounded-lg border border-neutral-200 p-5">
-      <h3 className="font-normal text-neutral-800">진도 현황(분반별)</h3>
+      <h3 className="text-neutral-800">진도 현황(분반별)</h3>
       <p className="mt-1 text-xs text-neutral-400">
         단원진도 = 완료(done) 차시의 마지막 도달 단원(여유차시 제외, 자동 도출). 시험진도율은
         지필 시행 과목만 표시(목표 = 오늘까지 차시 ÷ 시험목표 차시, 2차시 이상 뒤지면 빨강).
@@ -283,24 +284,30 @@ function SectionBlock({
     page,
     SECTION_PAGE_SIZE,
   );
+  const done = section.sessions.filter((s) => s.status === "done").length;
+
   return (
-    <div className="rounded-lg border border-neutral-200 p-4">
-      <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
-        <span className="font-normal">
-          {section.subjectName}{" "}
-          <span className="text-neutral-400">{section.label}</span>
-        </span>
-        <span className="text-xs text-neutral-400">
-          차시 {section.sessions.length}개
-        </span>
-      </div>
+    /* 밀도 개선 D-8: 분반 6개가 각각 표를 펼쳐 이 화면이 2,600px 였다. 그런데
+       바로 위 "진도 현황(분반별)"이 이미 같은 정보를 한 줄씩으로 요약해
+       보여준다 — 밀도 칼럼의 "요약을 먼저 주고, 세부는 파고들게 하라"에서
+       요약만 있고 드릴다운이 없었던 게 아니라, 둘이 **동시에** 펼쳐져 있었다.
+       세부는 접고 요약 줄에 완료 비율을 남긴다. */
+    <Disclosure
+      title={`${section.subjectName} ${section.label}`}
+      count={`${section.sessions.length}차시`}
+      hint={
+        section.sessions.length === 0
+          ? "차시 없음"
+          : `완료 ${done}/${section.sessions.length}`
+      }
+    >
       {section.sessions.length === 0 ? (
-        <p className="mt-2 text-sm text-neutral-400">차시가 없습니다.</p>
+        <p className="text-sm text-neutral-400">차시가 없습니다.</p>
       ) : (
         <>
         {/* 분반 6개 × 20행이 그대로 펼쳐지면 페이지가 7,000px를 넘어 아래 분반이
             사실상 도달 불가였다. 블록 안에서만 스크롤시킨다. */}
-        <ul className="mt-2 max-h-80 space-y-1 overflow-y-auto pr-1 text-sm">
+        <ul className="max-h-80 space-y-1 overflow-y-auto scroll-fade-y pr-1 text-sm">
           {pageItems.map((s) => (
             <li key={s.id}>
               <div className="flex flex-wrap items-center justify-between gap-2 py-1">
@@ -327,7 +334,7 @@ function SectionBlock({
         />
         </>
       )}
-    </div>
+    </Disclosure>
   );
 }
 

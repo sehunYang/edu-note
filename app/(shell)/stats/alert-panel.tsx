@@ -70,7 +70,7 @@ export function AlertPanel({
   return (
     <section className="mt-6 rounded-lg border border-neutral-200 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-sm font-normal text-neutral-700">이상징후 경보</h2>
+        <h2 className="text-sm text-neutral-700">이상징후 경보</h2>
         {individual.length > 0 && (
           <p className="text-xs text-neutral-500">
             개입 필요 <span className="tabular-nums">{individual.length}</span>명 ·

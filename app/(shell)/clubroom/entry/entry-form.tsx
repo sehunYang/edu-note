@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { saveAllAction } from "./actions";
 import { COMMON_FIELD_PREFIX, OVERRIDE_FIELD_PREFIX } from "./fields";
+import { Disclosure } from "@/app/ui/disclosure";
 
 /**
  * 활동 입력 폼 (사용성 개선 P2-11). 차시 × 부원 전체를 폼 하나로 묶고 저장 버튼을
@@ -48,6 +49,10 @@ export function ClubEntryForm({
     }
   }
   const [values, setValues] = useState<Record<string, string>>(initial);
+  // 오늘(KST 기준 날짜 문자열) — 차시 기본 펼침 판정에 쓴다.
+  const today = new Date().toLocaleDateString("sv-SE", {
+    timeZone: "Asia/Seoul",
+  });
 
   const dirtyKeys = Object.keys(initial).filter(
     (k) => (values[k] ?? "") !== (initial[k] ?? ""),
@@ -58,7 +63,7 @@ export function ClubEntryForm({
   }
 
   return (
-    <form action={saveAllAction} className="mt-6 space-y-6 pb-44 md:pb-24">
+    <form action={saveAllAction} className="mt-4 space-y-2 pb-44 md:pb-24">
       {sessions.map((s) => {
         const commonKey = `${COMMON_FIELD_PREFIX}${s.date}`;
         const sessionDirty =
@@ -68,21 +73,46 @@ export function ClubEntryForm({
             return (values[k] ?? "") !== (initial[k] ?? "");
           });
 
-        return (
-          <section key={s.id} className="rounded-lg border border-neutral-200 p-4">
-            <div className="flex items-center gap-2 text-xs text-neutral-400">
-              <span>
-                {s.ordinal}차시 · {s.date}
-              </span>
-              {s.plannedActivity && <span>예정: {s.plannedActivity}</span>}
-              {sessionDirty && (
-                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-500">
-                  변경됨
-                </span>
-              )}
-            </div>
+        const written =
+          (initial[commonKey] ?? "").trim().length > 0 ||
+          members.some(
+            (m) =>
+              (
+                initial[
+                  `${OVERRIDE_FIELD_PREFIX}${s.date}__${m.studentYearId}`
+                ] ?? ""
+              ).trim().length > 0,
+          );
+        const future = s.date > today;
 
-            <div className="mt-2">
+        return (
+          <Disclosure
+            key={s.id}
+            title={`${s.ordinal}차시 · ${s.date}`}
+            /* 밀도 개선 D-7: 차시 11개가 모두 펼쳐져 3,157px 였다. 카드는 전부
+               같은 모양이라 "어디를 써야 하는지"가 형태로는 드러나지 않았다.
+               기본으로 여는 것은 **지금 쓸 것**뿐이다 — 이미 지난 날짜인데
+               아직 안 쓴 차시. 나머지는 접되 요약 줄에 상태를 남긴다. */
+            defaultOpen={!written && !future}
+            hint={
+              sessionDirty ? (
+                <span className="text-amber-500">변경됨</span>
+              ) : written ? (
+                "작성됨"
+              ) : future ? (
+                s.plannedActivity ? `예정: ${s.plannedActivity}` : "예정"
+              ) : (
+                <span className="text-amber-500">미작성</span>
+              )
+            }
+          >
+            {s.plannedActivity && (
+              <p className="mb-2 text-xs text-neutral-400">
+                예정: {s.plannedActivity}
+              </p>
+            )}
+
+            <div>
               <label
                 htmlFor={commonKey}
                 className="text-xs font-normal text-neutral-600"
@@ -126,7 +156,7 @@ export function ClubEntryForm({
                 );
               })}
             </div>
-          </section>
+          </Disclosure>
         );
       })}
 

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { listTasks, listBudgets, listExpenses } from "@/lib/db/queries";
@@ -15,6 +14,7 @@ import { Button } from "@/app/ui/button";
 import { CountUp } from "@/app/ui/count-up";
 import { ConfirmButton } from "@/app/ui/confirm-button";
 import { kstDateString } from "@/lib/domain/kst";
+import { RoomHeader } from "@/app/ui/room-header";
 
 export const metadata = { title: "교무실" };
 
@@ -40,18 +40,11 @@ export default async function StaffroomPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-normal tracking-tight">
-          <span aria-hidden="true">🗂️</span> 교무실
-        </h1>
-        <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
-          ← 홈
-        </Link>
-      </div>
+      <RoomHeader icon="🗂️" title="교무실" desc="업무 to-do · 예산 집행 관리." />
 
       {/* ── 업무 ── */}
-      <section className="mt-6">
-        <h2 className="text-sm font-normal text-neutral-700">업무</h2>
+      <section className="mt-5">
+        <h2 className="text-sm text-neutral-700">업무</h2>
         <form
           action={createTaskAction}
           className="mt-3 flex flex-wrap items-center gap-2"
@@ -139,7 +132,7 @@ export default async function StaffroomPage() {
 
       {/* ── 예산 ── */}
       <section className="mt-10">
-        <h2 className="text-sm font-normal text-neutral-700">예산</h2>
+        <h2 className="text-sm text-neutral-700">예산</h2>
         <form
           action={createBudgetAction}
           className="mt-3 flex flex-wrap items-center gap-2"
@@ -179,7 +172,7 @@ export default async function StaffroomPage() {
                   className="rounded-lg border border-neutral-200 p-4"
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="font-normal">{b.area}</h3>
+                    <h3>{b.area}</h3>
                     <form action={deleteBudgetAction} className="inline">
                       <input type="hidden" name="id" value={b.id} />
                       <ConfirmButton

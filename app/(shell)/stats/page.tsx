@@ -24,6 +24,7 @@ import { histogram, basicStats, coverageMatrix } from "@/lib/domain/stats-insigh
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { SectionSelector } from "./section-selector";
 import { AlertPanel, type AlertPanelEntry } from "./alert-panel";
+import { RoomHeader } from "@/app/ui/room-header";
 import {
   HistogramChart,
   SectionComparisonChart,
@@ -175,19 +176,19 @@ export default async function StatsPage({
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-normal tracking-tight">
-          <span aria-hidden="true">📊</span> 통계실 ({year}학년도 {sem}학기)
-        </h1>
-        <div className="flex items-center gap-4">
-          <Link href="/print" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
+      <RoomHeader
+        icon="📊"
+        title={`통계실 (${year}학년도 ${sem}학기)`}
+        desc="경보 · 전체 현황 · 성적 분석 · 기록 커버리지 · 업무 진척."
+        actions={
+          <Link
+            href="/print"
+            className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline"
+          >
             인쇄실 →
           </Link>
-          <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
-            ← 홈
-          </Link>
-        </div>
-      </div>
+        }
+      />
 
       {/* ① 이상징후 경보 */}
       <AlertPanel
@@ -196,10 +197,30 @@ export default async function StatsPage({
         cohortSize={alertInputs.length}
       />
 
+      {/* 전체 기록 현황 — 요약이 먼저다 (밀도 개선 D-11).
+
+          이전에는 이 8개 집계 타일이 페이지 **맨 아래**, 33행짜리 0.0 표와
+          11행짜리 0 표를 지나야 나왔다. 밀도 칼럼이 말하는 순서와 정확히
+          반대다 — "요약 뷰를 먼저 주고, 세부로 파고들게 하라". 통계실에 들어온
+          사람이 가장 먼저 알고 싶은 건 개별 학생의 0.0 이 아니라 전체 규모다.
+          숫자 타일은 훑어보기(scan)에 최적화된 형태이기도 하다. */}
+      <section className="mt-5">
+        <h2 className="text-xs text-neutral-500">전체 기록 현황</h2>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {cards.map((c) => (
+            <div key={c.label} className="rounded-lg border border-neutral-200 px-3 py-2.5">
+              <p className="text-xs text-neutral-500">{c.label}</p>
+              <p className="mt-0.5 text-xl tabular-nums text-white">{c.value}</p>
+              {c.sub && <p className="text-xs text-neutral-400">{c.sub}</p>}
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ② 성적 분석 */}
-      <section className="mt-6 rounded-lg border border-neutral-200 p-4">
+      <section className="mt-5 rounded-lg border border-neutral-200 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-normal text-neutral-700">성적 분석</h2>
+          <h2 className="text-sm text-neutral-700">성적 분석</h2>
           {sectionOptions.length > 0 && (
             <SectionSelector sections={sectionOptions} selectedSectionId={selectedSectionId} />
           )}
@@ -214,7 +235,7 @@ export default async function StatsPage({
       {/* ③ 기록 커버리지 */}
       <section className="mt-6 rounded-lg border border-neutral-200 p-4">
         <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm font-normal text-neutral-700">기록 커버리지</h2>
+          <h2 className="text-sm text-neutral-700">기록 커버리지</h2>
           <span className="text-xs text-neutral-400">
             학생 {coverage.length}명 · 기록 적은 순
           </span>
@@ -224,7 +245,7 @@ export default async function StatsPage({
         ) : (
           // 전교생(100명대) 표가 그대로 펼쳐지면 페이지가 6,000px를 넘어 아래
           // 섹션(업무 진척)이 사실상 안 보인다. 표 안에서만 스크롤시킨다.
-          <div className="mt-3 max-h-96 overflow-auto">
+          <div className="mt-3 max-h-96 overflow-auto scroll-fade-y">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="text-xs text-neutral-400">
@@ -255,7 +276,7 @@ export default async function StatsPage({
 
       {/* ④ 업무 진척 */}
       <section className="mt-6 rounded-lg border border-neutral-200 p-4">
-        <h2 className="text-sm font-normal text-neutral-700">업무 진척</h2>
+        <h2 className="text-sm text-neutral-700">업무 진척</h2>
         {workProgress.sections.length === 0 ? (
           <p className="mt-2 text-sm text-neutral-400">분반 없음</p>
         ) : (
@@ -324,19 +345,6 @@ export default async function StatsPage({
           </div>
         </dl>
 
-        {/* 전체 기록 현황 (기존 카운트 카드 8개, 정보 손실 0) */}
-        <div className="mt-6 border-t border-neutral-100 pt-4">
-          <h3 className="text-xs font-normal text-neutral-500">전체 기록 현황</h3>
-          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {cards.map((c) => (
-              <div key={c.label} className="rounded-lg border border-neutral-200 p-4">
-                <p className="text-xs text-neutral-500">{c.label}</p>
-                <p className="mt-1 text-2xl font-normal tabular-nums">{c.value}</p>
-                {c.sub && <p className="mt-0.5 text-xs text-neutral-400">{c.sub}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
       </section>
     </>
   );
@@ -371,7 +379,7 @@ function GradeAnalysisView({ analysis }: { analysis: SectionGradeAnalysis }) {
     <div className="mt-4 space-y-6">
       {/* 히스토그램 + 기초통계 */}
       <div>
-        <h3 className="text-xs font-normal text-neutral-500">점수 분포</h3>
+        <h3 className="text-xs text-neutral-500">점수 분포</h3>
         {hasScores ? (
           <>
             <div className="mt-2 flex flex-wrap gap-4 text-sm">
@@ -394,11 +402,11 @@ function GradeAnalysisView({ analysis }: { analysis: SectionGradeAnalysis }) {
 
       {/* 중간→기말 추이 */}
       <div>
-        <h3 className="text-xs font-normal text-neutral-500">
+        <h3 className="text-xs text-neutral-500">
           중간→기말 추이{" "}
           <span className="text-neutral-400">({analysis.students.length}명)</span>
         </h3>
-        <div className="mt-2 max-h-96 overflow-auto">
+        <div className="mt-2 max-h-96 overflow-auto scroll-fade-y">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="text-xs text-neutral-400">
@@ -439,7 +447,7 @@ function GradeAnalysisView({ analysis }: { analysis: SectionGradeAnalysis }) {
       {/* 분반 간 비교 */}
       {comparisonData.length > 1 && (
         <div>
-          <h3 className="text-xs font-normal text-neutral-500">
+          <h3 className="text-xs text-neutral-500">
             같은 과목 분반 간 비교 ({analysis.subjectName})
           </h3>
           <div className="mt-2">
@@ -450,7 +458,7 @@ function GradeAnalysisView({ analysis }: { analysis: SectionGradeAnalysis }) {
 
       {/* 수행평가 항목별 입력률/평균 */}
       <div>
-        <h3 className="text-xs font-normal text-neutral-500">수행평가 항목별 입력률</h3>
+        <h3 className="text-xs text-neutral-500">수행평가 항목별 입력률</h3>
         {analysis.performanceItems.length === 0 ? (
           <p className="mt-2 text-sm text-neutral-400">설정된 수행 항목이 없습니다.</p>
         ) : (

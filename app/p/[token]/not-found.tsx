@@ -10,7 +10,7 @@ export default function PublicNotFound() {
       <p className="text-5xl" aria-hidden="true">
         🔗
       </p>
-      <h1 className="mt-4 text-xl font-normal tracking-tight">
+      <h1 className="mt-4 text-xl tracking-tight">
         사용할 수 없는 링크입니다
       </h1>
       <p className="mt-3 text-sm leading-relaxed text-neutral-500">

@@ -43,7 +43,7 @@ function Notices({
   return (
     <section className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-normal text-neutral-500">교사 한마디</h2>
+        <h2 className="text-sm text-neutral-500">교사 한마디</h2>
         <div className="flex items-center gap-2">
           <NoticeMeta postedAt={item.postedAt} unread={item.unread} />
           {items.length > 1 && (
@@ -90,7 +90,7 @@ function IndividualNotices({
   return (
     <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-normal text-amber-600">개별 공지</h2>
+        <h2 className="text-sm text-amber-600">개별 공지</h2>
         <div className="flex items-center gap-2">
           <NoticeMeta postedAt={item.postedAt} unread={item.unread} />
           {notices.length > 1 && (
@@ -125,7 +125,7 @@ function IndividualNotices({
 function PersonalMessage({ message }: { message: string }) {
   return (
     <section className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-      <h2 className="text-sm font-normal text-blue-600">개별 메시지</h2>
+      <h2 className="text-sm text-blue-600">개별 메시지</h2>
       <p className="mt-1 whitespace-pre-line text-sm">{message}</p>
     </section>
   );
@@ -179,7 +179,7 @@ function TodaySummary({
       onClick={onNavigate}
       className="block w-full min-h-[44px] rounded-2xl border border-hairline bg-card p-4 text-left transition hover:border-blue-400"
     >
-      <h2 className="text-sm font-normal text-neutral-700">오늘 요약</h2>
+      <h2 className="text-sm text-neutral-700">오늘 요약</h2>
       <div className="mt-2 space-y-1.5">
         {isVacationToday ? (
           <div className="flex items-center gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
@@ -237,7 +237,7 @@ function UpcomingEvents({
       onClick={onNavigate}
       className="block w-full min-h-[44px] rounded-2xl border border-hairline bg-card p-4 text-left transition hover:border-blue-400"
     >
-      <h2 className="text-sm font-normal text-neutral-700">다가오는 일정</h2>
+      <h2 className="text-sm text-neutral-700">다가오는 일정</h2>
       <div className="mt-2 space-y-1">
         {upcoming.length === 0 ? (
           <p className="text-sm text-neutral-400">다가오는 일정이 없습니다</p>

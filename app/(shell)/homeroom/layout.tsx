@@ -3,6 +3,7 @@ import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { getTeacherSettings } from "@/lib/db/queries";
 import { TabNav } from "@/app/ui/tab-nav";
+import { RoomHeader } from "@/app/ui/room-header";
 
 export const dynamic = "force-dynamic";
 
@@ -32,23 +33,15 @@ export default async function HomeroomLayout({
 
   return (
     <div>
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-normal tracking-tight">🏠 담임 교실</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            담임반 학생의 자율·진로활동·출결·행특·상담·공지·생기부를 한곳에서 관리합니다.
-          </p>
-          <p className="mt-1 text-xs text-neutral-400">
-            담임 교실은 학기 구분 없이 사용합니다.
-          </p>
-        </div>
-        <Link href="/" className="inline-flex min-h-11 shrink-0 items-center text-sm text-neutral-500 hover:underline">
-          ← 홈
-        </Link>
-      </div>
+      <RoomHeader
+        icon="🏠"
+        title="담임 교실"
+        desc="담임반 학생의 자율·진로활동·출결·행특·상담·공지·생기부를 한곳에서 관리합니다."
+        note="학기 구분 없이 사용합니다"
+      />
 
       {!settings?.isHomeroom ? (
-        <div className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <p>
             담임 교사로 설정되어 있지 않습니다. 세팅실-교사 기본설정에서 담임 학년/반을
             설정하세요.
@@ -62,11 +55,11 @@ export default async function HomeroomLayout({
         </div>
       ) : (
         <>
-          <div className="mt-6">
+          <div className="mt-3 md:hidden">
             <TabNav tabs={TABS} ariaLabel="담임 교실 탭" mobileOnly />
           </div>
 
-          <section className="mt-8">{children}</section>
+          <section className="mt-5">{children}</section>
         </>
       )}
     </div>

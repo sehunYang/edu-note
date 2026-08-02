@@ -41,7 +41,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-normal text-neutral-800">오늘 해야 할 일</h2>
+          <h2 className="text-lg text-neutral-800">오늘 해야 할 일</h2>
           <button
             type="button"
             onClick={close}

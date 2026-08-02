@@ -259,7 +259,7 @@ export function ObservationsClient({
 
       {/* 최근 관찰 */}
       <section>
-        <h3 className="text-xs font-normal text-neutral-500">
+        <h3 className="text-xs text-neutral-500">
           최근 관찰 {recent.length}
         </h3>
         <ul className="mt-2 space-y-2">

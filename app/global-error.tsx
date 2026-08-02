@@ -25,7 +25,7 @@ export default function GlobalError({
           <p className="text-5xl" aria-hidden="true">
             ⚠️
           </p>
-          <h1 className="mt-4 text-xl font-normal tracking-tight">
+          <h1 className="mt-4 text-xl tracking-tight">
             앱을 불러오지 못했습니다
           </h1>
           <p className="mt-2 text-sm text-neutral-500">

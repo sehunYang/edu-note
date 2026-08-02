@@ -25,7 +25,7 @@ export default async function ClubroomPlanPage() {
   if (!club) {
     return (
       <div>
-        <h2 className="text-lg font-normal text-neutral-800">활동 계획</h2>
+        <h2 className="text-base">활동 계획</h2>
         <div className="mt-8">
           <EmptyState actions={[{ href: "/clubroom/create", label: "동아리 개설" }]}>
             아직 개설된 동아리가 없습니다. 먼저 동아리를 만드세요.
@@ -41,7 +41,7 @@ export default async function ClubroomPlanPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-normal text-neutral-800">
+        <h2 className="text-base">
           활동 계획 — {club.name}
         </h2>
         <form action={reconcileAction} className="inline">
@@ -50,7 +50,7 @@ export default async function ClubroomPlanPage() {
           </Button>
         </form>
       </div>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-0.5 text-xs text-neutral-400">
         학사일정의 동아리 활동일을 차시로 자동 생성합니다. 차시마다 예정 활동을
         기입하세요.
       </p>

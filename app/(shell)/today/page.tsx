@@ -37,6 +37,7 @@ import { MealsWidget } from "./meals-widget";
 import { TodayScheduleCard } from "./today-schedule-card";
 import { TodayAttendanceCard } from "./today-attendance-card";
 import { kstToday, readMeals, weekRange } from "./today-lib";
+import { RoomHeader } from "@/app/ui/room-header";
 
 export const metadata = { title: "오늘의 학교" };
 
@@ -181,19 +182,13 @@ export default async function TodayPage() {
     <>
       <TodayNudgeModal nudges={nudges} />
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-normal tracking-tight">오늘의 학교</h1>
-        <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
-          ← 홈
-        </Link>
-      </div>
-      <p className="mt-1 text-xs text-neutral-400">{date}</p>
+      <RoomHeader icon="🗓️" title="오늘의 학교" desc={date} />
 
       {/* QC v6 ⑥(AC-6.3): 메인처럼 페이지 최상단에 '오늘 해야 할 일'을 상시 표시
           (기존 모달과 별개로 유지 — 모달을 닫아도 배너는 남는다). */}
       <NudgeBanner nudges={nudges} />
 
-      <div className="stagger mt-6 grid gap-6 md:grid-cols-2">
+      <div className="stagger mt-5 grid items-start gap-4 md:grid-cols-2">
         {/* 오늘 시간표 통합 카드 — 교시·시간·과목색(시간표) + 차시 체크·내용(수업)
             을 한 카드로(today-schedule-merge). 진척도 실반영은 기존과 동일. */}
         <TodayScheduleCard
@@ -223,7 +218,7 @@ export default async function TodayPage() {
 
         {/* 신고서 / 잔여차시 요약 */}
         <section className="rounded-lg border border-neutral-200 p-4">
-          <h2 className="text-sm font-normal text-neutral-700">신고서 · 차시 요약</h2>
+          <h2 className="text-sm text-neutral-700">신고서 · 차시 요약</h2>
           <dl className="mt-2 space-y-1 text-sm">
             <div className="flex justify-between">
               <dt className="text-neutral-500">미제출 신고서</dt>

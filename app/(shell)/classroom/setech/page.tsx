@@ -49,7 +49,7 @@ export default async function SetechPage({
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">
+      <h2 className="text-base">
         세특 작성 · {sem}학기
       </h2>
       <p className="mt-1 text-xs text-neutral-400">

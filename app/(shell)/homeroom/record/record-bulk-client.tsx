@@ -111,7 +111,7 @@ export function RecordBulkClient({
 
       {/* 내보내기 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-normal text-neutral-700">
+        <h3 className="text-sm text-neutral-700">
           ① {areaLabel} 원천자료 내보내기
         </h3>
         <p className="mt-1 text-xs text-neutral-400">
@@ -128,7 +128,7 @@ export function RecordBulkClient({
 
       {/* 업로드 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-normal text-neutral-700">
+        <h3 className="text-sm text-neutral-700">
           ② 코워크 결과 CSV 업로드(학번 매칭)
         </h3>
         <input aria-label="코워크 결과 CSV 파일 선택"
@@ -154,7 +154,7 @@ export function RecordBulkClient({
 
       {/* 저장된 초안(현재 영역) */}
       <section>
-        <h3 className="text-sm font-normal text-neutral-700">
+        <h3 className="text-sm text-neutral-700">
           저장된 {areaLabel} 초안 {areaDrafts.length}
         </h3>
         {areaDrafts.length === 0 ? (

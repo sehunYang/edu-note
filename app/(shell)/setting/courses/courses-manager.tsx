@@ -16,6 +16,7 @@ import {
 import type { SectionRoleRow, EvalSettingsView, StudentOption } from "@/lib/db/queries";
 import { Button } from "@/app/ui/button";
 import { ConfirmButton } from "@/app/ui/confirm-button";
+import { Disclosure } from "@/app/ui/disclosure";
 
 export interface SubjectView {
   subjectId: string;
@@ -55,7 +56,7 @@ export function CoursesManager({
       <section className="rounded-lg border border-neutral-200 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-normal text-neutral-700">시험일 파생</h3>
+            <h3 className="text-sm text-neutral-700">시험일 파생</h3>
             <p className="mt-1 text-xs text-neutral-400">
               학사일정(C3)에서 태깅한 시험 일정을 과목별 시험일로 반영합니다.
             </p>
@@ -113,7 +114,7 @@ function SubjectCard({
 
   return (
     <section className="rounded-lg border border-neutral-200 p-4">
-      <h3 className="text-sm font-normal text-neutral-800">
+      <h3 className="text-sm text-neutral-800">
         {subject.subjectName}
       </h3>
 
@@ -238,10 +239,16 @@ function SectionBlock({
           .slice(0, 8);
 
   return (
-    <div className="rounded border border-neutral-200 p-3">
-      <div className="text-xs font-normal text-neutral-700">분반 {section.label}</div>
-
-      <form action={enroll} className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+    /* 밀도 개선 D-4: 분반 명단은 기본으로 접는다. 이전엔 과목 4개 × 분반별
+       수강생 30여 명이 전부 펼쳐져 이 화면 하나가 6,136px 였다 — 뷰포트 7개
+       분량이고, 그중 실제로 손대는 곳은 보통 한 분반이다. 요약 줄에 수강생
+       수를 실어 접힌 채로도 "명단이 비었는지"는 알 수 있게 한다. */
+    <Disclosure
+      title={`분반 ${section.label}`}
+      count={`${section.enrollments.length}명`}
+      hint={section.enrollments.length === 0 ? "수강생 없음" : undefined}
+    >
+      <form action={enroll} className="flex flex-wrap items-center gap-2 text-xs">
         <input type="hidden" name="sectionId" value={section.id} />
         <input aria-label="학년"
           name="grade"
@@ -347,6 +354,6 @@ function SectionBlock({
           <p className="text-xs text-neutral-400">수강생이 없습니다.</p>
         )}
       </div>
-    </div>
+    </Disclosure>
   );
 }

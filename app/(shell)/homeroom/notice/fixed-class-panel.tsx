@@ -3,6 +3,7 @@ import { useActionState } from "react";
 import { saveFixedClassesAction, type FixedClassState } from "./actions";
 import type { GradeClassOffering } from "@/lib/db/queries";
 import { Button } from "@/app/ui/button";
+import { Disclosure } from "@/app/ui/disclosure";
 
 /**
  * 고정반 설정 패널 (QC v3 Part B AC-10.3). 담임 학년의 (반,과목) 제공목록을 체크박스로
@@ -27,25 +28,27 @@ export function FixedClassPanel({
   const fixedSet = new Set(fixedKeys);
 
   return (
-    <section className="mt-8 rounded-lg border border-neutral-200 p-5">
-      <h2 className="text-sm font-normal text-neutral-700">
-        고정반 설정 {grade ? `(${grade}학년)` : ""}
-      </h2>
-      <p className="mt-1 text-xs text-neutral-400">
-        체크한 과목은 고정반(원반), 미체크는 선택과목(이동반)으로 저장됩니다.
-      </p>
-
+    /* 밀도 개선 D-6: (반 × 과목) 체크박스 68개가 상시 펼쳐져 공지실 하단
+       700px 를 먹고 있었다. 이건 학기 초에 한 번 맞추고 끝나는 설정이지,
+       공지를 쓰러 들어올 때마다 볼 것이 아니다 — 접고, 요약 줄에 현재 고정반
+       개수를 실어 접힌 채로도 설정 상태를 알 수 있게 한다. */
+    <section className="mt-5">
+      <Disclosure
+        title={`고정반 설정 ${grade ? `(${grade}학년)` : ""}`}
+        count={offerings ? `${fixedKeys.length}/${offerings.length}` : undefined}
+        hint="체크=고정반(원반) · 미체크=선택과목(이동반)"
+      >
       {!grade ? (
-        <p className="mt-3 text-sm text-amber-600">
+        <p className="text-sm text-amber-600">
           담임 학년이 설정되어 있지 않습니다. 세팅실에서 담임 정보를 먼저 입력하세요.
         </p>
       ) : syncError || !offerings ? (
-        <p className="mt-3 text-sm text-amber-600">
+        <p className="text-sm text-amber-600">
           동기화 실패, 수기로 시간표를 확인하세요.
           {syncError ? <span className="block text-xs text-neutral-400">{syncError}</span> : null}
         </p>
       ) : (
-        <form action={save} className="mt-3 space-y-3">
+        <form action={save} className="space-y-3">
           <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
             {offerings.map((o) => {
               const key = `${o.classNo}::${o.subjectName}`;
@@ -78,6 +81,7 @@ export function FixedClassPanel({
           ) : null}
         </form>
       )}
+      </Disclosure>
     </section>
   );
 }

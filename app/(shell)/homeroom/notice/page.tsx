@@ -74,7 +74,7 @@ export default async function NoticePage() {
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">공지실</h2>
+      <h2 className="text-base">공지실</h2>
       <p className="mt-2 text-xs text-neutral-400">
         여기서 설정한 내용은 학생별 공개 페이지(<code>/p/…</code>)에 그대로 노출됩니다.
         민감한 개인정보는 입력하지 마세요.

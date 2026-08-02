@@ -71,10 +71,10 @@ export default async function HomeroomActivitiesPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">
+      <h2 className="text-base">
         자율·진로활동 ({year})
       </h2>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-0.5 text-xs text-neutral-400">
         담임반 학생의 자율·진로 활동 특기 내역을 기입합니다.
       </p>
 

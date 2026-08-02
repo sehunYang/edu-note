@@ -28,8 +28,8 @@ export default async function HomeroomRecordPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">생기부 작성 ({year})</h2>
-      <p className="mt-1 text-sm text-neutral-500">
+      <h2 className="text-base">생기부 작성 ({year})</h2>
+      <p className="mt-0.5 text-xs text-neutral-400">
         자율·진로·행동발달 원천자료를 CSV로 내보내 코워크에서 작성하고, 결과
         CSV를 다시 올려 저장합니다(연말 1회).
       </p>

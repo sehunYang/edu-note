@@ -20,7 +20,7 @@ export default async function LoginPage({
     <>
       <CoveLight />
       <main className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center px-6 text-center">
-      <h1 className="text-3xl font-normal tracking-tight">📆 Edu_Note</h1>
+      <h1 className="text-3xl tracking-tight">📆 Edu_Note</h1>
       <p className="mt-2 text-sm text-neutral-500">
         교사 본인 계정으로만 로그인할 수 있습니다.
       </p>

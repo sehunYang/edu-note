@@ -26,7 +26,7 @@ export default async function ClubroomRecordPage() {
   if (!club) {
     return (
       <div>
-        <h2 className="text-lg font-normal text-neutral-800">생기부 작성</h2>
+        <h2 className="text-base">생기부 작성</h2>
         <div className="mt-8">
           <EmptyState actions={[{ href: "/clubroom/create", label: "동아리 개설" }]}>
             아직 개설된 동아리가 없습니다. 먼저 동아리를 만드세요.
@@ -43,10 +43,10 @@ export default async function ClubroomRecordPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">
+      <h2 className="text-base">
         생기부 작성 — {club.name}
       </h2>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-0.5 text-xs text-neutral-400">
         부원별 동아리 활동 원천자료(공통 + 개별)를 참고해 생기부 본문을 작성하고
         초안으로 저장합니다(상한 {BYTE_LIMITS["club"]}byte).
       </p>

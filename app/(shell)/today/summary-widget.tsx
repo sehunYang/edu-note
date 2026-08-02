@@ -18,7 +18,7 @@ export function SummaryWidget({
 }) {
   return (
     <section className={`rounded-lg border border-neutral-200 p-4 ${className ?? ""}`}>
-      <h2 className="text-sm font-normal text-neutral-700">요약 통계</h2>
+      <h2 className="text-sm text-neutral-700">요약 통계</h2>
       <dl className="mt-3 grid grid-cols-3 gap-3 text-center">
         <Stat label="주간 진도율">
           <CountUp value={progressPercent} suffix="%" />

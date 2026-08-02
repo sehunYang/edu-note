@@ -49,7 +49,7 @@ export default async function SessionsPage() {
   return (
     <>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-normal tracking-tight">시수 관리 ({year})</h1>
+        <h1 className="text-2xl tracking-tight">시수 관리 ({year})</h1>
         <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
           ← 홈
         </Link>
@@ -80,7 +80,7 @@ export default async function SessionsPage() {
             return (
               <section key={subject.subjectId}>
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200 pb-2">
-                  <h2 className="font-normal">{subject.subjectName}</h2>
+                  <h2>{subject.subjectName}</h2>
                   <form
                     action={setBoundaryAction}
                     className="flex items-center gap-2 text-sm"

@@ -78,7 +78,7 @@ export function GradesUploader({ subjects }: { subjects: SubjectGradeView[] }) {
 
       {/* 수행평가 항목별 업로드 */}
       <section>
-        <h3 className="text-sm font-normal text-neutral-700">수행평가</h3>
+        <h3 className="text-sm text-neutral-700">수행평가</h3>
         {selected.performanceItems.length === 0 ? (
           <p className="mt-1 text-xs text-neutral-400">
             이 과목에 등록된 수행평가 항목이 없습니다. 세팅실에서 평가설정을
@@ -99,7 +99,7 @@ export function GradesUploader({ subjects }: { subjects: SubjectGradeView[] }) {
 
       {/* 지필 활성회차 업로드 */}
       <section>
-        <h3 className="text-sm font-normal text-neutral-700">지필평가</h3>
+        <h3 className="text-sm text-neutral-700">지필평가</h3>
         {!selected.jipilMidEnabled && !selected.jipilFinalEnabled ? (
           <p className="mt-1 text-xs text-neutral-400">
             이 과목은 지필평가를 시행하지 않습니다.
@@ -159,24 +159,28 @@ function PerformanceBox({
   }
 
   return (
-    <li className="rounded-lg border border-neutral-200 p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-normal text-neutral-700">{itemName}</span>
-        <Button
-          type="button"
-          onClick={() =>
-            downloadCsv(performanceCsvExample(), `수행_${itemName}_예시.csv`)
-          }
-          className="px-2 py-1 text-xs"
-        >
-          ⬇ 예시 다운로드
-        </Button>
-      </div>
-      <form action={action} className="mt-2 space-y-2">
+    /* 밀도 개선 D-14: 업로드 칸 하나가 제목줄 + 버튼줄로 104px 였고 항목마다
+       반복돼 화면 상단 절반을 "아직 아무것도 안 한 업로드 상자"가 차지했다.
+       제목·예시·파일선택·업로드를 한 줄에 모으면 44px 로 줄고, 항목 간 비교
+       (무엇을 올렸고 무엇이 비었는지)가 세로로 정렬돼 오히려 읽기 쉽다. */
+    <li className="rounded-lg border border-neutral-200 px-3 py-2">
+      <form action={action}>
         <input type="hidden" name="subjectId" value={subjectId} />
         <input type="hidden" name="itemName" value={itemName} />
         <input type="hidden" name="csv" value={csv} />
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-auto text-sm font-medium text-white">
+            {itemName}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              downloadCsv(performanceCsvExample(), `수행_${itemName}_예시.csv`)
+            }
+            className="text-xs text-neutral-400 hover:text-white hover:underline"
+          >
+            예시 ⬇
+          </button>
           <label className="cursor-pointer rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs hover:bg-white/10">
             📄 CSV 파일
             <input
@@ -228,22 +232,21 @@ function JipilBox({
   }
 
   return (
-    <li className="rounded-lg border border-neutral-200 p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-normal text-neutral-700">{label}</span>
-        <Button
-          type="button"
-          onClick={() => downloadCsv(jipilCsvExample(), `지필_${label}_예시.csv`)}
-          className="px-2 py-1 text-xs"
-        >
-          ⬇ 예시 다운로드
-        </Button>
-      </div>
-      <form action={action} className="mt-2 space-y-2">
+    /* 수행 업로드 칸(PerformanceBox)과 같은 한 줄 배치 — D-14. */
+    <li className="rounded-lg border border-neutral-200 px-3 py-2">
+      <form action={action}>
         <input type="hidden" name="subjectId" value={subjectId} />
         <input type="hidden" name="ordinal" value={ordinal} />
         <input type="hidden" name="csv" value={csv} />
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-auto text-sm font-medium text-white">{label}</span>
+          <button
+            type="button"
+            onClick={() => downloadCsv(jipilCsvExample(), `지필_${label}_예시.csv`)}
+            className="text-xs text-neutral-400 hover:text-white hover:underline"
+          >
+            예시 ⬇
+          </button>
           <label className="cursor-pointer rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs hover:bg-white/10">
             📄 CSV 파일
             <input
@@ -426,7 +429,7 @@ function GradePreview({
   return (
     <section>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-normal text-neutral-700">
+        <h3 className="text-sm text-neutral-700">
           환산 미리보기{!hasAny && " (입력된 성적 없음)"}
         </h3>
         <form action={formAction} className="flex items-center gap-2">

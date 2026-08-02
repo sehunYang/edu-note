@@ -112,7 +112,7 @@ export function NotifyCard({ token }: { token: string }) {
 
   return (
     <section className="rounded-2xl border border-hairline bg-card p-4">
-      <h2 className="text-sm font-normal text-neutral-700">알림 설정</h2>
+      <h2 className="text-sm text-neutral-700">알림 설정</h2>
 
       {!configured ? (
         <p className="mt-2 text-sm text-neutral-400">

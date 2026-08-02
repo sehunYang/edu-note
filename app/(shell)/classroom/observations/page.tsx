@@ -75,13 +75,13 @@ export default async function ClassroomObservationsPage({
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">
+      <h2 className="text-base">
         교과 관찰 · {sem}학기
         {sem !== activeSem && (
           <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>
         )}
       </h2>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-0.5 text-xs text-neutral-400">
         분반을 반드시 지정해 관찰을 기록합니다. 학생을 고르면 수강 분반이 자동
         매칭되고, 분반을 고르면 학생 명단이 그 분반으로 좁혀집니다.
       </p>

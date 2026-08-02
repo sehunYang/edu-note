@@ -79,7 +79,7 @@ export function TodayScheduleCard({
   return (
     <section className={`rounded-lg border border-neutral-200 p-4 ${className ?? ""}`}>
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-normal text-neutral-700">오늘 시간표</h2>
+        <h2 className="text-sm text-neutral-700">오늘 시간표</h2>
         {badge && (
           <span
             className={`text-xs ${badge.stale ? "text-amber-600" : "text-neutral-400"}`}

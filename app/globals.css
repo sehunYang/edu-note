@@ -4,7 +4,19 @@
 
 :root {
   --background: #0a0a0a;
-  --foreground: #ffffff;
+  /* ── 본문은 흰색이 아니다 (밀도 개선 D-1) ──────────────────────────────
+     실측: /classroom/observations 본문 텍스트 노드 149개 중 142개가 14px,
+     그중 129개가 #ffffff·weight 400 이었다. 즉 제목·라벨·값·설명이 모두 최대
+     대비 한 단계에 몰려 있어 "무엇을 먼저 볼지"를 타이포그래피가 알려주지
+     못했다(밀도 칼럼: "contrast와 typography로 위계를 만들고 중요한 데이터는
+     더 굵게").
+
+     해결은 강조를 더하는 게 아니라 **바닥을 낮추는 것**이다. 본문을 neutral-700
+     (#dadbdf, 대비 14.3:1 — WCAG AAA 여유)으로 내리면 제목·`text-white`·강조값
+     40여 곳이 자동으로 한 단계 위로 떠오른다. 팔레트는 이미 이 구조를
+     전제하고 있었다(neutral-700=본문, neutral-900=강조). */
+  --foreground: #dadbdf;
+  --ink: #ffffff;
   color-scheme: dark;
 }
 
@@ -35,14 +47,25 @@ body {
 }
 
 @layer base {
+  /* 제목은 본문보다 확실히 위: 흰색 + 600. 이전엔 400/상속색이라 h2·h3 가 옆
+     문단과 같은 픽셀로 렌더됐다(실측 h1 20 · h2 76 · h3 65 = 161개 전부 400).
+     JSX 의 font-normal 329곳 중 제목에 붙은 것은 코드모드로 걷어냈다 — 유틸리티
+     클래스가 이 규칙을 이기기 때문. */
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    font-weight: 400;
+    color: var(--ink);
+    font-weight: 600;
     letter-spacing: -0.02em;
+  }
+
+  /* 숫자는 자릿수가 흔들리면 표에서 세로 비교가 안 된다(성적·차시·집계 화면). */
+  table,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
   }
 
   ::selection {
@@ -179,6 +202,25 @@ body {
   }
   .stagger > *:nth-child(n + 8) {
     animation-delay: 280ms;
+  }
+
+  /* 내부 스크롤 영역의 하단 페이드 (밀도 개선 D-12).
+     max-h + overflow-auto 로 자른 표는 마지막 행이 **가로로 잘린 채** 끝나
+     "여기가 끝"인지 "더 있는데 잘린 것"인지 구분되지 않았다(통계실 33행 추이표,
+     기록 커버리지 11행). 하단 20px 를 투명으로 흐리면 잘림이 의도된 것이고
+     아래에 더 있다는 신호가 된다. 스크롤이 끝까지 내려가면 브라우저가
+     자동으로 콘텐츠를 다 보여주므로 정보 손실은 없다. */
+  .scroll-fade-y {
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      #000 calc(100% - 20px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      #000 calc(100% - 20px),
+      transparent 100%
+    );
   }
 
   /* 아코디언 (Stage 2-3): grid-rows 0fr→1fr 전환. .accordion-open 토글.

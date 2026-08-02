@@ -90,13 +90,13 @@ export default async function SessionPlanPage({
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">
+      <h2 className="text-base">
         수업 계획실 · {sem}학기
         {sem !== activeSem && (
           <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>
         )}
       </h2>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-0.5 text-xs text-neutral-400">
         차시 계획 단계입니다. 차시별 수업내용과 핵심개념을 기록하고, 6자리 코드(또는
         선택)로 세부 단원을 연결하세요.
       </p>

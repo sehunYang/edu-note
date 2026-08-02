@@ -78,7 +78,7 @@ export default async function GradesPage({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-normal text-neutral-800">
+        <h2 className="text-base">
           성적 기록 · {sem}학기
           {sem !== activeSem && (
             <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>
@@ -91,7 +91,7 @@ export default async function GradesPage({
           저장 테이블 조회 →
         </Link>
       </div>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-0.5 text-xs text-neutral-400">
         원점수만 저장하고 환산값은 읽기시점에 계산합니다. 수행은 항목별, 지필은
         활성 회차별로 CSV를 업로드하세요(학번 기준 매칭).
       </p>

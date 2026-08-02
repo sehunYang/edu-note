@@ -105,7 +105,7 @@ export default async function StudentHandoutPage({
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center justify-between print:hidden">
-        <h1 className="text-2xl font-normal tracking-tight">배부용 인쇄물</h1>
+        <h1 className="text-2xl tracking-tight">배부용 인쇄물</h1>
         <div className="flex items-center gap-4">
           <PrintButton />
           <Link href="/print" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
@@ -115,7 +115,7 @@ export default async function StudentHandoutPage({
       </div>
 
       <div className="mt-4">
-        <h2 className="text-lg font-normal">
+        <h2 className="text-lg">
           {profile.grade}학년 {profile.classNo}반 {profile.sid} {profile.name}
         </h2>
         <p className="text-xs text-neutral-400">
@@ -124,7 +124,7 @@ export default async function StudentHandoutPage({
       </div>
 
       <section className="mt-6">
-        <h3 className="mb-2 text-base font-normal">지필·수행 성적</h3>
+        <h3 className="mb-2 text-base">지필·수행 성적</h3>
         {sectionDetails.length === 0 ? (
           <p className="text-sm text-neutral-400">
             {year}학년도 {sem}학기에 수강 중인 분반이 없습니다.
@@ -201,7 +201,7 @@ export default async function StudentHandoutPage({
       </section>
 
       <section className="mt-6">
-        <h3 className="mb-2 text-base font-normal">출결 요약</h3>
+        <h3 className="mb-2 text-base">출결 요약</h3>
         {attendanceKindsPresent.length === 0 ? (
           <p className="text-sm text-neutral-400">출결 기록이 없습니다.</p>
         ) : (

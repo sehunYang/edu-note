@@ -119,7 +119,7 @@ export function SetechBulkClient({
     <div className="mt-5 space-y-6">
       {/* 과목·분반 선택 + 내보내기 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-normal text-neutral-700">① 원천자료 내보내기</h3>
+        <h3 className="text-sm text-neutral-700">① 원천자료 내보내기</h3>
         <div className="mt-3 flex flex-wrap gap-2">
           <select aria-label="과목"
             value={subjectId}
@@ -160,7 +160,7 @@ export function SetechBulkClient({
       {/* 결과 업로드 */}
       <section className="rounded-lg border border-neutral-200 p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-normal text-neutral-700">
+          <h3 className="text-sm text-neutral-700">
             ② 코워크 결과 CSV 업로드(학번+과목 매칭)
           </h3>
           <Button
@@ -230,7 +230,7 @@ export function SetechBulkClient({
 
       {/* 저장된 초안 */}
       <section>
-        <h3 className="text-sm font-normal text-neutral-700">저장된 초안 {drafts.length}</h3>
+        <h3 className="text-sm text-neutral-700">저장된 초안 {drafts.length}</h3>
         {drafts.length === 0 ? (
           <p className="mt-2 text-sm text-neutral-400">아직 저장된 세특 초안이 없습니다.</p>
         ) : (
@@ -318,7 +318,7 @@ function ExtraNoteForm({
 
   return (
     <section className="rounded-lg border border-neutral-200 p-4">
-      <h3 className="text-sm font-normal text-neutral-700">학생 추가 입력(자율 탐구 등)</h3>
+      <h3 className="text-sm text-neutral-700">학생 추가 입력(자율 탐구 등)</h3>
       <p className="mt-1 text-xs text-neutral-400">
         세특 원천자료에 합류합니다. 과목을 고르면 그 과목 수강생만 표시됩니다. 점수가
         아닌 활동 서술을 기입하세요.
@@ -372,7 +372,7 @@ function ExtraNoteForm({
 
       {/* AC-4.3 저장된 추가 입력 목록(수정/삭제) */}
       <div className="mt-4 border-t border-neutral-100 pt-3">
-        <h4 className="text-xs font-normal text-neutral-600">
+        <h4 className="text-xs text-neutral-600">
           저장된 추가 입력 {extraNotes.length}
         </h4>
         {extraNotes.length === 0 ? (

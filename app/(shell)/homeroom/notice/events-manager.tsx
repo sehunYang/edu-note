@@ -35,7 +35,7 @@ export function EventsManager({
 
   return (
     <section className="mt-8">
-      <h2 className="text-sm font-normal text-neutral-700">할 일 / 공지</h2>
+      <h2 className="text-sm text-neutral-700">할 일 / 공지</h2>
       <p className="mt-1 text-xs text-neutral-400">
         공개 페이지에는 오늘부터 7일 이내 항목이 “이번 주 할 일”로 표시됩니다.
       </p>

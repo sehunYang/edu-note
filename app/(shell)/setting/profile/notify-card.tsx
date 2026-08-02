@@ -79,7 +79,7 @@ export function NotifyCard() {
 
   return (
     <section className="mt-6 rounded-lg border border-neutral-200 p-4">
-      <h3 className="text-sm font-normal text-neutral-700">알림</h3>
+      <h3 className="text-sm text-neutral-700">알림</h3>
       <p className="mt-1 text-xs text-neutral-400">
         상담 신청·취소 요청 즉시 알림과 수업일 아침 브리핑을 이 기기의 푸시 알림으로 받습니다.
       </p>

@@ -154,7 +154,7 @@ export const REASON_LABEL: Record<PublicAttendanceRecord["reason"], string> = {
 export function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-2xl border border-hairline bg-card p-4">
-      <h2 className="text-sm font-normal text-neutral-700">{title}</h2>
+      <h2 className="text-sm text-neutral-700">{title}</h2>
       <div className="mt-2">{children}</div>
     </section>
   );

@@ -535,7 +535,7 @@ function ExceedModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
       <div className="w-full max-w-md rounded-lg bg-card p-5 border border-neutral-200">
-        <h3 className="text-base font-normal text-neutral-800">
+        <h3 className="text-base text-neutral-800">
           학기 계획을 변경하시겠습니까?
         </h3>
         <p className="mt-2 text-sm text-neutral-600">

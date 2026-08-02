@@ -55,7 +55,7 @@ export default async function CalendarStagePage() {
 
   return (
     <div>
-      <h2 className="text-lg font-normal">3. 학사 일정 + 키워드</h2>
+      <h2 className="text-lg">3. 학사 일정 + 키워드</h2>
       <p className="mt-1 text-sm text-neutral-500">
         NEIS 학사일정을 동기화하고 시험·방학·동아리 속성을 보정합니다.
       </p>
@@ -63,7 +63,7 @@ export default async function CalendarStagePage() {
 
       <div className="mt-8 grid gap-8 md:grid-cols-2">
         <section>
-          <h3 className="text-sm font-normal text-neutral-700">다가오는 학사일정</h3>
+          <h3 className="text-sm text-neutral-700">다가오는 학사일정</h3>
           {upcoming.length === 0 ? (
             <p className="mt-3 text-sm text-neutral-400">
               일정이 없습니다. 위에서 동기화하세요.
@@ -81,7 +81,7 @@ export default async function CalendarStagePage() {
         </section>
 
         <section>
-          <h3 className="text-sm font-normal text-neutral-700">이번 주 급식</h3>
+          <h3 className="text-sm text-neutral-700">이번 주 급식</h3>
           {meals.length === 0 ? (
             <p className="mt-3 text-sm text-neutral-400">급식 정보가 없습니다.</p>
           ) : (

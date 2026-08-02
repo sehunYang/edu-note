@@ -246,7 +246,7 @@ function ScheduledActivitySection({
 
   return (
     <section className="space-y-3 rounded-lg border border-neutral-200 p-5">
-      <h2 className="text-sm font-normal text-neutral-700">학사일정 자율·진로 활동</h2>
+      <h2 className="text-sm text-neutral-700">학사일정 자율·진로 활동</h2>
       <form onSubmit={onSubmit} className="space-y-3">
         <div>
           <label className="text-xs font-normal text-neutral-600">활동 일정</label>
@@ -360,7 +360,7 @@ function FreeActivitySection({ students }: { students: HomeroomStudent[] }) {
 
   return (
     <section className="space-y-3 rounded-lg border border-neutral-200 p-5">
-      <h2 className="text-sm font-normal text-neutral-700">자유 탐구/활동</h2>
+      <h2 className="text-sm text-neutral-700">자유 탐구/활동</h2>
 
       <div className="flex flex-wrap gap-4">
         {/* 공통/개별 토글 */}
@@ -475,7 +475,7 @@ export function ActivitiesClient({
       <FreeActivitySection students={students} />
 
       <section>
-        <h2 className="text-xs font-normal text-neutral-500">
+        <h2 className="text-xs text-neutral-500">
           저장 내역 {entries.length}건
         </h2>
         {entries.length === 0 ? (

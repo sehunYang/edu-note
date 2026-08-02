@@ -37,7 +37,7 @@ export default async function GradesViewPage({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-normal text-neutral-800">
+        <h2 className="text-base">
           저장 성적 테이블 · {sem}학기
         </h2>
         <Link
@@ -47,7 +47,7 @@ export default async function GradesViewPage({
           ← 성적 기록
         </Link>
       </div>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-0.5 text-xs text-neutral-400">
         업로드되어 저장된 지필 원점수와 수행 항목별 점수·서술을 조회합니다(환산 전 원자료).
       </p>
 
@@ -62,14 +62,14 @@ export default async function GradesViewPage({
               key={t.subjectId}
               className="rounded-lg border border-neutral-200 p-4"
             >
-              <h3 className="text-sm font-normal text-neutral-700">
+              <h3 className="text-sm text-neutral-700">
                 {t.subjectName}
               </h3>
 
               {/* 지필 원점수 */}
               {(t.stored.midEnabled || t.stored.finalEnabled) && (
                 <div className="mt-3">
-                  <h4 className="text-xs font-normal text-neutral-500">지필 원점수</h4>
+                  <h4 className="text-xs text-neutral-500">지필 원점수</h4>
                   <div className="mt-1 overflow-x-auto">
                     <table className="min-w-full text-xs">
                       <thead>
@@ -113,7 +113,7 @@ export default async function GradesViewPage({
               ) : (
                 t.stored.performance.map((item) => (
                   <div key={item.item} className="mt-3">
-                    <h4 className="text-xs font-normal text-neutral-500">
+                    <h4 className="text-xs text-neutral-500">
                       수행 · {item.item}
                     </h4>
                     <div className="mt-1 overflow-x-auto">

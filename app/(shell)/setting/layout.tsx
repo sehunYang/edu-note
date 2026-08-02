@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { getStageStatuses, type SettingStage } from "@/lib/db/queries";
 import { activeSchoolYear } from "@/lib/domain/school-year";
 import { StageNav } from "./stage-nav";
+import { RoomHeader } from "@/app/ui/room-header";
 
 export const dynamic = "force-dynamic";
 
@@ -31,19 +31,11 @@ export default async function SettingLayout({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-normal tracking-tight">
-            <span aria-hidden="true">⚙️</span> 세팅실
-          </h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            {year}학년도 기초 환경을 순서대로 설정합니다.
-          </p>
-        </div>
-        <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
-          ← 홈
-        </Link>
-      </div>
+      <RoomHeader
+        icon="⚙️"
+        title="세팅실"
+        desc={`${year}학년도 기초 환경을 순서대로 설정합니다.`}
+      />
 
       <StageNav
         stages={statuses.map((s) => ({
@@ -55,7 +47,7 @@ export default async function SettingLayout({
         }))}
       />
 
-      <section className="mt-8">{children}</section>
+      <section className="mt-5">{children}</section>
     </div>
   );
 }

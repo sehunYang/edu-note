@@ -15,7 +15,7 @@ export default function NotFound() {
         <p className="text-5xl" aria-hidden="true">
           🧭
         </p>
-        <h1 className="mt-4 text-2xl font-normal tracking-tight">
+        <h1 className="mt-4 text-2xl tracking-tight">
           찾을 수 없는 페이지입니다
         </h1>
         <p className="mt-2 text-sm text-neutral-500">

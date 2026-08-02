@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { activeSemester } from "@/lib/domain/school-year";
 import { TabNav } from "@/app/ui/tab-nav";
+import { RoomHeader } from "@/app/ui/room-header";
 import { SemesterSelector } from "./semester-selector";
 
 export const dynamic = "force-dynamic";
@@ -29,24 +29,18 @@ export default function ClassroomLayout({
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-normal tracking-tight">🏫 교실</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            수업 계획부터 세특 작성까지, 학기별 수업 운영을 한곳에서 관리합니다.
-          </p>
-        </div>
-        <Link href="/" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
-          ← 홈
-        </Link>
-      </div>
+      <RoomHeader
+        icon="🏫"
+        title="교실"
+        desc="수업 계획부터 세특 작성까지, 학기별 수업 운영을 한곳에서 관리합니다."
+        actions={<SemesterSelector defaultSemester={defaultSemester} />}
+      />
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-3 md:hidden">
         <TabNav tabs={TABS} ariaLabel="교실 탭" mobileOnly />
-        <SemesterSelector defaultSemester={defaultSemester} />
       </div>
 
-      <section className="mt-8">{children}</section>
+      <section className="mt-5">{children}</section>
     </div>
   );
 }

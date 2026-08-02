@@ -82,13 +82,13 @@ export default async function SemesterPlanPage({
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">
+      <h2 className="text-base">
         수업 계획실 · {sem}학기
         {sem !== activeSem && (
           <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>
         )}
       </h2>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-0.5 text-xs text-neutral-400">
         학기 계획 단계입니다. 과목별로 대/중/소단원과 핵심개념·최소차시를 입력하고,
         시험별 목표 진도를 소단원 범위로 지정하세요. 단원을 1개 이상 등록하면 차시
         계획 단계로 넘어갈 수 있습니다.

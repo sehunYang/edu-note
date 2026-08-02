@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { getOwnerClub } from "@/lib/db/queries";
 import { TabNav } from "@/app/ui/tab-nav";
+import { RoomHeader } from "@/app/ui/room-header";
 
 export const dynamic = "force-dynamic";
 
@@ -31,28 +31,19 @@ export default async function ClubroomLayout({
 
   return (
     <div>
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-normal tracking-tight">🎬 동아리실</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            동아리 개설·부원 배정·활동 계획·활동 입력·생기부 작성을 한곳에서
-            관리합니다.
-          </p>
-          <p className="mt-1 text-xs text-neutral-400">
-            동아리실은 학기 구분 없이 사용합니다(교사당 동아리 1개).
-          </p>
-        </div>
-        <Link href="/" className="inline-flex min-h-11 shrink-0 items-center text-sm text-neutral-500 hover:underline">
-          ← 홈
-        </Link>
-      </div>
+      <RoomHeader
+        icon="🎬"
+        title="동아리실"
+        desc="동아리 개설·부원 배정·활동 계획·활동 입력·생기부 작성을 한곳에서 관리합니다."
+        note="학기 구분 없이 사용합니다(교사당 동아리 1개)"
+      />
 
-      <div className="mt-6">
+      <div className="mt-3 md:hidden">
         <TabNav tabs={TABS} ariaLabel="동아리실 탭" mobileOnly />
       </div>
 
       {!club && (
-        <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           <p>
             아직 개설된 동아리가 없습니다. 부원 배정·활동 계획·활동 입력·생기부
             작성을 사용하려면 먼저 <strong>동아리 개설</strong> 탭에서 동아리를
@@ -61,7 +52,7 @@ export default async function ClubroomLayout({
         </div>
       )}
 
-      <section className="mt-8">{children}</section>
+      <section className="mt-5">{children}</section>
     </div>
   );
 }

@@ -23,7 +23,7 @@ export default async function ClubroomAssignPage() {
   if (!club) {
     return (
       <div>
-        <h2 className="text-lg font-normal text-neutral-800">부원 배정</h2>
+        <h2 className="text-base">부원 배정</h2>
         <div className="mt-8">
           <EmptyState actions={[{ href: "/clubroom/create", label: "동아리 개설" }]}>
             아직 개설된 동아리가 없습니다. 먼저 동아리를 만드세요.
@@ -45,16 +45,16 @@ export default async function ClubroomAssignPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">
+      <h2 className="text-base">
         부원 배정 — {club.name}
       </h2>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-0.5 text-xs text-neutral-400">
         {year}학년도 전체 명단에서 부원을 선택해 배정합니다. 명단에 없는 외부·타반
         학생은 세팅실에서 먼저 등록하면 후보로 나타납니다.
       </p>
 
       <section className="mt-6">
-        <h3 className="text-sm font-normal text-neutral-700">
+        <h3 className="text-sm text-neutral-700">
           현재 부원 {members.length}명
         </h3>
         {members.length === 0 ? (
@@ -84,7 +84,7 @@ export default async function ClubroomAssignPage() {
       </section>
 
       <section className="mt-8 border-t border-neutral-100 pt-6">
-        <h3 className="text-sm font-normal text-neutral-700">부원 추가</h3>
+        <h3 className="text-sm text-neutral-700">부원 추가</h3>
         {candidates.length === 0 ? (
           <p className="mt-2 text-sm text-neutral-400">
             배정 가능한 학생이 없습니다(명단 전원이 이미 부원).

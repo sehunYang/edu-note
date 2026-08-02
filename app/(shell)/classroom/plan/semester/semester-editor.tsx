@@ -104,7 +104,7 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
       <ExamSegmentSection subject={selected} />
 
       <section>
-        <h3 className="text-sm font-normal text-neutral-700">세부 단원</h3>
+        <h3 className="text-sm text-neutral-700">세부 단원</h3>
         <p className="mt-1 text-xs text-neutral-400">
           6자리 코드 = 대단원(2)·중단원(2)·소단원(2). 저장하면 코드 오름차순 ×
           최소차시로 차시 계획에 자동 배치됩니다(1차 시험 목표 진도의 종료 단원까지는
@@ -133,7 +133,7 @@ function ExamSegmentSection({ subject }: { subject: SubjectSemesterView }) {
   if (subject.examOrdinals.length === 0) {
     return (
       <section>
-        <h3 className="text-sm font-normal text-neutral-700">
+        <h3 className="text-sm text-neutral-700">
           시험 구간 차시 계획
         </h3>
         <div className="mt-2">
@@ -154,7 +154,7 @@ function ExamSegmentSection({ subject }: { subject: SubjectSemesterView }) {
   }
   return (
     <section>
-      <h3 className="text-sm font-normal text-neutral-700">
+      <h3 className="text-sm text-neutral-700">
         시험 구간 차시 계획
       </h3>
       <p className="mt-1 text-xs text-neutral-400">
@@ -469,7 +469,7 @@ function ExamTargetsSection({
   if (subject.examOrdinals.length === 0) {
     return (
       <section>
-        <h3 className="text-sm font-normal text-neutral-700">시험별 목표 진도</h3>
+        <h3 className="text-sm text-neutral-700">시험별 목표 진도</h3>
         <p className="mt-1 text-xs text-neutral-400">
           이 과목이 보는 시험이 없습니다. 세팅실 학사일정에 시험(1차/2차)을 등록하고,
           수업 관리의 평가설정에서 중간/기말 지필 시행을 체크하면 목표 진도 범위를
@@ -480,7 +480,7 @@ function ExamTargetsSection({
   }
   return (
     <section>
-      <h3 className="text-sm font-normal text-neutral-700">시험별 목표 진도</h3>
+      <h3 className="text-sm text-neutral-700">시험별 목표 진도</h3>
       <p className="mt-1 text-xs text-neutral-400">
         시험까지 진행할 소단원 범위(어디~어디)를 지정합니다. 1차 시험의 종료 단원을
         저장하면 차시 계획의 단원 배치가 1차 시험 전/후로 다시 나뉩니다.

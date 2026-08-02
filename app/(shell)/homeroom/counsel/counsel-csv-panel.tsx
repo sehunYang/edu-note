@@ -40,7 +40,7 @@ export function CounselCsvPanel({ year, getCsvAction }: Props) {
 
   return (
     <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-      <h2 className="mb-3 text-sm font-normal text-neutral-700">
+      <h2 className="mb-3 text-sm text-neutral-700">
         코워크 CSV
       </h2>
       <div className="flex flex-wrap gap-3">

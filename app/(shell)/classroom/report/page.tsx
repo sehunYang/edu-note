@@ -61,13 +61,13 @@ export default async function ReportPage({
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">
+      <h2 className="text-base">
         학생 분석 보고서 · {sem}학기
         {sem !== activeSem && (
           <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>
         )}
       </h2>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-0.5 text-xs text-neutral-400">
         분반과 학생을 고르면 인적사항·관찰·성적을 모아 규칙기반 진단 플래그를
         표시합니다(AI 미사용).
       </p>
@@ -107,7 +107,7 @@ function ReportView({
     <div className="mt-6 space-y-5">
       {/* 인적사항 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-normal text-neutral-700">인적사항</h3>
+        <h3 className="text-sm text-neutral-700">인적사항</h3>
         <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm md:grid-cols-4">
           <Field label="학번" value={profile.sid} />
           <Field label="이름" value={profile.name} />
@@ -122,7 +122,7 @@ function ReportView({
 
       {/* 플래그 배지 4종 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-normal text-neutral-700">진단 플래그</h3>
+        <h3 className="text-sm text-neutral-700">진단 플래그</h3>
         <div className="mt-2 flex flex-wrap gap-2">
           <TrendBadge trend={flags.jipilTrend} />
           {flags.observationShortage && (
@@ -148,7 +148,7 @@ function ReportView({
 
       {/* 성적 종합 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm font-normal text-neutral-700">성적 종합</h3>
+        <h3 className="text-sm text-neutral-700">성적 종합</h3>
         <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm md:grid-cols-4">
           <Field
             label="지필 중간(환산)"

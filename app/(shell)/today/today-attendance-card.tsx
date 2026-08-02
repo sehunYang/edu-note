@@ -49,7 +49,7 @@ export function TodayAttendanceCard({
   return (
     <section className="rounded-lg border border-neutral-200 p-5 md:col-span-2">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-normal text-neutral-700">오늘 출결 입력</h2>
+        <h2 className="text-sm text-neutral-700">오늘 출결 입력</h2>
         <span className="text-xs text-neutral-400">{date}</span>
       </div>
 
@@ -60,7 +60,7 @@ export function TodayAttendanceCard({
       </p>
 
       <div className="mt-4 border-t border-neutral-100 pt-3">
-        <h3 className="text-xs font-normal text-neutral-500">
+        <h3 className="text-xs text-neutral-500">
           오늘 기록 {records.length}건
         </h3>
         {records.length === 0 ? (

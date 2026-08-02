@@ -24,8 +24,10 @@ export function NoticeWidget({
 }) {
   return (
     <section className="rounded-lg border border-neutral-200 p-4 md:col-span-2">
-      <h2 className="text-sm font-normal text-neutral-700">공지</h2>
-      <div className="mt-2 grid gap-4 md:grid-cols-2">
+      <h2 className="text-sm text-neutral-700">공지</h2>
+      {/* items-start: 한쪽이 길면 다른 쪽 빈 카드가 같이 늘어났다(실측 "할일·공지"
+          빈 카드가 300px). 밀도 개선 D-13. */}
+      <div className="mt-2 grid items-start gap-4 md:grid-cols-2">
         <TeacherNotesCarousel notes={notes} />
         <EventsList events={events} />
       </div>
@@ -70,8 +72,46 @@ function TeacherNotesCarousel({ notes }: { notes: string[] }) {
           </div>
         )}
       </div>
-      <p className="mt-2 whitespace-pre-line text-sm text-neutral-700">{notes[cur]}</p>
+      <NoteBody text={notes[cur] ?? ""} />
     </div>
+  );
+}
+
+/**
+ * 한마디 본문 — 기본 5줄로 접고 필요할 때 펼친다 (밀도 개선 D-13).
+ *
+ * 교사 한마디는 조회 안내를 통째로 붙여 넣는 자리라 실제 데이터가 20줄을
+ * 넘는다. 홈 위젯에서 이걸 전부 펼치면 카드 하나가 300px 를 먹고, 그 옆
+ * 칸과 아래 실 바로가기가 전부 스크롤 밖으로 밀린다. 위젯의 역할은 "무엇이
+ * 있는지 알리는 것"이지 전문(全文) 읽기가 아니다 — 앞부분을 보여주고
+ * 나머지는 클릭으로 연다.
+ */
+function NoteBody({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  // 줄 수로 판단한다 — 한마디는 줄바꿈이 의미를 갖는 형식이라 글자 수보다
+  // 줄 수가 실제 높이에 비례한다.
+  const clamped = text.split("\n").length > 6;
+
+  return (
+    <>
+      <p
+        className={`mt-2 whitespace-pre-line text-sm text-neutral-700 ${
+          clamped && !expanded ? "line-clamp-5" : ""
+        }`}
+      >
+        {text}
+      </p>
+      {clamped && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="mt-1 text-xs text-neutral-400 hover:text-white hover:underline"
+        >
+          {expanded ? "접기" : "더 보기"}
+        </button>
+      )}
+    </>
   );
 }
 

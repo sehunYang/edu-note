@@ -59,11 +59,11 @@ export default async function CounselPage() {
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">상담실 ({year})</h2>
+      <h2 className="text-base">상담실 ({year})</h2>
 
       {/* ── 새 상담일지 ── */}
       <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-        <h2 className="text-sm font-normal text-neutral-700">새 상담일지</h2>
+        <h2 className="text-sm text-neutral-700">새 상담일지</h2>
         {students.length === 0 ? (
           <p className="mt-3 text-sm text-neutral-400">
             먼저{" "}
@@ -123,7 +123,7 @@ export default async function CounselPage() {
 
       {/* ── AC-9.3: 슬롯 개설 ── */}
       <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-        <h2 className="mb-3 text-sm font-normal text-neutral-700">
+        <h2 className="mb-3 text-sm text-neutral-700">
           상담 슬롯 개설
         </h2>
         <form action={openSlotAction} className="flex flex-wrap items-end gap-3">
@@ -172,7 +172,7 @@ export default async function CounselPage() {
 
       {/* ── 상담 기록 목록 (AC-9.2 인라인 수정 포함) ── */}
       <section className="mt-8">
-        <h2 className="text-sm font-normal text-neutral-700">
+        <h2 className="text-sm text-neutral-700">
           상담 기록 {logs.length}건
         </h2>
         <CounselLogList

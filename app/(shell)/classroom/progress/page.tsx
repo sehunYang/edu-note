@@ -79,13 +79,13 @@ export default async function ProgressPage({
 
   return (
     <div>
-      <h2 className="text-lg font-normal text-neutral-800">
+      <h2 className="text-base">
         진척도 · {sem}학기
         {sem !== activeSem && (
           <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>
         )}
       </h2>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="mt-0.5 text-xs text-neutral-400">
         학기 전체 차시를 생성하고, 이번주·연체 예정 차시를 예정/미진행/완료로
         처리하세요. 수업내용·핵심개념 기입은{" "}
         <Link href="/classroom/plan/session" className="underline">

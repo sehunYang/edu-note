@@ -74,10 +74,10 @@ export default async function StudentInspectPage({
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-normal text-neutral-800">
+          <h2 className="text-base">
             {profile.grade}학년 {profile.classNo}반 {profile.name} ({profile.sid})
           </h2>
-          <p className="mt-1 text-sm text-neutral-500">
+          <p className="mt-0.5 text-xs text-neutral-400">
             {year}학년도 {sem}학기 · 성적·출결·기록 종합 점검
           </p>
         </div>
@@ -96,7 +96,7 @@ export default async function StudentInspectPage({
 
       {/* 성적 — 수강 분반별. */}
       <section className="mt-6">
-        <h3 className="mb-3 text-base font-normal text-neutral-700">성적 (수강 분반별)</h3>
+        <h3 className="mb-3 text-base text-neutral-700">성적 (수강 분반별)</h3>
         {sections.length === 0 ? (
           <p className="text-sm text-neutral-400">
             {year}학년도 {sem}학기에 수강 중인 분반이 없습니다.
@@ -170,7 +170,7 @@ export default async function StudentInspectPage({
 
       {/* 출결 요약 — kind 별 건수만(사유·메모는 여기서도 미노출). */}
       <section className="mt-6">
-        <h3 className="mb-3 text-base font-normal text-neutral-700">출결 요약</h3>
+        <h3 className="mb-3 text-base text-neutral-700">출결 요약</h3>
         {attendanceRows.length === 0 ? (
           <p className="text-sm text-neutral-400">출결 기록이 없습니다.</p>
         ) : (
@@ -189,7 +189,7 @@ export default async function StudentInspectPage({
 
       {/* 기록 현황 — 건수만(본문·상담·자유코멘트는 Non-Goal, 미노출). */}
       <section className="mt-6">
-        <h3 className="mb-3 text-base font-normal text-neutral-700">기록 현황</h3>
+        <h3 className="mb-3 text-base text-neutral-700">기록 현황</h3>
         <div className="flex flex-wrap gap-2 text-sm">
           <span className="rounded-full bg-neutral-100 px-3 py-1 text-neutral-600">
             관찰 {recordCounts.observationCount}건

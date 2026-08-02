@@ -138,34 +138,38 @@ export default async function Home() {
 
   return (
     <>
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-normal tracking-tight">📆 Edu_Note</h1>
-          <p className="mt-1 text-sm text-neutral-500">
-            교수–수업–평가–기록 일체화 플랫폼
-          </p>
-        </div>
-        <form action="/auth/signout" method="post">
+      {/* 밀도 개선 D-10: 40px 제목 + 부제 + 로그인 이메일 줄이 세로로 쌓여
+          첫 화면 100px 을 브랜딩에 썼다. 매일 여는 도구의 홈에서 앱 이름은
+          이미 사이드바 최상단에 있다. 한 줄로 합치고 이메일은 로그아웃 옆
+          맥락으로 옮긴다(누구로 로그인했는지는 로그아웃할 때 필요한 정보다). */}
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="text-xl tracking-tight">
+          📆 Edu_Note
+          <span className="ml-2 text-xs font-normal text-neutral-400">
+            교수–수업–평가–기록 일체화
+          </span>
+        </h1>
+        <form action="/auth/signout" method="post" className="flex items-baseline gap-2">
+          <span className="text-xs text-neutral-400">{user?.email ?? "—"}</span>
           <Button className="px-3 py-1.5 text-xs text-neutral-600">
             로그아웃
           </Button>
         </form>
       </div>
 
-      <p className="mt-2 text-xs text-neutral-400">
-        로그인: {user?.email ?? "—"}
-      </p>
-
       <NudgeBanner nudges={nudges} />
 
       {/* 오늘의 학교 벤토 — 시간표·급식·요약·공지. 데이터 실패에도 각 위젯이 graceful. */}
-      <div className="mt-8 flex items-center justify-between">
-        <h2 className="text-sm font-normal text-neutral-500">오늘의 학교</h2>
+      <div className="mt-6 flex items-center justify-between">
+        <h2 className="text-sm text-neutral-500">오늘의 학교</h2>
         <Link href="/today" className="text-xs text-neutral-500 hover:underline">
           전체 보기(캘린더 등) →
         </Link>
       </div>
-      <section className="stagger mt-3 grid grid-cols-1 gap-3 md:grid-cols-12">
+      {/* items-start: 그리드 기본 stretch 때문에 빈 카드가 옆 카드 높이만큼
+          늘어났다(실측 "오늘 급식" 빈 카드 210px, "요약 통계" 380px 중 230px
+          공백). 빈 상태가 화면을 차지하는 만큼 커지는 건 밀도가 아니라 낭비다. */}
+      <section className="stagger mt-3 grid grid-cols-1 items-start gap-3 md:grid-cols-12">
         <TodayScheduleCard
           lessons={todayLessons}
           date={date}
@@ -185,7 +189,7 @@ export default async function Home() {
       </section>
 
       {/* 실 바로가기 — 사용빈도순 크기 차등(교실·담임 대, 나머지 소). */}
-      <section className="stagger mt-6 grid grid-cols-1 gap-3 md:grid-cols-12">
+      <section className="stagger mt-6 grid grid-cols-1 items-start gap-3 md:grid-cols-12">
         <DashCard
           href="/classroom"
           title="🏫 교실"
@@ -254,12 +258,12 @@ function DashCard({
   return (
     <Link
       href={href}
-      className={`rounded-lg border border-neutral-200 p-5 transition-colors hover:border-white/20 ${
+      className={`rounded-lg border border-neutral-200 p-4 transition-colors hover:border-white/20 ${
         className ?? ""
       }`}
     >
-      <h2 className="font-normal">{title}</h2>
-      <p className="mt-1 text-sm text-neutral-500">{desc}</p>
+      <h2 className="text-sm">{title}</h2>
+      <p className="mt-0.5 text-xs text-neutral-500">{desc}</p>
     </Link>
   );
 }

@@ -22,7 +22,7 @@ export default async function PrintRosterPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <div className="flex items-center justify-between print:hidden">
-        <h1 className="text-2xl font-normal tracking-tight">인쇄실 ({year})</h1>
+        <h1 className="text-2xl tracking-tight">인쇄실 ({year})</h1>
         <div className="flex items-center gap-4">
           <PrintButton />
           <Link href="/print" className="inline-flex min-h-11 items-center text-sm text-neutral-500 hover:underline">
@@ -36,7 +36,7 @@ export default async function PrintRosterPage() {
       </p>
 
       <section className="mt-6">
-        <h2 className="mb-3 text-lg font-normal">학생 명렬표 ({year})</h2>
+        <h2 className="mb-3 text-lg">학생 명렬표 ({year})</h2>
         {students.length === 0 ? (
           <p className="text-sm text-neutral-400">
             등록된 학생이 없습니다.{" "}

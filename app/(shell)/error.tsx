@@ -31,7 +31,7 @@ export default function ShellError({
       <p className="text-5xl" aria-hidden="true">
         {isAuth ? "🔒" : "⚠️"}
       </p>
-      <h1 className="mt-4 text-xl font-normal tracking-tight">
+      <h1 className="mt-4 text-xl tracking-tight">
         {isAuth ? "다시 로그인해 주세요" : "화면을 불러오지 못했습니다"}
       </h1>
       <p className="mt-2 text-sm text-neutral-500">
