@@ -230,7 +230,7 @@ export function summarizeAttendance(
  */
 export interface RawPublicPageInput {
   studentName?: string | null;
-  // common (room 등 추가 필드가 와도 무시)
+  // common (allowlist 외 추가 필드가 와도 무시)
   weekTodos: { title: string; at: string; eventKind?: string | null }[];
   commonNotice: string | null;
   // v10~: 문자열(레거시) 또는 { id, body, postedAt, unread } 객체 모두 수용(파서가 정규화).

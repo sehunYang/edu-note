@@ -59,7 +59,7 @@ describe("buildPublicPagePayload — 골든 페이로드", () => {
   const rawInput = {
     weekTodos: [{ title: "수행평가 안내", at: "2026-06-08T09:00:00Z", secretInternal: "x" }],
     commonNotice: "이번 주 잘 지냅시다",
-    timetable: [{ weekday: 1, period: 3, subjectName: "물리학", room: "과학실2" }],
+    timetable: [{ weekday: 1, period: 3, subjectName: "물리학", leak: "secret-internal" }],
     meals: [{ date: "2026-06-08", menu: "비빔밥" }],
     attendance: [
       // reason/noteField 가 섞여 있어도 빌더는 읽지 않는다
@@ -94,7 +94,7 @@ describe("buildPublicPagePayload — 골든 페이로드", () => {
     expect(JSON.stringify(payload.grades)).not.toContain("물리학");
   });
 
-  it("timetable 은 room 을 버리고 요일·교시·과목명(+isFixed·electiveMapped 기본값)만", () => {
+  it("timetable 은 allowlist 외 키를 버리고 요일·교시·과목명(+isFixed·electiveMapped 기본값)만", () => {
     expect(payload.timetable).toEqual([
       {
         weekday: 1,
@@ -127,7 +127,7 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
     const raw = {
       weekTodos: [{ title: "할일", at: "2026-06-08T09:00:00Z", leak: "secret-internal" }],
       commonNotice: "공지",
-      timetable: [{ weekday: 2, period: 1, subjectName: "수학", room: "secret-internal" }],
+      timetable: [{ weekday: 2, period: 1, subjectName: "수학", leak: "secret-internal" }],
       meals: [{ date: "2026-06-08", menu: "김치찌개" }],
       attendanceSummary: {
         late: 1,
@@ -207,7 +207,7 @@ describe("parsePublicPagePayload — allowlist 외 키 미반영", () => {
           subjectName: "물리학",
           isFixed: true,
           electiveMapped: null,
-          room: "secret-internal", // 절대 반영 금지
+          leak: "secret-internal", // 절대 반영 금지
         },
         {
           weekday: 2,

@@ -270,7 +270,7 @@ input/select/textarea의 폰트가 16px 미만이면 페이지를 자동 확대�
 | # | 갭 | 근거 | 조치 |
 |---|----|------|------|
 | 1 | 출결 NEIS 마감 집계 부재 | `attendance.ts` 공개 함수 15개가 전부 CRUD/목록. 학생별 일수 집계 함수 없음 | **구현** |
-| 2 | 특별실 예약 미구현 | `course_sections.room`·`timetable_slots.room` 컬럼이 있으나 **읽는 코드 0곳**. 유일 참조가 공개 DTO 에서 **버리는** 코드 | 보류(범위 재정의 필요) |
+| 2 | 특별실 예약 미구현 | `course_sections.room`·`timetable_slots.room` 컬럼이 있으나 **읽는 코드 0곳**. 유일 참조가 공개 DTO 에서 **버리는** 코드 | **폐기**(컬럼 삭제) |
 | 3 | 결손 차시 보강 경로 없음 | `session_status` = planned/done/not_held 뿐. not_held 는 잔여차시에서 빠져 진도 손실이 소실 | **구현** |
 
 갭이 아니었던 것: 수행평가 계획(`performanceItems.weight` + 세팅실 입력 + 초과
@@ -318,3 +318,24 @@ input/select/textarea의 폰트가 16px 미만이면 페이지를 자동 확대�
   (물리 2-9: done 1 / planned 56, 잔여 not_held·makeup 행 0)
 - 모바일 390px: 20열 표가 자체 컨테이너에서만 가로 스크롤(페이지 넘침 0),
   학번·이름 열 sticky 고정 확인(300px 스크롤 후에도 left 24 유지)
+
+### 6-4. 특별실 예약 폐기 (마이그 0061)
+
+사용자 결정으로 기능을 없앴다. "학교 전체 실시간 예약"은 전 교사가 공유하는
+예약 원장이 있어야 성립하는데 이 앱은 교사 1인용이라 애초에 충족할 수 없는
+요구였다. 죽은 컬럼을 남겨 두면 다음 사람이 "쓰다 만 기능"으로 읽으므로 지운다.
+
+- `course_sections.room`·`timetable_slots.room` 삭제(마이그 0061)
+- Drizzle 스키마에서 제거, 코드 내 잔여 참조 **0곳** 확인
+- 공개 DTO 의 allowlist 가드는 유지 — 예기치 않은 키를 버리는 건 컬럼 유무와
+  무관한 보안 속성이다. 다만 테스트 픽스처가 `room` 을 "새면 안 되는 여분 키"의
+  예시로 쓰고 있어, 없는 컬럼을 가리키지 않도록 `leak` 으로 바꿨다(가드 동작 불변).
+
+**데이터 손실 없음** — 삭제 전 실측으로 두 컬럼 모두 전 행 NULL
+(course_sections 6행 중 0, timetable_slots 16행 중 0). `get_public_page` 를 포함해
+`room` 을 참조하는 SQL 함수도 없음을 라이브 DB 함수 정의 전수 검사로 확인한 뒤 삭제했다.
+
+검증: 삭제 후 행 수 보존(6/16), `/setting/courses` 시간표 그리드가 실제 슬롯을
+정상 렌더(물Ⅱ 3-11·물리 2-9·생과 3-4), `/today`·`/classroom/plan/semester`·
+`/homeroom/attendance?view=tally`·공개 학생 페이지 전부 200,
+**테스트 514 전건 통과**(이 실행에서는 push 플레이크도 발생하지 않음).

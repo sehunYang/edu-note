@@ -116,7 +116,6 @@ export const courseSections = pgTable("course_sections", {
     .notNull()
     .references(() => subjects.id, { onDelete: "cascade" }),
   label: text("label").notNull(), // 예: 2-7
-  room: text("room"),
   examBoundaryDate: date("exam_boundary_date"),
   ...timestamps(),
 });
@@ -178,7 +177,6 @@ export const timetableSlots = pgTable("timetable_slots", {
     .references(() => courseSections.id, { onDelete: "cascade" }),
   weekday: integer("weekday").notNull(), // 1=월 .. 7=일
   period: integer("period").notNull(),
-  room: text("room"),
   source: timetableSource("source").notNull().default("manual"),
   ...timestamps(),
 });
