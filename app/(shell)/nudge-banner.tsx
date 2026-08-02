@@ -27,7 +27,7 @@ export function NudgeBanner({ nudges }: { nudges: NudgeResult }) {
             </span>
             <Link
               href={`/classroom/observations?studentYearId=${o.suggestedStudentId}&sectionId=${o.sectionKey}`}
-              className="shrink-0 underline"
+              className="tap-link shrink-0 underline"
             >
               기록하기 →
             </Link>
@@ -47,7 +47,7 @@ export function NudgeBanner({ nudges }: { nudges: NudgeResult }) {
                   ? `/homeroom/behavior?studentYearId=${nudges.behaviorNotes.suggestedStudentId}`
                   : "/homeroom/behavior"
               }
-              className="shrink-0 underline"
+              className="tap-link shrink-0 underline"
             >
               행특 쓰기 →
             </Link>
@@ -64,7 +64,7 @@ export function NudgeBanner({ nudges }: { nudges: NudgeResult }) {
             </span>
             <Link
               href={`/homeroom/counsel?studentYearId=${c.studentYearId}`}
-              className="shrink-0 underline"
+              className="tap-link shrink-0 underline"
             >
               상담일지 쓰기 →
             </Link>
@@ -87,7 +87,7 @@ export function NudgeBanner({ nudges }: { nudges: NudgeResult }) {
             </span>
             <Link
               href="/homeroom/attendance?view=unsubmitted"
-              className="shrink-0 underline"
+              className="tap-link shrink-0 underline"
             >
               확인하기 →
             </Link>

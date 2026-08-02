@@ -6,6 +6,7 @@ import {
 } from "./actions";
 import { downloadCsv } from "@/lib/ui/download-csv";
 import { Button } from "@/app/ui/button";
+import { UnderlineTabs } from "@/app/ui/underline-tabs";
 
 type Area = "autonomy" | "career" | "behavior";
 
@@ -89,25 +90,16 @@ export function RecordBulkClient({
   return (
     <div className="mt-6 space-y-6">
       {/* 영역 탭 */}
-      <div className="flex gap-1 border-b border-neutral-200">
-        {AREAS.map((a) => (
-          <button
-            key={a.key}
-            onClick={() => {
-              setArea(a.key);
-              setMsg("");
-              setSkipped([]);
-            }}
-            className={`px-3 py-2 text-sm ${
-              area === a.key
-                ? "border-b-2 border-neutral-800 font-normal text-neutral-800"
-                : "text-neutral-400 hover:text-neutral-600"
-            }`}
-          >
-            {a.label}
-          </button>
-        ))}
-      </div>
+      <UnderlineTabs
+        ariaLabel="생기부 영역"
+        activeKey={area}
+        items={AREAS.map((a) => ({ key: a.key, label: a.label }))}
+        onSelect={(key) => {
+          setArea(key as Area);
+          setMsg("");
+          setSkipped([]);
+        }}
+      />
 
       {/* 내보내기 */}
       <section className="rounded-lg border border-neutral-200 p-4">

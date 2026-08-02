@@ -238,10 +238,15 @@ export default async function TodayPage() {
             </div>
           </dl>
           <div className="mt-3 flex gap-2 text-xs">
-            <Link href="/homeroom/attendance?view=unsubmitted" className="underline text-neutral-500">
+            <Link
+              href="/homeroom/attendance?view=unsubmitted"
+              className="tap-link underline text-neutral-500"
+            >
               미제출 신고서
             </Link>
-            <Link href="/sessions" className="underline text-neutral-500">시수</Link>
+            <Link href="/sessions" className="tap-link underline text-neutral-500">
+              시수
+            </Link>
           </div>
         </section>
 

@@ -162,7 +162,10 @@ export default async function Home() {
       {/* 오늘의 학교 벤토 — 시간표·급식·요약·공지. 데이터 실패에도 각 위젯이 graceful. */}
       <div className="mt-6 flex items-center justify-between">
         <h2 className="text-sm text-neutral-500">오늘의 학교</h2>
-        <Link href="/today" className="text-xs text-neutral-500 hover:underline">
+        <Link
+          href="/today"
+          className="tap-link text-xs text-neutral-500 hover:underline"
+        >
           전체 보기(캘린더 등) →
         </Link>
       </div>
@@ -225,6 +228,16 @@ export default async function Home() {
           title="🗂️ 교무실"
           desc="업무 to-do·예산."
           className="md:col-span-3"
+        />
+        {/* 연간시나리오 QC E: 사이드바에는 9개 공간이 있는데 홈 카드는 6개뿐이라
+            인쇄실만 홈에서 도달할 수 없었다(모바일은 하단 탭바 "더보기"를 열어야
+            나옴). 수시 원서철·학년말 마감처럼 정작 인쇄실을 제일 많이 여는 시기에
+            홈에서 안 보이는 실이 하나 있는 상태였다. */}
+        <DashCard
+          href="/print"
+          title="🖨️ 인쇄실"
+          desc="학생별 점검·명렬표 출력."
+          className="md:col-span-6"
         />
       </section>
 

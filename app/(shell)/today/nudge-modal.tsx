@@ -66,7 +66,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
               <Link
                 href={`/classroom/observations?studentYearId=${o.suggestedStudentId}&sectionId=${o.sectionKey}`}
                 onClick={close}
-                className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10"
+                className="tap-link shrink-0 rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10"
               >
                 기록
               </Link>
@@ -88,7 +88,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
                     : "/homeroom/behavior"
                 }
                 onClick={close}
-                className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10"
+                className="tap-link shrink-0 rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10"
               >
                 기록
               </Link>
@@ -107,7 +107,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
               <Link
                 href={`/homeroom/counsel?studentYearId=${c.studentYearId}`}
                 onClick={close}
-                className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10"
+                className="tap-link shrink-0 rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10"
               >
                 작성
               </Link>
@@ -127,7 +127,7 @@ export function TodayNudgeModal({ nudges }: { nudges: NudgeResult }) {
               <Link
                 href="/homeroom/attendance?view=unsubmitted"
                 onClick={close}
-                className="shrink-0 rounded-full border border-white/25 bg-transparent px-2 py-1 text-xs text-white hover:bg-white/10"
+                className="tap-link shrink-0 rounded-full border border-white/25 bg-transparent px-3 py-1 text-xs text-white hover:bg-white/10"
               >
                 확인하기
               </Link>

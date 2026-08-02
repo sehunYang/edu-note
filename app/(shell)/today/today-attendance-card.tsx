@@ -95,7 +95,7 @@ export function TodayAttendanceCard({
       <div className="mt-3 text-xs">
         <Link
           href="/homeroom/attendance"
-          className="text-neutral-500 underline"
+          className="tap-link text-neutral-500 underline"
         >
           출결 관리 전체 →
         </Link>

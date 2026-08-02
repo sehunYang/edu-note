@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import {
@@ -18,6 +17,7 @@ import { FieldTripSection } from "./field-trip-client";
 import type { AttendanceReason } from "@/lib/domain/types";
 import { Button } from "@/app/ui/button";
 import { EmptyState } from "@/app/ui/empty-state";
+import { UnderlineTabs } from "@/app/ui/underline-tabs";
 
 export const metadata = { title: "출결 관리" };
 
@@ -105,21 +105,16 @@ export default async function AttendancePage({
     <div>
       <h2 className="text-base">출결 관리</h2>
 
-      <nav className="mt-4 flex flex-wrap gap-1 border-b border-neutral-200 text-sm">
-        {VIEWS.map((v) => (
-          <Link
-            key={v.key}
-            href={`/homeroom/attendance?view=${v.key}`}
-            className={`-mb-px border-b-2 px-3 py-2 ${
-              view === v.key
-                ? "border-neutral-800 font-normal text-neutral-800"
-                : "border-transparent text-neutral-500 hover:text-neutral-700"
-            }`}
-          >
-            {v.label}
-          </Link>
-        ))}
-      </nav>
+      <UnderlineTabs
+        className="mt-4"
+        ariaLabel="출결 뷰"
+        activeKey={view}
+        items={VIEWS.map((v) => ({
+          key: v.key,
+          label: v.label,
+          href: `/homeroom/attendance?view=${v.key}`,
+        }))}
+      />
 
       {view === "today" && (
         <>

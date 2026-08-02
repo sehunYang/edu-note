@@ -217,6 +217,38 @@ body {
     }
   }
 
+  /* ── 모바일 입력 폰트 바닥 16px (연간시나리오 QC A) ─────────────────────
+     iOS Safari 는 포커스 대상 input/select/textarea 의 font-size 가 16px 미만이면
+     페이지를 자동 확대한다(text-size-adjust 로는 막히지 않는다 — 그건 텍스트
+     인플레이션 설정이고 이건 포커스 줌이다). 축소는 자동으로 돌아오지 않으므로
+     교사가 손으로 핀치해 되돌려야 한다.
+
+     실측(터치 에뮬레이션): 입력 필드가 있는 전 화면에서 **필드 100%가 12~14px**
+     이었다(/setting/courses 150/150, /clubroom/assign 118/118, /classroom/grades
+     103/103, /homeroom/notice 98/98, /setting/calendar 28/28 중 일부 12px,
+     /homeroom/attendance 13/13, /today 12/12). 조회 시간에 폰으로 출결을 넣는
+     동선은 셀렉트를 학생 수만큼 탭하므로 매 탭이 확대·축소 왕복이 된다.
+
+     coarse 포인터에만 건다 — 데스크톱 밀도(text-xs 12px 필드)는 그대로 둔다.
+     1rem 은 1024 미만에서 16px 이고, 그 이상에서 coarse 인 기기(태블릿)는
+     루트 배율이 실려 17~18px 이 되므로 어느 쪽이든 바닥을 넘는다.
+
+     높이는 이미 위 coarse 규칙이 44px 로 깔아 두어 이 변경으로 늘지 않는다.
+
+     ⚠ 선택자 특정도에 주의: 이 규칙은 `text-sm`(0,1,0)·`text-xs` 유틸리티와
+     같은 속성을 다툰다. Tailwind 3 의 `@layer` 는 네이티브 캐스케이드 레이어가
+     아니라 PostCSS 지시자라 순서가 아니라 **특정도**로 갈린다. 맨 처음엔
+     `select`·`textarea`(0,0,1)로 썼다가 유틸리티에 밀려 셀렉트만 14px 로 남았다
+     (input 은 `:not([type="hidden"])` 덕에 (0,1,1)이라 우연히 이기고 있었다).
+     `:not([hidden])` 로 셋 다 (0,1,1)로 맞춘다. */
+  @media (pointer: coarse) {
+    select:not([hidden]),
+    textarea:not([hidden]),
+    input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]) {
+      font-size: 1rem;
+    }
+  }
+
   /* ── 데스크톱 조작 요소 바닥 (desktop-scale D-2) ───────────────────────
      위 24px 바닥은 WCAG 2.5.8 최소치일 뿐이고, 44px 는 coarse 포인터에만
      걸려 있었다. 그래서 마우스 사용자만 24~29px 짜리 셀렉트·아이콘 버튼·칩을
@@ -247,6 +279,32 @@ body {
 }
 
 @layer utilities {
+  /* ── 카드 액션 링크 터치 바닥 (연간시나리오 QC B) ────────────────────────
+     위 조작 요소 바닥(24/44px)은 인라인 <a> 에 일부러 안 걸었다 — 문단 속
+     링크에 min-height 를 주면 본문 줄 간격이 깨지기 때문이다. 그런데 카드
+     하단의 "행특 쓰기 →" 류는 문장 속 링크가 아니라 **독립 액션**이라 그 예외에
+     기대면 안 된다. WCAG 2.2 SC 2.5.8 의 inline 예외도 "문장 안에 있는 타깃"에만
+     적용된다.
+
+     실측 위반 8개: / 의 행특 쓰기(20) · 확인하기(20) · 전체 보기(16),
+     /today 의 행특 쓰기(20) · 확인하기(20) · 출결 관리 전체(14) ·
+     미제출 신고서(16) · 시수(16). 전부 넛지의 실행 링크라, 밀린 기록을 즉시
+     처리하라는 넛지 설계가 정작 가장 작은 타깃에 걸려 있었다.
+
+     바닥은 조작 요소와 같은 2단(전 포인터 24 = SC 2.5.8, coarse 44 = HIG).
+     inline-flex 라 글자 크기는 그대로 두고 히트 영역만 넓힌다. */
+  .tap-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+  }
+
+  @media (pointer: coarse) {
+    .tap-link {
+      min-height: 44px;
+    }
+  }
+
   /* 코브 조명(간접등) 오버레이 — 화면 최상단 몰딩(턱) 실루엣 아래로 따뜻한 빛이
      새어나오는 구조(cove-lighting 계획 AC-1~4). 뷰포트 고정(z-10 < 헤더 z-40 <
      모달 z-50), pointer-events 없음. 기본 opacity는 반드시 1 — reduced-motion
