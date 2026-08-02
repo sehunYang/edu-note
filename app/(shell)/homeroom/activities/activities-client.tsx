@@ -433,7 +433,7 @@ function FreeActivitySection({ students }: { students: HomeroomStudent[] }) {
                 }
                 rows={2}
                 placeholder="활동 내역"
-                className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
+                className="w-full min-w-0 rounded border border-neutral-300 px-3 py-1.5 text-sm sm:w-auto sm:flex-1"
               />
               <Button
                 type="button"

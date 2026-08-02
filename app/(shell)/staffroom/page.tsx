@@ -53,7 +53,7 @@ export default async function StaffroomPage() {
             name="title"
             required
             placeholder="업무 제목"
-            className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
+            className="w-full min-w-0 rounded border border-neutral-300 px-3 py-1.5 text-sm sm:w-auto sm:flex-1"
           />
           <input aria-label="업무 마감일"
             type="date"
@@ -141,7 +141,7 @@ export default async function StaffroomPage() {
             name="area"
             required
             placeholder="예산 영역(예: 동아리 운영비)"
-            className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
+            className="w-full min-w-0 rounded border border-neutral-300 px-3 py-1.5 text-sm sm:w-auto sm:flex-1"
           />
           <input aria-label="계획액(원)"
             type="number"
@@ -246,7 +246,7 @@ export default async function StaffroomPage() {
                     <input aria-label="메모(선택)"
                       name="memo"
                       placeholder="메모(선택)"
-                      className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm"
+                      className="w-full min-w-0 rounded border border-neutral-300 px-2 py-1 text-sm sm:w-auto sm:flex-1"
                     />
                     <Button className="px-3 py-1 text-sm">
                       지출 추가

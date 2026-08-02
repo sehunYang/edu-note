@@ -75,7 +75,7 @@ export default async function ClubroomPlanPage() {
                   name="plannedActivity"
                   defaultValue={s.plannedActivity ?? ""}
                   placeholder="예정 활동"
-                  className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
+                  className="w-full min-w-0 rounded border border-neutral-300 px-3 py-1.5 text-sm sm:w-auto sm:flex-1"
                 />
                 <Button className="px-3 py-1.5 text-sm">
                   저장

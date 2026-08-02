@@ -51,7 +51,7 @@ export default async function ClubroomCreatePage() {
               name="name"
               required
               placeholder="동아리명"
-              className="flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
+              className="w-full min-w-0 rounded border border-neutral-300 px-3 py-1.5 text-sm sm:w-auto sm:flex-1"
             />
             <Button className="px-3 py-1.5 text-sm">
               만들기

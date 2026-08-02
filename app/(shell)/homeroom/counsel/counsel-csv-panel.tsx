@@ -54,14 +54,20 @@ export function CounselCsvPanel({ year, getCsvAction }: Props) {
         </Button>
 
         {/* 결과 CSV 업로드 */}
-        <form onSubmit={handleImport} className="flex items-center gap-2">
+        {/* flex-wrap + min-w-0: 파일 선택 칸은 "파일 선택" 버튼 + 파일명이 통째로
+            고유 폭이라 폰에서 394px 였다. 줄바꿈이 없으면 이 줄이 화면(393)을
+            넘겨 페이지 전체가 옆으로 밀린다(실측 문서 폭 439). */}
+        <form
+          onSubmit={handleImport}
+          className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto"
+        >
           <input aria-label="상담 결과 CSV 파일 선택"
             ref={fileRef}
             type="file"
             name="file"
             accept=".csv,text/csv"
             required
-            className="text-xs text-neutral-600"
+            className="w-full min-w-0 text-xs text-neutral-600 sm:w-auto"
           />
           <Button
             type="submit"
