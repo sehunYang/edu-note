@@ -144,7 +144,7 @@ async function HomeroomScope({
             href={`/print?scope=homeroom&homeroom=${c.id}`}
             className={`rounded-md border px-3 py-1.5 text-sm ${
               c.id === homeroomId
-                ? "border-neutral-800 bg-neutral-800 text-white"
+                ? "border-white bg-white font-normal text-black"
                 : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"
             }`}
           >
@@ -246,7 +246,7 @@ async function SectionScope({
             href={`/print?scope=section&section=${s.sectionId}`}
             className={`rounded-md border px-3 py-1.5 text-sm ${
               s.sectionId === sectionId
-                ? "border-neutral-800 bg-neutral-800 text-white"
+                ? "border-white bg-white font-normal text-black"
                 : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"
             }`}
           >

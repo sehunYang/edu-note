@@ -11,13 +11,14 @@ import { activeSchoolYear, schoolYearRange } from "@/lib/domain/school-year";
 import { StageGate } from "../stage-gate";
 import { LockedNotice } from "../locked-notice";
 import { CalendarAttrs } from "./calendar-attrs";
+import { kstDateString } from "@/lib/domain/kst";
 
 export const metadata = { title: "학사일정 설정" };
 
 export const dynamic = "force-dynamic";
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return kstDateString();
 }
 function addDays(date: string, days: number): string {
   const d = new Date(date + "T00:00:00Z");

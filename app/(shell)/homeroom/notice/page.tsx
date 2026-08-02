@@ -14,6 +14,7 @@ import { fetchTimetableBySchool } from "@/lib/integrations/comcigan-client";
 import { NotesManager } from "./notes-manager";
 import { EventsManager } from "./events-manager";
 import { FixedClassPanel } from "./fixed-class-panel";
+import { kstDateString } from "@/lib/domain/kst";
 
 export const metadata = { title: "공지실" };
 
@@ -30,7 +31,7 @@ export const dynamic = "force-dynamic";
 export default async function NoticePage() {
   const ownerId = await getOwnerId();
   const db = getDb();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = kstDateString();
   const year = activeSchoolYear(new Date());
 
   const [notes, events, settings, homeroomStudents] = await Promise.all([

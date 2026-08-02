@@ -73,7 +73,8 @@ export function TodayScheduleCard({
   const colorBySubject = assignSubjectColors(rows.map((r) => r.lesson.subjectName));
 
   // NEIS 최신성 배지(today = 카드가 표시하는 날짜, KST yyyy-mm-dd).
-  const badge = neisFreshnessBadge(neisSyncedAt ?? null, date);
+  // 방학 중에는 시간표 자체가 없어 "N일 전 기준" 경고가 조치할 것 없는 소음이 된다.
+  const badge = vacationLabel ? null : neisFreshnessBadge(neisSyncedAt ?? null, date);
 
   return (
     <section className={`rounded-lg border border-neutral-200 p-4 ${className ?? ""}`}>

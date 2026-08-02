@@ -5,6 +5,7 @@ import {
   pickRepresentativeSection,
   representativeDates,
   monthWeekLabel,
+  ordinalForWeekOf,
   isSlackCell,
   shiftSlackCell,
   unshiftSlackCell,
@@ -374,5 +375,32 @@ describe("layoutUnitsByExamTargets", () => {
     });
     expect(r).toEqual({ ok: true, unitIdByOrdinal: ["a", "b", null] });
     expect(units[0].code).toBe(10100); // 원본 불변
+  });
+});
+
+describe("ordinalForWeekOf", () => {
+  const ords = [
+    { ordinal: 1, month: 3, weekOfMonth: 1 },
+    { ordinal: 2, month: 3, weekOfMonth: 2 },
+    { ordinal: 3, month: 3, weekOfMonth: 2 },
+    { ordinal: 4, month: 8, weekOfMonth: 1 },
+  ];
+
+  it("같은 월·주차의 첫 차시를 돌려준다", () => {
+    expect(ordinalForWeekOf(ords, "2026-03-10")).toBe(2); // 3월 2주차 → 2,3 중 첫째
+    expect(ordinalForWeekOf(ords, "2026-08-02")).toBe(4); // 8월 1주차
+  });
+
+  it("해당 주차 차시가 없으면 null (방학 등)", () => {
+    expect(ordinalForWeekOf(ords, "2026-08-20")).toBeNull(); // 8월 3주차
+    expect(ordinalForWeekOf([], "2026-03-10")).toBeNull();
+  });
+
+  it("입력 순서가 뒤섞여도 가장 작은 차시를 고른다(결정론)", () => {
+    const shuffled = [
+      { ordinal: 3, month: 3, weekOfMonth: 2 },
+      { ordinal: 2, month: 3, weekOfMonth: 2 },
+    ];
+    expect(ordinalForWeekOf(shuffled, "2026-03-08")).toBe(2);
   });
 });

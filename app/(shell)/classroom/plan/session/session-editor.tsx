@@ -7,9 +7,12 @@ import {
   type SessionSaveState,
 } from "../actions";
 import { sixDigitCode, parseSixDigit } from "@/lib/domain/lesson-unit";
+import { ordinalForWeekOf } from "@/lib/domain/lesson-plan";
+import { kstDateString } from "@/lib/domain/kst";
 import { Paginator } from "@/lib/ui/paginator";
 import { paginate, DEFAULT_PAGE_SIZE } from "@/lib/db/pagination";
 import { Button } from "@/app/ui/button";
+import { SaveStatus, useSaveStatus } from "@/app/ui/save-status";
 
 /**
  * 차시 계획 클라이언트 에디터 (QC v4 US-2, AC-1.6~1.10). 과목 선택 → 차시 1..N 행.
@@ -192,6 +195,7 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
   const [slackInput, setSlackInput] = useState("0");
   const [slackPending, startSlack] = useTransition();
   const [slackError, setSlackError] = useState<string | null>(null);
+  const [saved, markSaved] = useSaveStatus();
 
   // 세부단원 차시합 = 단원코드가 채워진(내용 있는) 행 수. 빈 행은 여유차시 후보.
   const contentRows = useMemo(
@@ -210,6 +214,14 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
     page,
     DEFAULT_PAGE_SIZE,
   );
+
+  // 오늘(KST)과 같은 월·주차 차시가 있으면 그 차시가 실린 페이지 번호(없으면 null).
+  const thisWeekPage = useMemo(() => {
+    const hit = ordinalForWeekOf(subject.ordinals, kstDateString());
+    if (hit === null) return null;
+    const idx = rows.findIndex((r) => r.ordinal === hit);
+    return idx < 0 ? null : Math.floor(idx / DEFAULT_PAGE_SIZE) + 1;
+  }, [subject, rows]);
 
   function updateRow(ordinal: number, patch: Partial<RowState>) {
     setRows((rs) =>
@@ -247,6 +259,7 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
         return;
       }
       setExceeded([]);
+      markSaved(`${subject.subjectName} 차시 ${rows.length}개 저장됨`);
     });
   }
 
@@ -308,16 +321,32 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
         )}
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-neutral-400">차시 {rowCount}개</span>
-        <Button
-          type="button"
-          onClick={() => save(false)}
-          disabled={pending}
-          className="px-4 py-1.5 text-sm"
-        >
-          {pending ? "저장 중…" : "일괄 저장"}
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="flex items-center gap-3 text-xs text-neutral-400">
+          차시 {rowCount}개
+          {/* 57차시 = 6페이지. 다음 수업을 계획하려면 매번 페이지를 훑어야 했다.
+              오늘(KST)의 월/주차와 같은 차시가 있는 페이지로 바로 이동한다. */}
+          {thisWeekPage !== null && (
+            <button
+              type="button"
+              onClick={() => setPage(thisWeekPage)}
+              className="rounded-full border border-white/25 px-2.5 py-1 text-xs text-neutral-500 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              이번 주 차시로 →
+            </button>
+          )}
+        </span>
+        <div className="flex items-center gap-3">
+          <SaveStatus message={saved} />
+          <Button
+            type="button"
+            onClick={() => save(false)}
+            disabled={pending}
+            className="px-4 py-1.5 text-sm"
+          >
+            {pending ? "저장 중…" : "일괄 저장"}
+          </Button>
+        </div>
       </div>
 
       {serverError && <p className="text-sm text-red-600">{serverError}</p>}

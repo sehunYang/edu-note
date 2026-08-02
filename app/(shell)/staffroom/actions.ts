@@ -12,6 +12,7 @@ import {
   deleteExpense,
   writeAudit,
 } from "@/lib/db/queries";
+import { kstDateString } from "@/lib/domain/kst";
 
 /**
  * 교무실(업무·예산) 서버액션 (계획 §4 Phase2-H). 전부 getOwnerId 가드 + audit.
@@ -79,8 +80,7 @@ export async function addExpenseAction(formData: FormData): Promise<void> {
   const budgetId = String(formData.get("budgetId") ?? "").trim();
   const amount = Number(formData.get("amount"));
   const date =
-    String(formData.get("date") ?? "").trim() ||
-    new Date().toISOString().slice(0, 10);
+    String(formData.get("date") ?? "").trim() || kstDateString();
   const memo = String(formData.get("memo") ?? "").trim() || null;
   if (!budgetId || Number.isNaN(amount)) return;
   const db = getDb();

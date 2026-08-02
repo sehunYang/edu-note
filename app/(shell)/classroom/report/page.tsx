@@ -130,13 +130,20 @@ function ReportView({
               ⚠ 관찰 부족 ({observationCount}건)
             </span>
           )}
+          {/* 항목명을 전부 이어붙이면 칩 하나가 화면 폭을 다 먹는다(실측 1,000px+).
+              건수만 칩에 남기고 항목명은 아래 줄에 풀어 쓴다. */}
           {flags.performanceMissing.length > 0 && (
             <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-normal text-amber-700">
-              ⚠ 수행 미입력: {flags.performanceMissing.join(", ")}
+              ⚠ 수행 미입력 {flags.performanceMissing.length}건
             </span>
           )}
           <RankBadge rank={flags.sectionRank} />
         </div>
+        {flags.performanceMissing.length > 0 && (
+          <p className="mt-2 text-xs text-neutral-500">
+            미입력 항목: {flags.performanceMissing.join(" · ")}
+          </p>
+        )}
       </section>
 
       {/* 성적 종합 */}

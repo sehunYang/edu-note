@@ -216,31 +216,13 @@ export default async function TodayPage() {
           records={todayAttendance}
         />
 
-        {/* 오늘 급식 — 표(메뉴/칼로리/영양) (AC-7.8) */}
+        {/* 오늘 급식 — 표(메뉴/칼로리/영양) (AC-7.8).
+            아래 '신고서·차시 요약'과 한 행을 이룬다(둘 다 1칸) — 급식만 1칸이던
+            기존 배치는 오른쪽 절반이 빈 채로 남아 화면이 끊겨 보였다. */}
         <MealsWidget todayMeals={todayMeals} />
 
-        {/* 학사일정 캘린더 — 월 범위 조회 + 상담 오버레이 + 날짜 메모(B.3/B.4) */}
-        <EventsCalendar
-          events={monthEvents.map((e) => ({
-            date: e.date,
-            title: e.title,
-            eventKind: e.eventKind,
-          }))}
-          counsel={monthReservations.map((c) => ({
-            date: c.date,
-            studentLabel: c.studentLabel,
-          }))}
-          memos={monthMemos}
-          googleEvents={googleEvents}
-          googleSyncError={googleStatus.connected ? googleStatus.lastError : null}
-          vacationSpans={vacationSpans}
-        />
-
-        {/* 공지 위젯 — 한마디 스와이프 + 할일·공지(내용 포함) (AC-7.10) */}
-        <NoticeWidget notes={publicNotes} events={upcomingNotices} />
-
         {/* 신고서 / 잔여차시 요약 */}
-        <section className="rounded-lg border border-neutral-200 p-4 md:col-span-2">
+        <section className="rounded-lg border border-neutral-200 p-4">
           <h2 className="text-sm font-normal text-neutral-700">신고서 · 차시 요약</h2>
           <dl className="mt-2 space-y-1 text-sm">
             <div className="flex justify-between">
@@ -267,6 +249,26 @@ export default async function TodayPage() {
             <Link href="/sessions" className="underline text-neutral-500">시수</Link>
           </div>
         </section>
+
+        {/* 학사일정 캘린더 — 월 범위 조회 + 상담 오버레이 + 날짜 메모(B.3/B.4) */}
+        <EventsCalendar
+          events={monthEvents.map((e) => ({
+            date: e.date,
+            title: e.title,
+            eventKind: e.eventKind,
+          }))}
+          counsel={monthReservations.map((c) => ({
+            date: c.date,
+            studentLabel: c.studentLabel,
+          }))}
+          memos={monthMemos}
+          googleEvents={googleEvents}
+          googleSyncError={googleStatus.connected ? googleStatus.lastError : null}
+          vacationSpans={vacationSpans}
+        />
+
+        {/* 공지 위젯 — 한마디 스와이프 + 할일·공지(내용 포함) (AC-7.10) */}
+        <NoticeWidget notes={publicNotes} events={upcomingNotices} />
       </div>
     </>
   );

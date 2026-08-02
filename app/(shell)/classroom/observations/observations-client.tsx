@@ -10,6 +10,8 @@ import {
   loadStudentSectionsAction,
 } from "./actions";
 import { Button } from "@/app/ui/button";
+import { kstDateString } from "@/lib/domain/kst";
+import { SaveStatus, useSaveStatus } from "@/app/ui/save-status";
 
 const PAGE_SIZE = 10;
 
@@ -42,7 +44,8 @@ export interface RecentObservation {
 }
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  // KST 기준 — UTC 날짜를 쓰면 아침 조회 시간대(00~09시 KST)에 전날로 기입된다.
+  return kstDateString();
 }
 
 export function ObservationsClient({
@@ -73,6 +76,7 @@ export function ObservationsClient({
   const [body, setBody] = useState("");
   const [keywords, setKeywords] = useState("");
   const [pending, startTransition] = useTransition();
+  const [saved, markSaved] = useSaveStatus();
   const [page, setPage] = useState(1);
   const {
     pageItems: recentPage,
@@ -130,8 +134,11 @@ export function ObservationsClient({
     fd.set("observedOn", observedOn);
     fd.set("body", body);
     fd.set("keywords", keywords);
+    const label =
+      students.find((s) => s.id === studentId)?.name ?? "학생";
     startTransition(async () => {
       await addObservationAction(fd);
+      markSaved(`${label} 관찰 저장됨`);
       setBody("");
       setKeywords("");
     });
@@ -237,14 +244,17 @@ export function ObservationsClient({
           placeholder="키워드(콤마로 구분, 공백 포함 단어 가능)"
           className="w-full rounded border border-neutral-300 px-3 py-1.5 text-sm"
         />
-        <Button
-          type="submit"
-          loading={pending}
-          disabled={!studentId || !sectionId || !body.trim()}
-          className="px-3 py-1.5 text-sm"
-        >
-          관찰 저장
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            type="submit"
+            loading={pending}
+            disabled={!studentId || !sectionId || !body.trim()}
+            className="px-3 py-1.5 text-sm"
+          >
+            관찰 저장
+          </Button>
+          <SaveStatus message={saved} />
+        </div>
       </form>
 
       {/* 최근 관찰 */}

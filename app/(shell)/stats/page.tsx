@@ -213,11 +213,18 @@ export default async function StatsPage({
 
       {/* ③ 기록 커버리지 */}
       <section className="mt-6 rounded-lg border border-neutral-200 p-4">
-        <h2 className="text-sm font-normal text-neutral-700">기록 커버리지</h2>
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="text-sm font-normal text-neutral-700">기록 커버리지</h2>
+          <span className="text-xs text-neutral-400">
+            학생 {coverage.length}명 · 기록 적은 순
+          </span>
+        </div>
         {coverage.length === 0 ? (
           <p className="mt-2 text-sm text-neutral-400">학생 없음</p>
         ) : (
-          <div className="mt-3 overflow-x-auto">
+          // 전교생(100명대) 표가 그대로 펼쳐지면 페이지가 6,000px를 넘어 아래
+          // 섹션(업무 진척)이 사실상 안 보인다. 표 안에서만 스크롤시킨다.
+          <div className="mt-3 max-h-96 overflow-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="text-xs text-neutral-400">
@@ -268,7 +275,18 @@ export default async function StatsPage({
                     <td className="py-1.5">
                       {s.subjectName} · {s.label}
                     </td>
-                    <td className="py-1.5 tabular-nums">{pct(s.targetRate)}</td>
+                    {/* 시험일이 지나면 목표(=오늘까지 차시÷시험목표 차시)가 100%를
+                        넘어 475% 같은 값이 진도율 자리에 찍힌다 — 상한 표시. */}
+                    <td className="py-1.5 tabular-nums">
+                      {s.targetRate > 1 ? (
+                        <>
+                          100%{" "}
+                          <span className="text-xs text-neutral-400">(시험 경과)</span>
+                        </>
+                      ) : (
+                        pct(s.targetRate)
+                      )}
+                    </td>
                     <td className="py-1.5 tabular-nums">{pct(s.actualRate)}</td>
                     <td className="py-1.5">
                       <span
@@ -338,6 +356,9 @@ function GradeAnalysisView({ analysis }: { analysis: SectionGradeAnalysis }) {
   const scores = analysis.students.map((s) => s.total);
   const bins = histogram(scores, 10);
   const stats = basicStats(scores);
+  // 성적이 한 건도 입력되지 않으면 모든 점수가 0이라 "0-10 구간에 전원"이라는
+  // 거대한 단일 막대가 그려진다. 분포로 오독되므로 미입력 안내로 대체한다.
+  const hasScores = scores.some((s) => s > 0);
 
   const comparisonData: SectionComparisonDatum[] = [
     { label: `${analysis.sectionLabel}(현재)`, avg: avgOf(scores), current: true },
@@ -351,21 +372,33 @@ function GradeAnalysisView({ analysis }: { analysis: SectionGradeAnalysis }) {
       {/* 히스토그램 + 기초통계 */}
       <div>
         <h3 className="text-xs font-normal text-neutral-500">점수 분포</h3>
-        <div className="mt-2 flex flex-wrap gap-4 text-sm">
-          <span>평균 {stats.mean.toFixed(1)}</span>
-          <span>표준편차 {stats.stddev.toFixed(1)}</span>
-          <span>중앙값 {stats.median.toFixed(1)}</span>
-          <span className="text-neutral-400">n={stats.n}</span>
-        </div>
-        <div className="mt-2">
-          <HistogramChart bins={bins} />
-        </div>
+        {hasScores ? (
+          <>
+            <div className="mt-2 flex flex-wrap gap-4 text-sm">
+              <span>평균 {stats.mean.toFixed(1)}</span>
+              <span>표준편차 {stats.stddev.toFixed(1)}</span>
+              <span>중앙값 {stats.median.toFixed(1)}</span>
+              <span className="text-neutral-400">n={stats.n}</span>
+            </div>
+            <div className="mt-2">
+              <HistogramChart bins={bins} />
+            </div>
+          </>
+        ) : (
+          <p className="mt-2 rounded-lg border border-neutral-200 p-4 text-sm text-neutral-400">
+            이 분반은 아직 성적이 입력되지 않았습니다(수강생 {stats.n}명). 성적
+            기록에서 지필·수행 점수를 올리면 분포가 표시됩니다.
+          </p>
+        )}
       </div>
 
       {/* 중간→기말 추이 */}
       <div>
-        <h3 className="text-xs font-normal text-neutral-500">중간→기말 추이</h3>
-        <div className="mt-2 overflow-x-auto">
+        <h3 className="text-xs font-normal text-neutral-500">
+          중간→기말 추이{" "}
+          <span className="text-neutral-400">({analysis.students.length}명)</span>
+        </h3>
+        <div className="mt-2 max-h-96 overflow-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="text-xs text-neutral-400">

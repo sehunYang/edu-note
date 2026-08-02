@@ -21,6 +21,7 @@ import {
 import { CounselCsvPanel } from "./counsel-csv-panel";
 import { CounselSlotList, CounselLogList } from "./counsel-lists-client";
 import { Button } from "@/app/ui/button";
+import { kstDateString } from "@/lib/domain/kst";
 
 export const metadata = { title: "상담실" };
 
@@ -37,7 +38,7 @@ export default async function CounselPage() {
   const ownerId = await getOwnerId();
   const db = getDb();
   const year = new Date().getFullYear();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = kstDateString();
 
   const [students, logs, slots, reservations] = await Promise.all([
     listHomeroomStudents(db, ownerId, year),
@@ -77,8 +78,14 @@ export default async function CounselPage() {
               <select aria-label="학생"
                 name="studentYearId"
                 required
+                defaultValue=""
                 className="rounded border border-neutral-300 px-2 py-1 text-sm"
               >
+                {/* 첫 학생이 기본 선택되면 대상을 바꾸지 않은 채 저장돼 오기록이 난다.
+                    출결·관찰·행특과 동일하게 빈 placeholder 로 시작한다. */}
+                <option value="" disabled>
+                  학생 선택
+                </option>
                 {students.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.sid} {s.name}

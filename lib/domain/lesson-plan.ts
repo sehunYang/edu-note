@@ -79,6 +79,24 @@ export function monthWeekLabel(date: string): { month: number; weekOfMonth: numb
   return { month, weekOfMonth: Math.floor((day - 1) / 7) + 1 };
 }
 
+/**
+ * 주어진 날짜와 같은 월·주차에 배치된 첫 차시 번호(없으면 null).
+ *
+ * 차시 계획은 한 과목이 50차시를 넘어 10개씩 페이지네이션된다. "다음 수업을
+ * 계획한다"는 흔한 작업에서 매번 페이지를 훑지 않도록, 오늘이 속한 주차의
+ * 차시로 바로 이동시키기 위한 조회다.
+ */
+export function ordinalForWeekOf(
+  ordinals: { ordinal: number; month: number; weekOfMonth: number }[],
+  date: string,
+): number | null {
+  const { month, weekOfMonth } = monthWeekLabel(date);
+  const hit = ordinals
+    .filter((o) => o.month === month && o.weekOfMonth === weekOfMonth)
+    .sort((a, b) => a.ordinal - b.ordinal)[0];
+  return hit ? hit.ordinal : null;
+}
+
 /* ──────────────────────────────────────────────────────────────────────────
  * QC v6 US-1 — 시험 구간(1=중간 전 / 2=기말 전) 차시 도메인. 순수 함수(DB·네트워크 없음).
  * ──────────────────────────────────────────────────────────────────────── */

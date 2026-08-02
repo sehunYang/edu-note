@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { recordAttendanceAction, addAbsenceRangeAction } from "./actions";
 import { Button } from "@/app/ui/button";
+import { SaveStatus, useSaveStatus } from "@/app/ui/save-status";
 
 /**
  * 출결 입력 클라이언트 (QC v3 Part B, AC-7.x). 교시 체크 UI.
@@ -42,6 +43,18 @@ export function AttendancePeriodClient({
   // 결석 기간 종료일(선택). 비어 있으면 단일 날짜(date)만 기록.
   const [rangeEnd, setRangeEnd] = useState("");
   const [pending, startTransition] = useTransition();
+  const [saved, markSaved] = useSaveStatus();
+
+  const KIND_TEXT: Record<typeof kind, string> = {
+    late: "지각",
+    early_leave: "조퇴",
+    absent_period: "결과",
+    absent: "결석",
+  };
+  const studentLabel = (id: string) => {
+    const s = students.find((x) => x.id === id);
+    return s ? `${s.sid} ${s.name}` : "학생";
+  };
 
   function toggle(p: number) {
     setSelected((cur) =>
@@ -61,10 +74,13 @@ export function AttendancePeriodClient({
       fd.set("endDate", rangeEnd);
       fd.set("reason", reason);
       fd.set("noteField", noteField);
+      const label = studentLabel(studentId);
       startTransition(async () => {
         await addAbsenceRangeAction(fd);
+        markSaved(`${label} ${date}~${rangeEnd} 결석 기록됨`);
         setNoteField("");
         setRangeEnd("");
+        setStudentId("");
       });
       return;
     }
@@ -77,11 +93,16 @@ export function AttendancePeriodClient({
     fd.set("noteField", noteField);
     fd.set("pivotPeriod", String(pivotPeriod));
     for (const p of selected) fd.append("periods", String(p));
+    const label = studentLabel(studentId);
     startTransition(async () => {
       await recordAttendanceAction(fd);
+      markSaved(`${label} ${KIND_TEXT[kind]} 기록됨`);
       setNoteField("");
       setSelected([]);
       setPivotPeriod(0);
+      // 학생 선택도 초기화 — 남아 있으면 다음 학생으로 바꾸지 않은 채 재클릭해
+      // 같은 학생에게 중복 기록이 남는다(실측에서 확인된 오기록 경로).
+      setStudentId("");
     });
   }
 
@@ -104,7 +125,8 @@ export function AttendancePeriodClient({
             </option>
           ))}
         </select>
-        <select aria-label="출결 사유"
+        {/* 목록 표의 열 이름과 맞춘다: 종류=지각/조퇴/결과/결석, 사유=질병/인정/… */}
+        <select aria-label="출결 종류"
           value={kind}
           onChange={(e) =>
             setKind(e.target.value as typeof kind)
@@ -116,7 +138,7 @@ export function AttendancePeriodClient({
           <option value="absent_period">결과</option>
           <option value="absent">결석</option>
         </select>
-        <select aria-label="출결 성격"
+        <select aria-label="출결 사유"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           className="rounded border border-neutral-300 px-2 py-1 text-sm"
@@ -136,8 +158,9 @@ export function AttendancePeriodClient({
           disabled={pending}
           className="px-3 py-1 text-sm"
         >
-          기록
+          {pending ? "기록 중…" : "기록"}
         </Button>
+        <SaveStatus message={saved} />
       </div>
 
       {showPivot && (

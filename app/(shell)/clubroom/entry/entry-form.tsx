@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { saveAllAction } from "./actions";
 import { COMMON_FIELD_PREFIX, OVERRIDE_FIELD_PREFIX } from "./fields";
@@ -58,7 +58,7 @@ export function ClubEntryForm({
   }
 
   return (
-    <form action={saveAllAction} className="mt-6 space-y-6 pb-24">
+    <form action={saveAllAction} className="mt-6 space-y-6 pb-44 md:pb-24">
       {sessions.map((s) => {
         const commonKey = `${COMMON_FIELD_PREFIX}${s.date}`;
         const sessionDirty =
@@ -138,15 +138,33 @@ export function ClubEntryForm({
 /** 하단 고정 저장 바. 변경이 없으면 비활성이라 헛클릭이 없다. */
 function SaveBar({ dirtyCount }: { dirtyCount: number }) {
   const { pending } = useFormStatus();
+  // 저장 직후 dirtyCount 가 0 으로 떨어지는데, 문구가 "변경 사항 없음"이면
+  // 저장이 됐다는 신호로 읽히지 않는다. 저장을 거친 뒤에는 '저장됨'을 보여준다.
+  const [everSaved, setEverSaved] = useState(false);
+  useEffect(() => {
+    if (pending) setEverSaved(true);
+  }, [pending]);
+  const idleText =
+    everSaved && dirtyCount === 0 ? "저장됨 ✓" : "변경 사항 없음";
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-canvas/95 px-6 py-3 backdrop-blur md:pl-64">
+    // 모바일에선 하단 탭바(fixed bottom, z-40, 높이 ≈4rem+safe-area) 위로 띄운다.
+    // bottom-0 이면 저장 바가 탭바에 완전히 가려 탭 자체가 불가능했다.
+    <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-white/10 bg-canvas/95 px-6 py-3 backdrop-blur md:bottom-0 md:pl-64">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-        <p role="status" className="text-xs text-neutral-500">
+        <p
+          role="status"
+          aria-live="polite"
+          className={`text-xs ${
+            !pending && dirtyCount === 0 && everSaved
+              ? "text-emerald-500"
+              : "text-neutral-500"
+          }`}
+        >
           {pending
             ? "저장 중…"
             : dirtyCount > 0
               ? `변경 ${dirtyCount}건`
-              : "변경 사항 없음"}
+              : idleText}
         </p>
         <button
           type="submit"

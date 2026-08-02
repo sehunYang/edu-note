@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import {
@@ -85,8 +86,12 @@ export default async function ProgressPage({
         )}
       </h2>
       <p className="mt-1 text-sm text-neutral-500">
-        학기 전체 차시를 생성하고, 이번주·연체 예정 차시를 처리하세요. 완료 시
-        실제수업내용·핵심개념·평가아이디어를 기록하고 계획을 불러올 수 있습니다.
+        학기 전체 차시를 생성하고, 이번주·연체 예정 차시를 예정/미진행/완료로
+        처리하세요. 수업내용·핵심개념 기입은{" "}
+        <Link href="/classroom/plan/session" className="underline">
+          수업 계획실 · 차시 계획
+        </Link>
+        에서 합니다.
       </p>
 
       <ProgressBoard

@@ -345,11 +345,21 @@ export async function studentsWithoutBehaviorNoteToday(
   schoolYear: number,
   onDate: string = todayStr(),
 ): Promise<string[]> {
+  // 행동특성은 담임반 전용 기록이다(입력 화면도 담임반 명단만 노출). 전교생을
+  // 모수로 잡으면 "미작성 118명"처럼 담임반(예: 32명)보다 큰 수가 넛지에 뜬다.
   const all = await db
     .select({ id: studentYears.id })
-    .from(studentYears)
+    .from(homeroomMembers)
+    .innerJoin(
+      homeroomClasses,
+      eq(homeroomClasses.id, homeroomMembers.homeroomId),
+    )
+    .innerJoin(studentYears, eq(studentYears.id, homeroomMembers.studentYearId))
     .where(
-      and(eq(studentYears.ownerId, ownerId), eq(studentYears.schoolYear, schoolYear)),
+      and(
+        eq(homeroomMembers.ownerId, ownerId),
+        eq(homeroomClasses.schoolYear, schoolYear),
+      ),
     );
   const noted = await db
     .select({ id: homeroomBehaviorNotes.studentYearId })

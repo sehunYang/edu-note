@@ -153,7 +153,7 @@ function PopupSection({
         </p>
       ) : (
         <>
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-3 max-h-[28rem] space-y-2 overflow-y-auto pr-1">
             {pageItems.map((p) => (
               <li
                 key={p.sessionId}
@@ -198,6 +198,10 @@ function PopupSection({
 function StatsHeader({ stats }: { stats: StatView[] }) {
   if (stats.length === 0) return null;
   const pct = (r: number) => `${Math.round(r * 100)}%`;
+  // 목표는 "오늘까지 차시 ÷ 시험목표 차시"라 시험일이 지나면 100%를 넘어(475% 등)
+  // 진도율로 읽히지 않는다. 표시는 100%로 상한을 두고, 초과분은 '시험 경과'로 알린다.
+  const targetPct = (r: number) =>
+    r > 1 ? "100% (시험 경과)" : `${Math.round(r * 100)}%`;
   return (
     <section className="rounded-lg border border-neutral-200 p-5">
       <h3 className="font-normal text-neutral-800">진도 현황(분반별)</h3>
@@ -240,7 +244,7 @@ function StatsHeader({ stats }: { stats: StatView[] }) {
               {st.showExamProgress && (
                 <>
                   <span className="text-neutral-600">
-                    목표 {pct(st.targetRate)} · 실제{" "}
+                    목표 {targetPct(st.targetRate)} · 실제{" "}
                     <span
                       className={
                         st.color === "red"
@@ -294,7 +298,9 @@ function SectionBlock({
         <p className="mt-2 text-sm text-neutral-400">차시가 없습니다.</p>
       ) : (
         <>
-        <ul className="mt-2 space-y-1 text-sm">
+        {/* 분반 6개 × 20행이 그대로 펼쳐지면 페이지가 7,000px를 넘어 아래 분반이
+            사실상 도달 불가였다. 블록 안에서만 스크롤시킨다. */}
+        <ul className="mt-2 max-h-80 space-y-1 overflow-y-auto pr-1 text-sm">
           {pageItems.map((s) => (
             <li key={s.id}>
               <div className="flex flex-wrap items-center justify-between gap-2 py-1">
@@ -339,8 +345,13 @@ function StatusButtons({
   statusLabel: Record<string, string>;
 }) {
   const [pending, startTransition] = useTransition();
+  // 낙관 상태: 서버 revalidate 전에도 방금 누른 상태가 선택돼 보이게 한다.
+  // (금주·연체 목록은 current 를 planned 로 고정 전달하므로 이게 유일한 피드백)
+  const [optimistic, setOptimistic] = useState<SessionStatus | null>(null);
+  const active = optimistic ?? current;
 
   function setStatus(status: SessionStatus) {
+    setOptimistic(status);
     const fd = new FormData();
     fd.set("sessionId", sessionId);
     fd.set("status", status);
@@ -351,21 +362,25 @@ function StatusButtons({
 
   return (
     <span className="flex gap-1">
-      {(["planned", "not_held", "done"] as const).map((st) => (
-        <button
-          key={st}
-          type="button"
-          disabled={pending}
-          onClick={() => setStatus(st)}
-          className={`rounded border px-2 py-0.5 text-xs disabled:opacity-50 ${
-            current === st
-              ? "border-neutral-800 border border-white/25 bg-transparent text-white"
-              : "border-white/25 hover:bg-white/10"
-          }`}
-        >
-          {statusLabel[st]}
-        </button>
-      ))}
+      {(["planned", "not_held", "done"] as const).map((st) => {
+        const on = active === st;
+        return (
+          <button
+            key={st}
+            type="button"
+            aria-pressed={on}
+            disabled={pending}
+            onClick={() => setStatus(st)}
+            className={`rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-50 ${
+              on
+                ? "border-white bg-white font-normal text-black"
+                : "border-white/25 text-neutral-500 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            {statusLabel[st]}
+          </button>
+        );
+      })}
     </span>
   );
 }

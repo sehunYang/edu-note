@@ -14,6 +14,7 @@ import {
 import { Button } from "@/app/ui/button";
 import { CountUp } from "@/app/ui/count-up";
 import { ConfirmButton } from "@/app/ui/confirm-button";
+import { kstDateString } from "@/lib/domain/kst";
 
 export const metadata = { title: "교무실" };
 
@@ -27,7 +28,7 @@ const won = (n: number) => `${n.toLocaleString("ko-KR")}원`;
 export default async function StaffroomPage() {
   const ownerId = await getOwnerId();
   const db = getDb();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = kstDateString();
 
   const [tasks, budgets] = await Promise.all([
     listTasks(db, ownerId),

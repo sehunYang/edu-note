@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/queries";
 import { parseCsvRecords } from "@/lib/csv/parse";
 import { studentExtraNotes } from "@/lib/db/schema/records";
+import { kstDateString } from "@/lib/domain/kst";
 
 /**
  * 상담실 서버액션 (US-B9, AC-9.2/9.3/9.5).
@@ -38,8 +39,7 @@ export async function createCounselingAction(
   const studentYearId = String(formData.get("studentYearId") ?? "").trim();
   const target = String(formData.get("target") ?? "") as CounselTarget;
   const date =
-    String(formData.get("date") ?? "").trim() ||
-    new Date().toISOString().slice(0, 10);
+    String(formData.get("date") ?? "").trim() || kstDateString();
   const body = String(formData.get("body") ?? "").trim();
   if (!studentYearId || !VALID_TARGETS.includes(target) || !body) return;
 

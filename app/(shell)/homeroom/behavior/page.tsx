@@ -31,10 +31,22 @@ export default async function HomeroomBehaviorPage({
     listBehaviorNotes(db, ownerId),
   ]);
 
+  // 학생별 누가기록 수 — 생기부 마감 국면에서 "누가 아직 안 됐는지"가 화면에
+  // 없으면 32명을 일일이 대조해야 한다. 셀렉트에 건수를 같이 실어 보낸다.
+  const countById = new Map(
+    behaviorNotes.reduce<[string, number][]>((acc, b) => {
+      const found = acc.find(([id]) => id === b.studentYearId);
+      if (found) found[1] += 1;
+      else acc.push([b.studentYearId, 1]);
+      return acc;
+    }, []),
+  );
+
   const students: HomeroomStudent[] = homeroomStudents.map((s) => ({
     id: s.id,
     sid: s.sid,
     name: s.name,
+    noteCount: countById.get(s.id) ?? 0,
   }));
   const nameById = new Map(students.map((s) => [s.id, `${s.sid} ${s.name}`]));
   const recent = behaviorNotes.map((b) => ({
