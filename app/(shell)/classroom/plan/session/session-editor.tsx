@@ -476,7 +476,7 @@ function SessionRow({
       </div>
       {unit && unit.keywords.length > 0 && (
         <div className="mt-1 flex flex-wrap items-center gap-1">
-          <span className="text-[10px] text-neutral-400">클릭하면 추가:</span>
+          <span className="text-[0.625rem] text-neutral-400 xl:text-xs">클릭하면 추가:</span>
           {unit.keywords.map((kw) => {
             const already = rowKeywords.includes(kw);
             return (

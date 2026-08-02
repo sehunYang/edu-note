@@ -97,7 +97,7 @@ export function CounselSlotList({
                         <span className="flex items-center gap-1.5">
                           {st ? `${st.sid} ${st.name}` : "(미등록 학생)"}
                           {r.cancelRequested && (
-                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-700">
+                            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[0.625rem] text-amber-700 xl:text-xs">
                               취소 요청
                             </span>
                           )}

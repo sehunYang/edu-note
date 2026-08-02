@@ -241,10 +241,15 @@ export function EventsCalendar({
               onClick={() => setSelectedDate(dateStr)}
               className={`min-h-[3.5rem] rounded border p-1 text-left transition hover:border-blue-300 hover:bg-blue-50/40 ${cellBg}`}
             >
+              {/* desktop-scale D-4: 이 축소 크기들은 390px 폰에서 7열 셀이 약
+                  50px 였기 때문에 정해진 값이다. 데스크톱에서는 본문이 1296px 라
+                  셀이 약 180px — 3.6배 넓은데 글자는 그대로여서 화면에서 가장
+                  작은 텍스트로 남았다. xl(≥1280, 루트 배율이 시작되는 지점)에서만
+                  한 단계 올린다. 모바일 값은 건드리지 않는다. */}
               <div className="flex items-center justify-between">
-                <span className="text-[11px] text-neutral-500">{d}</span>
+                <span className="text-[0.6875rem] text-neutral-500 xl:text-xs">{d}</span>
                 {memoCount > 0 && (
-                  <span className="rounded-full bg-purple-100 px-1 text-[9px] text-purple-700">
+                  <span className="rounded-full bg-purple-100 px-1 text-[0.5625rem] text-purple-700 xl:text-[0.6875rem]">
                     메모 {memoCount}
                   </span>
                 )}
@@ -253,7 +258,7 @@ export function EventsCalendar({
                 <div
                   key={`ev${j}`}
                   title={e.title}
-                  className={`mt-0.5 truncate rounded px-1 text-[10px] ${EVENT_KIND_CHIP[e.eventKind]}`}
+                  className={`mt-0.5 truncate rounded px-1 text-[0.625rem] xl:text-xs ${EVENT_KIND_CHIP[e.eventKind]}`}
                 >
                   {e.title}
                 </div>
@@ -262,7 +267,7 @@ export function EventsCalendar({
                 <div
                   key={`cs${j}`}
                   title={`상담: ${label}`}
-                  className="mt-0.5 truncate rounded bg-green-100 px-1 text-[10px] text-green-700"
+                  className="mt-0.5 truncate rounded bg-green-100 px-1 text-[0.625rem] text-green-700 xl:text-xs"
                 >
                   상담 {label}
                 </div>
@@ -271,7 +276,7 @@ export function EventsCalendar({
                 <div
                   key={`ge${j}`}
                   title={`구글: ${g.title}`}
-                  className="mt-0.5 truncate rounded bg-blue-100 px-1 text-[10px] text-blue-700"
+                  className="mt-0.5 truncate rounded bg-blue-100 px-1 text-[0.625rem] text-blue-700 xl:text-xs"
                 >
                   G {g.title}
                 </div>

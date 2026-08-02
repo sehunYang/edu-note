@@ -24,6 +24,38 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* ── 데스크톱 배율 (desktop-scale D-1) ────────────────────────────────────
+   실측(1920×1080): /setting/courses 의 보이는 텍스트 602개 중 476개(79%)가
+   12px, /today 는 160개 중 79개(49%)가 12px 이하였다. 조작 요소는 401개 중
+   388개가 높이 32px 미만. 반면 같은 화면의 모바일(390px)은 아래 pointer:coarse
+   규칙이 44px 바닥을 깔아 주어 문제가 없었다 — "모바일은 괜찮은데 데스크톱만
+   작다"는 체감은 이 비대칭에서 나온다.
+
+   해결은 940곳의 text-sm/text-xs 를 갈아엎는 게 아니라 **루트 배율**이다.
+   Tailwind 의 폰트·간격·높이·라운드가 전부 rem 이고, 절대 px 사이즈는
+   min-h-[44px] 류 37곳뿐이라(이미 44px 이므로 더 키울 필요 없음) 루트 하나만
+   올리면 타이포·패딩·컨트롤 높이·컨테이너 폭이 **비율을 유지한 채** 함께 커진다.
+   기존에 맞춰 둔 밀도·위계가 그대로 보존된다는 뜻이다.
+
+   중단점은 px 로 선언돼 있어(Tailwind 기본 screens) 루트 배율의 영향을 받지
+   않는다 — md:/lg: 분기는 그대로 동작한다.
+
+   1280 아래는 손대지 않는다: 모바일은 사용자가 문제없다고 했고, 1024~1279 는
+   사이드바(15rem)를 빼고 나면 본문 폭이 좁아 확대가 가로 넘침으로 번질 수 있다.
+     ≥1280 → 17px (+6.25%): text-sm 14→14.9, text-xs 12→12.8
+     ≥1600 → 18px (+12.5%): text-sm 14→15.8, text-xs 12→13.5, text-base 16→18 */
+@media (min-width: 1280px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1600px) {
+  html {
+    font-size: 18px;
+  }
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
@@ -128,6 +160,34 @@ body {
       display: inline-flex;
       align-items: center;
       min-height: 44px;
+    }
+  }
+
+  /* ── 데스크톱 조작 요소 바닥 (desktop-scale D-2) ───────────────────────
+     위 24px 바닥은 WCAG 2.5.8 최소치일 뿐이고, 44px 는 coarse 포인터에만
+     걸려 있었다. 그래서 마우스 사용자만 24~29px 짜리 셀렉트·아이콘 버튼·칩을
+     받았다(실측 /today 86개 중 42개가 36px 미만, /setting/courses 401개 중
+     388개가 32px 미만). 루트 배율만으로는 패딩이 작은 요소가 여전히 뜨므로
+     별도 바닥을 깐다.
+
+     2rem = 34px(≥1280) / 36px(≥1600). 모바일 44px 보다 낮아 데스크톱 밀도를
+     해치지 않으면서 마우스 조준에는 충분하다. min-* 이라 이미 더 큰 요소
+     (min-h-[44px] 37곳, h-14 헤더 등)는 그대로다. */
+  @media (pointer: fine) and (min-width: 1280px) {
+    button,
+    select,
+    textarea,
+    [role="button"],
+    input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]) {
+      min-height: 2rem;
+    }
+
+    /* 체크박스·라디오는 상자 크기가 곧 조준 면적이라 배율을 그대로 태운다
+       (1.5rem = 25.5/27px). 위 기본 규칙의 24px 보다 반드시 커야 한다. */
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-width: 1.5rem;
+      min-height: 1.5rem;
     }
   }
 }

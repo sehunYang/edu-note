@@ -307,7 +307,7 @@ function TargetBadge({
     .map((id) => students.find((s) => s.id === id)?.label)
     .filter(Boolean);
   return (
-    <span className="ml-2 inline-block rounded bg-neutral-200 px-1.5 py-0.5 text-[11px] text-neutral-600">
+    <span className="ml-2 inline-block rounded bg-neutral-200 px-1.5 py-0.5 text-[0.6875rem] text-neutral-600 xl:text-xs">
       특정 학생 {note.targetStudentYearIds.length}명
       {labels.length > 0 && `: ${labels.join(", ")}`}
     </span>

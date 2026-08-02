@@ -129,10 +129,12 @@ function ScheduleTab({
               onClick={() => setSelectedDate(dateStr)}
               className={`min-h-[3.5rem] rounded border p-1 text-left transition hover:border-blue-400 ${cellBg}`}
             >
+              {/* desktop-scale D-4: 폰 기준 축소값을 데스크톱(xl≥1280)에서만 한
+                  단계 올린다 — 이 페이지도 학부모가 PC로 열어 본다. 모바일 값 유지. */}
               <div className="flex items-center justify-between">
-                <span className="text-[11px] text-neutral-500">{d}</span>
+                <span className="text-[0.6875rem] text-neutral-500 xl:text-xs">{d}</span>
                 {dayMemos.length > 0 && (
-                  <span className="rounded-full bg-purple-100 px-1 text-[9px] text-purple-700">
+                  <span className="rounded-full bg-purple-100 px-1 text-[0.5625rem] text-purple-700 xl:text-[0.6875rem]">
                     {dayMemos.length}
                   </span>
                 )}
@@ -141,7 +143,7 @@ function ScheduleTab({
                 <div
                   key={j}
                   title={e.title}
-                  className={`mt-0.5 truncate rounded px-1 text-[10px] ${eventChipClass(e.eventKind)}`}
+                  className={`mt-0.5 truncate rounded px-1 text-[0.625rem] xl:text-xs ${eventChipClass(e.eventKind)}`}
                 >
                   {e.title}
                 </div>

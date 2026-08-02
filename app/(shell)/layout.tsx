@@ -33,8 +33,14 @@ export default function ShellLayout({
         {/* 밀도 개선 D-3: py-10(80px) → py-6(48px). 위로는 56px 스티키 헤더,
             아래로는 실 헤더가 이미 있어 콘텐츠 첫 줄이 200px 아래에서
             시작했다. max-w는 5xl(1024) 유지 — 본문 가독 폭이며, 넓은 표는
-            개별 화면에서 max-w-none 으로 풀어 준다. */}
-        <main id="content" className="mx-auto w-full max-w-5xl px-6 py-6">
+            개별 화면에서 max-w-none 으로 풀어 준다.
+
+            desktop-scale D-3: 2xl(≥1536)에서만 6xl 로 넓힌다. 이 폭에서는 루트
+            배율(18px)이 걸려 5xl 이 이미 1152px 이고 사이드바를 빼도 400px 이상이
+            남아, 본문이 화면 한가운데 얇은 띠로 보였다. 6xl(72rem=1296px)은 배율
+            적용 후에도 한 줄 글자수가 과하지 않은 상한이다. px-6 도 같이 키워
+            넓어진 폭에 여백이 따라붙게 한다. */}
+        <main id="content" className="mx-auto w-full max-w-5xl px-6 py-6 2xl:max-w-6xl 2xl:px-8">
           {children}
         </main>
       </AppShell>

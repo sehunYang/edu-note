@@ -255,7 +255,7 @@ function ProviderPicker({
       {status !== "none" && (
         <div className="mt-2 space-y-1">
           {status === "multiple" && (
-            <p className="text-[11px] text-amber-600">여러 건 — 하나를 선택하세요.</p>
+            <p className="text-[0.6875rem] text-amber-600 xl:text-xs">여러 건 — 하나를 선택하세요.</p>
           )}
           {options.map((o) => (
             <button

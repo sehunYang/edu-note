@@ -158,7 +158,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
                     {e.date}
                   </span>
                   <span
-                    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] ${EVENT_KIND_CHIP[d.eventKind]}`}
+                    className={`shrink-0 rounded px-1.5 py-0.5 text-[0.625rem] xl:text-xs ${EVENT_KIND_CHIP[d.eventKind]}`}
                     title={`캘린더 색상: ${EVENT_KIND_LABEL[d.eventKind]}`}
                   >
                     {EVENT_KIND_LABEL[d.eventKind]}

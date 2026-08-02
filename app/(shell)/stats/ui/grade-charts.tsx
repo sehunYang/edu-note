@@ -34,7 +34,7 @@ const tooltipStyle = {
   border: `1px solid ${COLOR_HAIRLINE}`,
   borderRadius: 6,
   color: COLOR_BODY,
-  fontSize: 12,
+  fontSize: 14,
 };
 
 /** 점수 히스토그램(구간별 학생 수). */
@@ -43,8 +43,8 @@ export function HistogramChart({ bins }: { bins: HistogramBin[] }) {
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={bins} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={COLOR_HAIRLINE} strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="label" stroke={COLOR_HAIRLINE} tick={{ fill: COLOR_MUTE, fontSize: 11 }} />
-        <YAxis allowDecimals={false} stroke={COLOR_HAIRLINE} tick={{ fill: COLOR_MUTE, fontSize: 11 }} />
+        <XAxis dataKey="label" stroke={COLOR_HAIRLINE} tick={{ fill: COLOR_MUTE, fontSize: 13 }} />
+        <YAxis allowDecimals={false} stroke={COLOR_HAIRLINE} tick={{ fill: COLOR_MUTE, fontSize: 13 }} />
         <Tooltip
           contentStyle={tooltipStyle}
           labelStyle={{ color: COLOR_BODY }}
@@ -68,8 +68,8 @@ export function SectionComparisonChart({ data }: { data: SectionComparisonDatum[
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <CartesianGrid stroke={COLOR_HAIRLINE} strokeDasharray="3 3" vertical={false} />
-        <XAxis dataKey="label" stroke={COLOR_HAIRLINE} tick={{ fill: COLOR_MUTE, fontSize: 11 }} />
-        <YAxis allowDecimals={false} stroke={COLOR_HAIRLINE} tick={{ fill: COLOR_MUTE, fontSize: 11 }} />
+        <XAxis dataKey="label" stroke={COLOR_HAIRLINE} tick={{ fill: COLOR_MUTE, fontSize: 13 }} />
+        <YAxis allowDecimals={false} stroke={COLOR_HAIRLINE} tick={{ fill: COLOR_MUTE, fontSize: 13 }} />
         <Tooltip
           contentStyle={tooltipStyle}
           labelStyle={{ color: COLOR_BODY }}
@@ -106,14 +106,14 @@ export function PerformanceFillChart({ items }: { items: PerformanceItemFill[] }
           domain={[0, 100]}
           unit="%"
           stroke={COLOR_HAIRLINE}
-          tick={{ fill: COLOR_MUTE, fontSize: 11 }}
+          tick={{ fill: COLOR_MUTE, fontSize: 13 }}
         />
         <YAxis
           type="category"
           dataKey="name"
           width={96}
           stroke={COLOR_HAIRLINE}
-          tick={{ fill: COLOR_MUTE, fontSize: 11 }}
+          tick={{ fill: COLOR_MUTE, fontSize: 13 }}
         />
         <Tooltip
           contentStyle={tooltipStyle}
