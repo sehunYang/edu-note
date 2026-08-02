@@ -61,6 +61,8 @@ export default async function ProgressPage({
           id: s.id,
           date: s.date,
           status: s.status,
+          makeupDate: s.makeupDate,
+          makeupNote: s.makeupNote,
         })),
       };
     }),

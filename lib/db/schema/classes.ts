@@ -194,6 +194,22 @@ export const classSessions = pgTable(
       .references(() => courseSections.id, { onDelete: "cascade" }),
     date: date("date").notNull(),
     status: sessionStatus("status").notNull().default("planned"),
+    /**
+     * 보강일 (연간시나리오 기능갭 #3). status='not_held' 인 차시에만 의미가 있다.
+     *
+     * 결손 차시를 not_held 로 찍으면 잔여차시(=경계까지의 planned)에서 빠져 나가
+     * 숫자상으로는 아무 일도 없던 게 된다. 실제로는 진도가 한 차시 밀린 건데
+     * 그 손실이 어디에도 안 남았다. 여기에 보강일을 달면 "회복됨"으로 구분되고,
+     * 비어 있으면 **미회복 결손**으로 진척도에 노출된다.
+     *
+     * 보강을 별도 차시 행으로 만들지 않는 이유: class_sessions 는 (분반, 날짜)
+     * 유니크라 보강일에 이미 정규 차시가 있으면 충돌한다(보강은 보통 다른 반
+     * 시간이나 방과후에 잡힌다). 결손 행에 "언제 메웠는지"만 적는 편이 모델이
+     * 단순하고 시수 계산도 안 건드린다.
+     */
+    makeupDate: date("makeup_date"),
+    /** 보강 메모(장소·교시 등). 선택. */
+    makeupNote: text("makeup_note"),
     ...timestamps(),
   },
   (t) => [unique("uq_class_sessions").on(t.sectionId, t.date)],

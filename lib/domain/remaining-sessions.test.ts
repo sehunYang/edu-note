@@ -47,3 +47,56 @@ describe("tallySessions", () => {
     expect(t.notHeld).toBe(1);
   });
 });
+
+describe("tallySessions — 보강(기능갭 #3)", () => {
+  it("보강일이 없는 not_held 는 미회복 결손", () => {
+    const t = tallySessions([{ date: "2026-06-05", status: "not_held" }], null);
+    expect(t.notHeld).toBe(1);
+    expect(t.makeupPlanned).toBe(0);
+    expect(t.unrecovered).toBe(1);
+  });
+
+  it("보강일이 지정되면 회복으로 세고 미회복에서 뺀다", () => {
+    const t = tallySessions(
+      [
+        { date: "2026-06-05", status: "not_held", makeupDate: "2026-06-12" },
+        { date: "2026-06-07", status: "not_held" },
+      ],
+      null,
+    );
+    expect(t.notHeld).toBe(2);
+    expect(t.makeupPlanned).toBe(1);
+    expect(t.unrecovered).toBe(1);
+  });
+
+  it("makeupDate 가 빈 문자열이면 미입력으로 본다", () => {
+    const t = tallySessions(
+      [{ date: "2026-06-05", status: "not_held", makeupDate: "" }],
+      null,
+    );
+    expect(t.unrecovered).toBe(1);
+  });
+
+  it("done/planned 에 붙은 makeupDate 는 무시한다(not_held 전용 개념)", () => {
+    const t = tallySessions(
+      [
+        { date: "2026-06-05", status: "done", makeupDate: "2026-06-12" },
+        { date: "2026-06-06", status: "planned", makeupDate: "2026-06-13" },
+      ],
+      null,
+    );
+    expect(t.makeupPlanned).toBe(0);
+    expect(t.unrecovered).toBe(0);
+  });
+
+  it("makeupDate 를 안 주면 기존 동작과 동일(전부 미회복)", () => {
+    const t = tallySessions(
+      [
+        { date: "2026-06-05", status: "not_held" },
+        { date: "2026-06-07", status: "not_held" },
+      ],
+      null,
+    );
+    expect(t.unrecovered).toBe(t.notHeld);
+  });
+});

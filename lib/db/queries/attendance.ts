@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lt, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lt, lte, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import {
@@ -11,6 +11,10 @@ import { homeroomMembers } from "../schema/classes";
 import { schoolDayCalendar } from "../schema/misc";
 import { isReportRequired } from "@/lib/domain/attendance-rules";
 import { absentPeriods, submissionTier } from "@/lib/domain/attendance";
+import {
+  buildAttendanceTally,
+  type StudentTally,
+} from "@/lib/domain/attendance-tally";
 import type {
   AttendanceReason,
   AttendanceKind,
@@ -773,6 +777,81 @@ export async function listUnsubmittedAttendance(
       return rest;
     });
   return slicePage(merged, opts);
+}
+
+// ── NEIS 출결 집계 (연간시나리오 기능갭 #1) ──
+
+export interface AttendanceTallyResult {
+  /** 명단 순서(학번순) 그대로. 기록 0인 학생도 포함. */
+  rows: StudentTally[];
+  /** 기간 내 수업일수(school_day_calendar 기준). */
+  schoolDays: number;
+  from: string;
+  to: string;
+}
+
+/**
+ * 담임반 전원의 기간 출결을 NEIS 출결상황 격자로 집계한다.
+ *
+ * 담임은 월 단위로 출결을 마감하므로 기간은 호출 측이 정한다(월/학기/학년도).
+ * 수업일수는 school_day_calendar 를 단일 진실원으로 쓴다 — NEIS 동기화가 안 돼
+ * 있으면 0 이 나오는데, 그건 틀린 값이 아니라 "아직 학사일정을 안 받았다"는
+ * 사실이므로 화면에서 그대로 안내한다(임의 추정 금지).
+ *
+ * 집계 규칙(결과=교시 수 등)은 도메인 buildAttendanceTally 에 있다.
+ */
+export async function getAttendanceTally(
+  db: DB,
+  ownerId: string,
+  year: number,
+  from: string,
+  to: string,
+): Promise<AttendanceTallyResult> {
+  const [students, records, schoolDayRows] = await Promise.all([
+    listHomeroomStudents(db, ownerId, year),
+    db
+      .select({
+        studentYearId: attendanceRecords.studentYearId,
+        kind: attendanceRecords.kind,
+        reason: attendanceRecords.reason,
+        periods: attendanceRecords.periods,
+        reportRequired: attendanceRecords.reportRequired,
+        reportSubmitted: attendanceRecords.reportSubmitted,
+      })
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.ownerId, ownerId),
+          gte(attendanceRecords.date, from),
+          lte(attendanceRecords.date, to),
+        ),
+      ),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(schoolDayCalendar)
+      .where(
+        and(
+          eq(schoolDayCalendar.ownerId, ownerId),
+          eq(schoolDayCalendar.isSchoolDay, true),
+          gte(schoolDayCalendar.date, from),
+          lte(schoolDayCalendar.date, to),
+        ),
+      ),
+  ]);
+
+  const rows = buildAttendanceTally(
+    students.map((s) => ({ studentYearId: s.id, sid: s.sid, name: s.name })),
+    records.map((r) => ({
+      studentYearId: r.studentYearId,
+      kind: r.kind as AttendanceKind,
+      reason: r.reason as AttendanceReason,
+      periods: r.periods,
+      reportRequired: r.reportRequired,
+      reportSubmitted: r.reportSubmitted,
+    })),
+  );
+
+  return { rows, schoolDays: schoolDayRows[0]?.n ?? 0, from, to };
 }
 
 /** today(제외) 다음 날부터 deadline(포함)까지 남은 수업일. deadline 지났으면 음수. */

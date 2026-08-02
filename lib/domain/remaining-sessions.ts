@@ -10,6 +10,11 @@ import type { SessionStatus } from "./types";
 export interface SessionLike {
   date: string; // YYYY-MM-DD
   status: SessionStatus;
+  /**
+   * 보강일 (기능갭 #3). not_held 차시에만 의미가 있다. null/undefined = 미회복.
+   * 이 값이 없으면 기존 동작과 완전히 동일하다(전부 미회복으로 집계).
+   */
+  makeupDate?: string | null;
 }
 
 /** 분반 경계 우선, 없으면 과목 경계 (둘 다 없으면 null). */
@@ -25,6 +30,10 @@ export interface SessionTally {
   plannedUpToBoundary: number;
   done: number;
   notHeld: number;
+  /** not_held 중 보강일이 지정된 것(회복됨). */
+  makeupPlanned: number;
+  /** not_held 중 보강일이 없는 것 — 실제 진도 손실. */
+  unrecovered: number;
   /** planned(≤경계) − done. */
   remaining: number;
 }
@@ -36,10 +45,13 @@ export function tallySessions(
   let plannedUpToBoundary = 0;
   let done = 0;
   let notHeld = 0;
+  let makeupPlanned = 0;
 
   for (const s of sessions) {
     if (s.status === "not_held") {
       notHeld += 1;
+      // 보강일이 적혀 있으면 회복된 결손. 빈 문자열은 미입력으로 본다.
+      if (s.makeupDate) makeupPlanned += 1;
     } else if (s.status === "done") {
       done += 1;
     } else if (s.status === "planned") {
@@ -52,6 +64,8 @@ export function tallySessions(
     plannedUpToBoundary,
     done,
     notHeld,
+    makeupPlanned,
+    unrecovered: notHeld - makeupPlanned,
     remaining: plannedUpToBoundary - done,
   };
 }

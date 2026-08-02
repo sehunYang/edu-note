@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import {
@@ -7,7 +8,15 @@ import {
   searchAttendanceByStudent,
   listUnsubmittedAttendance,
   listFieldTrips,
+  getAttendanceTally,
+  resolveSemesterRange,
 } from "@/lib/db/queries";
+import {
+  activeSchoolYear,
+  activeSemester,
+  schoolYearRange,
+} from "@/lib/domain/school-year";
+import { TallyTableClient } from "./tally-table-client";
 import { AttendancePeriodClient } from "./attendance-period-client";
 import {
   EditableAttendanceTable,
@@ -40,13 +49,28 @@ function thisMonthStr(): string {
   return todayStr().slice(0, 7);
 }
 
-type View = "today" | "fieldtrip" | "month" | "student" | "unsubmitted";
+type View =
+  | "today"
+  | "fieldtrip"
+  | "month"
+  | "student"
+  | "unsubmitted"
+  | "tally";
 const VIEWS: { key: View; label: string }[] = [
   { key: "today", label: "오늘 입력" },
   { key: "fieldtrip", label: "교외체험학습 등록" },
   { key: "month", label: "월별" },
   { key: "student", label: "학생별 검색" },
   { key: "unsubmitted", label: "미제출" },
+  { key: "tally", label: "NEIS 집계" },
+];
+
+/** 집계 기간 모드. 담임은 월 단위로 마감하므로 월이 기본이다. */
+type Span = "month" | "semester" | "year";
+const SPANS: { key: Span; label: string }[] = [
+  { key: "month", label: "월" },
+  { key: "semester", label: "학기" },
+  { key: "year", label: "학년도" },
 ];
 
 /**
@@ -64,11 +88,15 @@ export default async function AttendancePage({
     month?: string;
     studentYearId?: string;
     reason?: string;
+    span?: string;
+    tallyMonth?: string;
+    tallySem?: string;
   }>;
 }) {
   const ownerId = await getOwnerId();
   const db = getDb();
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const year = now.getFullYear();
   const sp = await searchParams;
   const date = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : todayStr();
   const view: View = VIEWS.some((v) => v.key === sp.view)
@@ -81,8 +109,40 @@ export default async function AttendancePage({
       ? (sp.reason as AttendanceReason)
       : undefined;
 
+  // ── NEIS 집계 기간 산정 ──
+  // 담임은 월 단위로 출결을 마감한다 → 기본은 이번 달. 학기 경계는 여름방학
+  // 시작일 기준(resolveSemesterRange)이라 8/14 하드코딩과 달리 실제 학사일정을 탄다.
+  const span: Span = SPANS.some((s) => s.key === sp.span)
+    ? (sp.span as Span)
+    : "month";
+  const tallyMonth =
+    sp.tallyMonth && /^\d{4}-\d{2}$/.test(sp.tallyMonth)
+      ? sp.tallyMonth
+      : thisMonthStr();
+  const tallySem: 1 | 2 = sp.tallySem === "1" ? 1 : sp.tallySem === "2" ? 2 : activeSemester(now);
+
+  let tallyRange: { from: string; to: string; label: string };
+  if (span === "month") {
+    const [ty, tm] = tallyMonth.split("-").map(Number);
+    // 말일 = 다음 달 0일 (윤년 자동 보정).
+    const last = new Date(Date.UTC(ty, tm, 0)).toISOString().slice(0, 10);
+    tallyRange = { from: `${tallyMonth}-01`, to: last, label: `${tallyMonth}` };
+  } else if (span === "semester") {
+    const r = await resolveSemesterRange(db, ownerId, activeSchoolYear(now), tallySem);
+    tallyRange = { from: r.start, to: r.end, label: `${tallySem}학기` };
+  } else {
+    const sy = activeSchoolYear(now);
+    const r = schoolYearRange(sy);
+    tallyRange = { from: r.start, to: r.end, label: `${sy}학년도` };
+  }
+
   // 담임반 학생만 (listHomeroomStudents). 항상 필요.
   const students = await listHomeroomStudents(db, ownerId, year);
+
+  const tally =
+    view === "tally"
+      ? await getAttendanceTally(db, ownerId, year, tallyRange.from, tallyRange.to)
+      : null;
 
   // 뷰별 데이터(교외체험 등록도 별도 탭이므로 해당 탭에서만 로드).
   const [records, monthRows, studentRows, unsubmitted, fieldTrips] =
@@ -248,6 +308,82 @@ export default async function AttendancePage({
           ) : (
             <p className="mt-4 text-sm text-neutral-400">학생을 선택하세요.</p>
           )}
+        </section>
+      )}
+
+      {view === "tally" && tally && (
+        <section className="mt-6">
+          {/* 기간 선택 — 월(기본)/학기/학년도. 월 마감이 최빈이라 월 입력을
+              항상 노출하고, 다른 모드에서는 해당 컨트롤만 바꿔 단다. */}
+          <form method="get" className="flex flex-wrap items-center gap-2 text-sm">
+            <input type="hidden" name="view" value="tally" />
+            <div
+              className="inline-flex rounded-md border border-neutral-300 p-0.5"
+              role="group"
+              aria-label="집계 기간 단위"
+            >
+              {SPANS.map((s) => (
+                <Link
+                  key={s.key}
+                  href={`/homeroom/attendance?view=tally&span=${s.key}${
+                    s.key === "month" ? `&tallyMonth=${tallyMonth}` : ""
+                  }${s.key === "semester" ? `&tallySem=${tallySem}` : ""}`}
+                  aria-current={span === s.key ? "true" : undefined}
+                  className={`inline-flex min-h-11 items-center rounded px-3 text-sm md:min-h-0 md:py-1 ${
+                    span === s.key
+                      ? "border border-white/25 bg-transparent text-white"
+                      : "text-neutral-600 hover:bg-white/10"
+                  }`}
+                >
+                  {s.label}
+                </Link>
+              ))}
+            </div>
+
+            {span === "month" && (
+              <>
+                <input type="hidden" name="span" value="month" />
+                <label className="text-neutral-500" htmlFor="tallyMonth">
+                  월
+                </label>
+                <input
+                  id="tallyMonth"
+                  type="month"
+                  name="tallyMonth"
+                  defaultValue={tallyMonth}
+                  className="rounded border border-neutral-300 px-2 py-1"
+                />
+                <Button className="px-2 py-1 text-xs">조회</Button>
+              </>
+            )}
+
+            {span === "semester" && (
+              <>
+                <input type="hidden" name="span" value="semester" />
+                <label className="text-neutral-500" htmlFor="tallySem">
+                  학기
+                </label>
+                <select
+                  id="tallySem"
+                  name="tallySem"
+                  defaultValue={String(tallySem)}
+                  className="rounded border border-neutral-300 px-2 py-1 text-sm"
+                >
+                  <option value="1">1학기</option>
+                  <option value="2">2학기</option>
+                </select>
+                <Button className="px-2 py-1 text-xs">조회</Button>
+              </>
+            )}
+          </form>
+
+          <TallyTableClient
+            rows={tally.rows}
+            schoolDays={tally.schoolDays}
+            from={tally.from}
+            to={tally.to}
+            periodLabel={tallyRange.label}
+          />
         </section>
       )}
 

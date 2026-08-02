@@ -5,6 +5,7 @@ import { getOwnerId } from "@/lib/auth/owner";
 import {
   generateSemesterSessions,
   setProgressStatus,
+  setSessionMakeup,
   listSectionsForSemester,
   writeAudit,
 } from "@/lib/db/queries";
@@ -60,5 +61,31 @@ export async function setProgressStatusAction(formData: FormData): Promise<void>
   const db = getDb();
   await setProgressStatus(db, ownerId, sessionId, status);
   await writeAudit(db, ownerId, "progress_record", sessionId, { status });
+  revalidatePath("/classroom/progress");
+}
+
+/**
+ * 결손 차시 보강일 설정/해제 (기능갭 #3). 빈 값이면 지정 해제(미회복으로 되돌림).
+ * 날짜 형식이 어긋나면 조용히 무시한다(다른 액션과 동일 방어).
+ */
+export async function setSessionMakeupAction(formData: FormData): Promise<void> {
+  const ownerId = await getOwnerId();
+  const sessionId = String(formData.get("sessionId") ?? "").trim();
+  if (!sessionId) return;
+
+  const rawDate = String(formData.get("makeupDate") ?? "").trim();
+  if (rawDate && !/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) return;
+  const makeupDate = rawDate || null;
+
+  const rawNote = String(formData.get("makeupNote") ?? "").trim();
+  // 보강일을 지우면 메모도 같이 지운다 — 날짜 없는 보강 메모는 의미가 없다.
+  const makeupNote = makeupDate ? rawNote.slice(0, 200) || null : null;
+
+  const db = getDb();
+  await setSessionMakeup(db, ownerId, sessionId, makeupDate, makeupNote);
+  await writeAudit(db, ownerId, "progress_record", sessionId, {
+    makeupDate,
+    cleared: makeupDate === null,
+  });
   revalidatePath("/classroom/progress");
 }

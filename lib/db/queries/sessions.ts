@@ -165,6 +165,23 @@ export async function setSessionStatus(
     .where(and(eq(classSessions.id, sessionId), eq(classSessions.ownerId, ownerId)));
 }
 
+/**
+ * 결손 차시의 보강일 설정/해제 (기능갭 #3). 소유자 본인 행만.
+ * `makeupDate=null` 이면 보강 지정을 지운다(미회복으로 되돌림).
+ */
+export async function setSessionMakeup(
+  db: DB,
+  ownerId: string,
+  sessionId: string,
+  makeupDate: string | null,
+  makeupNote: string | null,
+): Promise<void> {
+  await db
+    .update(classSessions)
+    .set({ makeupDate, makeupNote, updatedAt: new Date() })
+    .where(and(eq(classSessions.id, sessionId), eq(classSessions.ownerId, ownerId)));
+}
+
 export interface SectionProgress {
   sectionId: string;
   label: string;
@@ -174,6 +191,8 @@ export interface SectionProgress {
   plannedUpToBoundary: number;
   done: number;
   notHeld: number;
+  makeupPlanned: number;
+  unrecovered: number;
   remaining: number;
 }
 
@@ -204,13 +223,14 @@ export async function listSectionsWithProgress(
       sectionId: classSessions.sectionId,
       date: classSessions.date,
       status: classSessions.status,
+      makeupDate: classSessions.makeupDate,
     })
     .from(classSessions)
     .where(eq(classSessions.ownerId, ownerId));
   const bySection = new Map<string, SessionLike[]>();
   for (const s of allSessions) {
     const arr = bySection.get(s.sectionId) ?? [];
-    arr.push({ date: s.date, status: s.status });
+    arr.push({ date: s.date, status: s.status, makeupDate: s.makeupDate });
     bySection.set(s.sectionId, arr);
   }
 
@@ -232,6 +252,8 @@ export interface SessionRow {
   id: string;
   date: string;
   status: SessionStatus;
+  makeupDate: string | null;
+  makeupNote: string | null;
 }
 
 /** 한 분반의 차시 목록(날짜순). */
@@ -245,6 +267,8 @@ export async function getSectionSessions(
       id: classSessions.id,
       date: classSessions.date,
       status: classSessions.status,
+      makeupDate: classSessions.makeupDate,
+      makeupNote: classSessions.makeupNote,
     })
     .from(classSessions)
     .where(

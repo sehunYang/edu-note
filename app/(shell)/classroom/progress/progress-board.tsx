@@ -3,8 +3,10 @@ import { useState, useTransition } from "react";
 import {
   generateSessionsAction,
   setProgressStatusAction,
+  setSessionMakeupAction,
 } from "./actions";
 import type { SessionStatus } from "@/lib/domain/types";
+import { kstDateString } from "@/lib/domain/kst";
 import { Paginator } from "@/lib/ui/paginator";
 import { paginate } from "@/lib/db/pagination";
 import { Button } from "@/app/ui/button";
@@ -40,6 +42,9 @@ export interface SessionView {
   id: string;
   date: string;
   status: SessionStatus;
+  /** 결손 차시 보강일(기능갭 #3). null=미회복. */
+  makeupDate?: string | null;
+  makeupNote?: string | null;
 }
 
 export interface SectionView {
@@ -286,6 +291,11 @@ function SectionBlock({
     SECTION_PAGE_SIZE,
   );
   const done = section.sessions.filter((s) => s.status === "done").length;
+  // 미회복 결손 = 미진행인데 보강일이 없는 차시(기능갭 #3). 접힌 상태에서도
+  // 보이게 요약 줄에 올린다 — 펼쳐야만 보이면 마감 때까지 모르고 지나간다.
+  const unrecovered = section.sessions.filter(
+    (s) => s.status === "not_held" && !s.makeupDate,
+  ).length;
 
   return (
     /* 밀도 개선 D-8: 분반 6개가 각각 표를 펼쳐 이 화면이 2,600px 였다. 그런데
@@ -299,7 +309,9 @@ function SectionBlock({
       hint={
         section.sessions.length === 0
           ? "차시 없음"
-          : `완료 ${done}/${section.sessions.length}`
+          : `완료 ${done}/${section.sessions.length}${
+              unrecovered > 0 ? ` · 미회복 ${unrecovered}` : ""
+            }`
       }
     >
       {section.sessions.length === 0 ? (
@@ -324,6 +336,15 @@ function SectionBlock({
                   statusLabel={statusLabel}
                 />
               </div>
+              {/* 미진행 차시에만 보강 줄을 붙인다(기능갭 #3). 예정·완료에는
+                  보강이라는 개념이 없으므로 UI 도 만들지 않는다. */}
+              {s.status === "not_held" && (
+                <MakeupRow
+                  sessionId={s.id}
+                  makeupDate={s.makeupDate ?? null}
+                  makeupNote={s.makeupNote ?? null}
+                />
+              )}
             </li>
           ))}
         </ul>
@@ -336,6 +357,128 @@ function SectionBlock({
         </>
       )}
     </Disclosure>
+  );
+}
+
+/**
+ * 결손 차시 보강 줄 (기능갭 #3).
+ *
+ * 미진행으로 찍으면 그 차시는 잔여차시에서 빠져 숫자상 아무 일도 없던 게 됐다.
+ * 실제로는 진도가 밀린 것이므로, 보강일을 적을 자리를 두고 안 적으면 **미회복**으로
+ * 위에 집계돼 보이게 한다. 미래 날짜면 '예정', 오늘 이전이면 '완료'로 표기한다 —
+ * 상태를 따로 저장하지 않고 날짜에서 파생한다(입력 하나로 둘 다 표현).
+ */
+function MakeupRow({
+  sessionId,
+  makeupDate,
+  makeupNote,
+}: {
+  sessionId: string;
+  makeupDate: string | null;
+  makeupNote: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  // 낙관 표시: 서버 revalidate 전에도 방금 저장한 값이 보이게 한다.
+  const [saved, setSaved] = useState<{ date: string | null; note: string | null } | null>(
+    null,
+  );
+  const date = saved ? saved.date : makeupDate;
+  const note = saved ? saved.note : makeupNote;
+
+  function submit(nextDate: string, nextNote: string) {
+    const fd = new FormData();
+    fd.set("sessionId", sessionId);
+    fd.set("makeupDate", nextDate);
+    fd.set("makeupNote", nextNote);
+    setSaved({ date: nextDate || null, note: nextDate ? nextNote || null : null });
+    setOpen(false);
+    startTransition(() => {
+      void setSessionMakeupAction(fd);
+    });
+  }
+
+  if (!open) {
+    return (
+      <div className="flex flex-wrap items-center gap-2 pb-1 pl-24 text-xs">
+        {date ? (
+          <>
+            <span className="text-neutral-500">
+              보강 {date}
+              {date >= kstDateString() ? " (예정)" : " (완료)"}
+              {note ? ` · ${note}` : ""}
+            </span>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              disabled={pending}
+              className="tap-link text-neutral-500 underline disabled:opacity-50"
+            >
+              변경
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="text-amber-700">미회복 결손</span>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              disabled={pending}
+              className="tap-link text-neutral-500 underline disabled:opacity-50"
+            >
+              보강일 지정
+            </button>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2 pb-2 pl-24 text-xs"
+      action={(fd) =>
+        submit(
+          String(fd.get("makeupDate") ?? ""),
+          String(fd.get("makeupNote") ?? ""),
+        )
+      }
+    >
+      <input
+        type="date"
+        name="makeupDate"
+        defaultValue={date ?? ""}
+        aria-label="보강일"
+        className="rounded border border-neutral-300 px-2 py-1"
+      />
+      <input
+        type="text"
+        name="makeupNote"
+        defaultValue={note ?? ""}
+        placeholder="메모(장소·교시)"
+        aria-label="보강 메모"
+        className="w-40 rounded border border-neutral-300 px-2 py-1"
+      />
+      <Button type="submit" className="px-3 py-1 text-xs">
+        저장
+      </Button>
+      {date && (
+        <button
+          type="button"
+          onClick={() => submit("", "")}
+          className="tap-link text-neutral-500 underline"
+        >
+          지정 해제
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="tap-link text-neutral-500 underline"
+      >
+        취소
+      </button>
+    </form>
   );
 }
 
