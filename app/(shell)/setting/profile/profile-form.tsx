@@ -81,7 +81,7 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
           </p>
         )}
         {resolveState && resolveState.ok && (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="mt-3 grid gap-3 [&>*]:min-w-0 sm:grid-cols-2">
             <ProviderPicker
               label="NEIS (학사일정·급식)"
               status={resolveState.resolution.neis.status}

@@ -45,7 +45,7 @@ export function NotesManager({
     <section className="mt-6 rounded-lg border border-neutral-200 p-5">
       <h2 className="text-sm text-neutral-700">교사 한마디</h2>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <div className="mt-3 grid gap-3 [&>*]:min-w-0 md:grid-cols-2">
         <AllNoticeForm />
         <IndividualNoticeForm students={students} />
       </div>

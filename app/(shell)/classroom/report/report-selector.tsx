@@ -48,7 +48,7 @@ export function ReportSelector({
   }
 
   return (
-    <div className="mt-4 grid gap-3 md:grid-cols-2">
+    <div className="mt-4 grid gap-3 [&>*]:min-w-0 md:grid-cols-2">
       <div>
         <label className="text-xs font-normal text-neutral-600">분반</label>
         <select aria-label="분반"

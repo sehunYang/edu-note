@@ -116,7 +116,7 @@ export function AttendancePeriodClient({
           value={studentId}
           onChange={(e) => setStudentId(e.target.value)}
           required
-          className="rounded border border-neutral-300 px-2 py-1 text-sm"
+          className="min-w-0 max-w-full rounded border border-neutral-300 px-2 py-1 text-sm"
         >
           <option value="">학생 선택</option>
           {students.map((s) => (
@@ -131,7 +131,7 @@ export function AttendancePeriodClient({
           onChange={(e) =>
             setKind(e.target.value as typeof kind)
           }
-          className="rounded border border-neutral-300 px-2 py-1 text-sm"
+          className="min-w-0 max-w-full rounded border border-neutral-300 px-2 py-1 text-sm"
         >
           <option value="late">지각</option>
           <option value="early_leave">조퇴</option>
@@ -141,18 +141,23 @@ export function AttendancePeriodClient({
         <select aria-label="출결 사유"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          className="rounded border border-neutral-300 px-2 py-1 text-sm"
+          className="min-w-0 max-w-full rounded border border-neutral-300 px-2 py-1 text-sm"
         >
           <option value="illness">질병</option>
           <option value="accepted">인정</option>
           <option value="unaccepted">미인정</option>
           <option value="etc">기타</option>
         </select>
+        {/* basis-24 + flex-1: 기본 폭을 6rem 으로 낮춰 "기록" 버튼이 같은 줄에
+            들어오게 하고, 남는 폭은 비고가 흡수해 줄 끝을 맞춘다. 이게 없으면
+            폰(컨트롤 44px·글자 16px)에서 비고가 한 줄을 통째로 쓰고 버튼이 혼자
+            다음 줄로 떨어져 오른쪽이 214px 비었다 — 카드마다 오른쪽 여백이 다른
+            것처럼 보이던 원인 중 하나. */}
         <input aria-label="비고(예: 생리통)"
           value={noteField}
           onChange={(e) => setNoteField(e.target.value)}
           placeholder="비고(예: 생리통)"
-          className="rounded border border-neutral-300 px-2 py-1 text-sm"
+          className="min-w-0 max-w-full flex-1 basis-24 rounded border border-neutral-300 px-2 py-1 text-sm"
         />
         <Button
           disabled={pending}
@@ -211,7 +216,7 @@ export function AttendancePeriodClient({
             value={rangeEnd}
             min={date}
             onChange={(e) => setRangeEnd(e.target.value)}
-            className="rounded border border-neutral-300 px-2 py-1 text-sm"
+            className="min-w-0 max-w-full rounded border border-neutral-300 px-2 py-1 text-sm"
           />
         </fieldset>
       )}

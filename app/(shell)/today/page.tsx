@@ -188,7 +188,15 @@ export default async function TodayPage() {
           (기존 모달과 별개로 유지 — 모달을 닫아도 배너는 남는다). */}
       <NudgeBanner nudges={nudges} />
 
-      <div className="stagger mt-5 grid items-start gap-4 md:grid-cols-2">
+      {/* [&>*]:min-w-0 — 그리드 아이템의 기본값 `min-width: auto` 는 "내용보다 작아지지
+          않는다"는 뜻이다. 그래서 카드 안에 더 줄어들 수 없는 것(셀렉트의 고유 폭,
+          줄바꿈 불가 텍스트)이 하나만 있어도 그 카드가 트랙을 뚫고 넓어지고, 같은 열을
+          공유하는 카드 6장이 **전부 같이** 넓어진다. 넛지 배너는 이 그리드 밖의 일반
+          블록이라 원래 폭으로 남으므로, 화면은 "알림만 폭이 다르고 나머지 전부가 안
+          맞는" 모습이 된다(실측 390px 폰: 배너 342 유지 · 카드 342→409.6 · 문서 폭
+          434 로 가로 스크롤 발생 → 왼쪽 여백만 24px 로 남고 오른쪽이 잘림).
+          min-width: 0 이면 카드가 컨테이너 폭을 지키고 줄어드는 쪽이 내용이 된다. */}
+      <div className="stagger mt-5 grid items-start gap-4 [&>*]:min-w-0 md:grid-cols-2">
         {/* 오늘 시간표 통합 카드 — 교시·시간·과목색(시간표) + 차시 체크·내용(수업)
             을 한 카드로(today-schedule-merge). 진척도 실반영은 기존과 동일. */}
         <TodayScheduleCard

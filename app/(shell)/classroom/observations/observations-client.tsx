@@ -155,7 +155,7 @@ export function ObservationsClient({
         onSubmit={onSubmit}
         className="space-y-3 rounded-lg border border-neutral-200 p-5"
       >
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 [&>*]:min-w-0 md:grid-cols-2">
           {/* 학생 선택 */}
           <div>
             <label className="text-xs font-normal text-neutral-600">학생</label>

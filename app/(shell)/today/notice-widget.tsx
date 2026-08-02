@@ -27,7 +27,7 @@ export function NoticeWidget({
       <h2 className="text-sm text-neutral-700">공지</h2>
       {/* items-start: 한쪽이 길면 다른 쪽 빈 카드가 같이 늘어났다(실측 "할일·공지"
           빈 카드가 300px). 밀도 개선 D-13. */}
-      <div className="mt-2 grid items-start gap-4 md:grid-cols-2">
+      <div className="mt-2 grid items-start gap-4 [&>*]:min-w-0 md:grid-cols-2">
         <TeacherNotesCarousel notes={notes} />
         <EventsList events={events} />
       </div>

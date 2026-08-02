@@ -172,7 +172,9 @@ export default async function Home() {
       {/* items-start: 그리드 기본 stretch 때문에 빈 카드가 옆 카드 높이만큼
           늘어났다(실측 "오늘 급식" 빈 카드 210px, "요약 통계" 380px 중 230px
           공백). 빈 상태가 화면을 차지하는 만큼 커지는 건 밀도가 아니라 낭비다. */}
-      <section className="stagger mt-3 grid grid-cols-1 items-start gap-3 md:grid-cols-12">
+      {/* [&>*]:min-w-0 — 홈도 /today 와 같은 구조(그리드 밖 넛지 배너 + 그리드 안
+          카드들)라 같은 결함을 공유한다. 자세한 이유는 today/page.tsx 의 같은 주석. */}
+      <section className="stagger mt-3 grid grid-cols-1 items-start gap-3 [&>*]:min-w-0 md:grid-cols-12">
         <TodayScheduleCard
           lessons={todayLessons}
           date={date}
@@ -192,7 +194,7 @@ export default async function Home() {
       </section>
 
       {/* 실 바로가기 — 사용빈도순 크기 차등(교실·담임 대, 나머지 소). */}
-      <section className="stagger mt-6 grid grid-cols-1 items-start gap-3 md:grid-cols-12">
+      <section className="stagger mt-6 grid grid-cols-1 items-start gap-3 [&>*]:min-w-0 md:grid-cols-12">
         <DashCard
           href="/classroom"
           title="🏫 교실"

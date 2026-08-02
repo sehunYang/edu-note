@@ -58,7 +58,7 @@ export default async function CalendarStagePage() {
       <h2 className="text-lg">3. 학사 일정 + 키워드</h2>
       <CalendarAttrs events={events} />
 
-      <div className="mt-8 grid gap-8 md:grid-cols-2">
+      <div className="mt-8 grid gap-8 [&>*]:min-w-0 md:grid-cols-2">
         <section>
           <h3 className="text-sm text-neutral-700">다가오는 학사일정</h3>
           {upcoming.length === 0 ? (
