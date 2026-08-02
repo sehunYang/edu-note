@@ -12,6 +12,7 @@ import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import type { StudentReport } from "@/lib/db/queries/student-report";
 import { Badge, TrendBadge, RankBadge } from "./badges";
 import { RoomHeader } from "@/app/ui/room-header";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "인쇄실" };
 
@@ -47,7 +48,6 @@ export default async function PrintHomePage({
       <RoomHeader
         icon="🖨️"
         title="인쇄실"
-        desc="담임반 또는 분반을 골라 학생별 점검 화면으로 이동하거나, 배부용 인쇄물을 준비하세요."
         actions={
           <Link
             href="/print/roster"
@@ -118,9 +118,11 @@ async function HomeroomScope({
 
   if (classes.length === 0) {
     return (
-      <p className="mt-8 text-sm text-neutral-400">
-        등록된 담임반이 없습니다. 먼저 세팅실에서 담임반을 등록하세요.
-      </p>
+      <div className="mt-6">
+        <EmptyState actions={[{ href: "/setting/students", label: "담임반 등록" }]}>
+          등록된 담임반이 없습니다.
+        </EmptyState>
+      </div>
     );
   }
 
@@ -220,9 +222,11 @@ async function SectionScope({
 
   if (sections.length === 0) {
     return (
-      <p className="mt-8 text-sm text-neutral-400">
-        이 학기에 등록된 분반이 없습니다. 먼저 세팅실에서 수업·분반을 등록하세요.
-      </p>
+      <div className="mt-6">
+        <EmptyState actions={[{ href: "/setting/courses", label: "수업·분반 등록" }]}>
+          이 학기에 등록된 분반이 없습니다.
+        </EmptyState>
+      </div>
     );
   }
 

@@ -74,11 +74,13 @@ export default async function NoticePage() {
 
   return (
     <div>
-      <h2 className="text-base">공지실</h2>
-      <p className="mt-2 text-xs text-neutral-400">
-        여기서 설정한 내용은 학생별 공개 페이지(<code>/p/…</code>)에 그대로 노출됩니다.
-        민감한 개인정보는 입력하지 마세요.
-      </p>
+      <h2 className="flex flex-wrap items-baseline gap-2 text-base">
+        공지실
+        {/* 공개 범위는 추측할 수 없고 되돌리기도 어렵다 — 제목에 붙여 상시 노출한다. */}
+        <span className="text-xs text-amber-600">
+          학생 공개 페이지에 그대로 노출 · 민감정보 금지
+        </span>
+      </h2>
 
       <NotesManager notes={notes} students={students} />
 

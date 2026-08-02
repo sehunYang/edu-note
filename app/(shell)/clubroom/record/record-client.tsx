@@ -111,12 +111,12 @@ export function RecordClient({
             {byteCount}/{byteLimit} byte
           </span>
         </div>
-        <textarea aria-label="원천자료를 참고해 생기부 본문을 작성하세요."
+        <textarea aria-label="생기부 본문"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={6}
           className="mt-2 w-full rounded border border-neutral-300 px-3 py-2 text-sm"
-          placeholder="원천자료를 참고해 생기부 본문을 작성하세요."
+          placeholder="생기부 본문"
         />
         <Button
           onClick={onSave}

@@ -56,7 +56,7 @@ export function RecordBulkClient({
       if (r.ok) {
         downloadCsv(r.csv, `생기부원천_${areaLabel}.csv`);
         setMsg(
-          `${r.count}명 ${areaLabel} 원천자료를 내보냈습니다. 코워크에서 생기부본문 열을 채워 다시 올리세요.`,
+          `${r.count}명 내보냄 — 생기부본문 열을 채워 다시 올리세요.`,
         );
       } else {
         setMsg(r.message);
@@ -111,12 +111,10 @@ export function RecordBulkClient({
 
       {/* 내보내기 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm text-neutral-700">
+        <h3 className="flex flex-wrap items-baseline gap-2 text-sm text-neutral-700">
           ① {areaLabel} 원천자료 내보내기
+          <span className="text-xs font-normal text-neutral-400">담임반 전원</span>
         </h3>
-        <p className="mt-1 text-xs text-neutral-400">
-          담임반 학생 전원의 {areaLabel} 원천자료를 한 파일로 내보냅니다.
-        </p>
         <Button
           onClick={onExport}
           disabled={pending}

@@ -83,12 +83,10 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
     <div className="mt-5 space-y-5">
       <section className="rounded-lg border border-neutral-200 p-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm text-neutral-700">NEIS 동기화</h3>
-            <p className="mt-1 text-xs text-neutral-400">
-              활성 학년도 범위의 학사일정·급식을 가져오고 키워드를 자동 분류합니다.
-            </p>
-          </div>
+          <h3 className="flex flex-wrap items-baseline gap-2 text-sm text-neutral-700">
+            NEIS 동기화
+            <span className="text-xs font-normal text-neutral-400">학사일정 · 급식</span>
+          </h3>
           <form action={sync}>
             <Button
               type="submit"

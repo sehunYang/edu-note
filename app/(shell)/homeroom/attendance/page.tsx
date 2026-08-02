@@ -17,6 +17,7 @@ import {
 import { FieldTripSection } from "./field-trip-client";
 import type { AttendanceReason } from "@/lib/domain/types";
 import { Button } from "@/app/ui/button";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "출결 관리" };
 
@@ -139,19 +140,14 @@ export default async function AttendancePage({
           <section className="mt-6 rounded-lg border border-neutral-200 p-5">
             <h2 className="text-sm text-neutral-700">출결 입력 ({date})</h2>
             {students.length === 0 ? (
-              <p className="mt-3 text-sm text-neutral-400">
-                먼저{" "}
-                <Link href="/students" className="underline">
-                  학생 명단
-                </Link>
-                을 임포트하세요.
-              </p>
+              <div className="mt-3">
+                <EmptyState actions={[{ href: "/students", label: "학생 명단 임포트" }]}>
+                  학생 명단이 비어 있습니다.
+                </EmptyState>
+              </div>
             ) : (
               <AttendancePeriodClient students={students} date={date} />
             )}
-            <p className="mt-2 text-xs text-neutral-400">
-              질병결석·비고 ‘생리통’은 신고서가 필요합니다(자동 판정).
-            </p>
           </section>
 
           <section className="mt-8">
@@ -166,18 +162,12 @@ export default async function AttendancePage({
       {view === "fieldtrip" && (
         <section className="mt-6 rounded-lg border border-neutral-200 p-5">
           <h2 className="text-sm text-neutral-700">교외체험학습 사후보고서</h2>
-          <p className="mt-1 text-xs text-neutral-400">
-            기간(시작~종료, 종료 생략=당일) 입력 시 수업일마다 인정결석이 자동 생성됩니다.
-            체험 종료일 기준 수업일 마감으로 미제출 시 티어가 오릅니다.
-          </p>
           {students.length === 0 ? (
-            <p className="mt-3 text-sm text-neutral-400">
-              먼저{" "}
-              <Link href="/students" className="underline">
-                학생 명단
-              </Link>
-              을 임포트하세요.
-            </p>
+            <div className="mt-3">
+              <EmptyState actions={[{ href: "/students", label: "학생 명단 임포트" }]}>
+                학생 명단이 비어 있습니다.
+              </EmptyState>
+            </div>
           ) : (
             <FieldTripSection students={students} trips={fieldTrips} />
           )}

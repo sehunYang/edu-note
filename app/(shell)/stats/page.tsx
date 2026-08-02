@@ -25,6 +25,7 @@ import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { SectionSelector } from "./section-selector";
 import { AlertPanel, type AlertPanelEntry } from "./alert-panel";
 import { RoomHeader } from "@/app/ui/room-header";
+import { EmptyState } from "@/app/ui/empty-state";
 import {
   HistogramChart,
   SectionComparisonChart,
@@ -179,7 +180,6 @@ export default async function StatsPage({
       <RoomHeader
         icon="📊"
         title={`통계실 (${year}학년도 ${sem}학기)`}
-        desc="경보 · 전체 현황 · 성적 분석 · 기록 커버리지 · 업무 진척."
         actions={
           <Link
             href="/print"
@@ -393,10 +393,14 @@ function GradeAnalysisView({ analysis }: { analysis: SectionGradeAnalysis }) {
             </div>
           </>
         ) : (
-          <p className="mt-2 rounded-lg border border-neutral-200 p-4 text-sm text-neutral-400">
-            이 분반은 아직 성적이 입력되지 않았습니다(수강생 {stats.n}명). 성적
-            기록에서 지필·수행 점수를 올리면 분포가 표시됩니다.
-          </p>
+          <div className="mt-2">
+            <EmptyState
+              tone="neutral"
+              actions={[{ href: "/classroom/grades", label: "성적 기록" }]}
+            >
+              성적이 아직 없습니다 (수강생 {stats.n}명).
+            </EmptyState>
+          </div>
         )}
       </div>
 

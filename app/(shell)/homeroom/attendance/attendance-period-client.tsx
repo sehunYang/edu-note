@@ -213,9 +213,6 @@ export function AttendancePeriodClient({
             onChange={(e) => setRangeEnd(e.target.value)}
             className="rounded border border-neutral-300 px-2 py-1 text-sm"
           />
-          <span className="text-xs text-neutral-400">
-            기간 지정 시 수업일마다 결석이 자동 생성됩니다.
-          </span>
         </fieldset>
       )}
     </form>

@@ -17,6 +17,7 @@ import type { SectionRoleRow, EvalSettingsView, StudentOption } from "@/lib/db/q
 import { Button } from "@/app/ui/button";
 import { ConfirmButton } from "@/app/ui/confirm-button";
 import { Disclosure } from "@/app/ui/disclosure";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export interface SubjectView {
   subjectId: string;
@@ -55,12 +56,12 @@ export function CoursesManager({
     <div className="mt-5 space-y-5">
       <section className="rounded-lg border border-neutral-200 p-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm text-neutral-700">시험일 파생</h3>
-            <p className="mt-1 text-xs text-neutral-400">
-              학사일정(C3)에서 태깅한 시험 일정을 과목별 시험일로 반영합니다.
-            </p>
-          </div>
+          <h3 className="flex flex-wrap items-baseline gap-2 text-sm text-neutral-700">
+            시험일 파생
+            <span className="text-xs font-normal text-neutral-400">
+              학사일정 → 과목별 시험일
+            </span>
+          </h3>
           <form action={materialize}>
             <Button
               type="submit"
@@ -84,9 +85,9 @@ export function CoursesManager({
       </section>
 
       {subjects.length === 0 ? (
-        <p className="text-sm text-neutral-400">
-          등록된 과목이 없습니다. 교사 설정에서 시간표를 동기화하세요.
-        </p>
+        <EmptyState actions={[{ href: "/setting/profile", label: "교사 설정" }]}>
+          등록된 과목이 없습니다. 위에서 시간표를 동기화하세요.
+        </EmptyState>
       ) : (
         subjects.map((s) => (
           <SubjectCard key={s.subjectId} subject={s} students={students} />
@@ -111,6 +112,25 @@ function SubjectCard({
   const perfText = (ev?.performance ?? [])
     .map((p) => `${p.name}:${p.weight}`)
     .join("\n");
+
+  /* 간략화 S-1: "수행 합 + 중간 + 기말 = 100 이어야 저장됩니다. 미시행 지필은 0."
+     이라는 두 규칙을 문장으로 두는 대신 컨트롤이 지키게 한다 —
+     합계는 실시간으로 보이고, 미시행 지필은 체크 해제 시 0으로 잠긴다.
+     validateEvalWeights(lib/domain/eval-weight.ts)의 서버 규칙과 동일한 식이라
+     버튼이 열려 있는데 저장이 거절되는 경우는 없다. */
+  const [perf, setPerf] = useState(perfText);
+  const [midOn, setMidOn] = useState(ev?.midEnabled ?? true);
+  const [finalOn, setFinalOn] = useState(ev?.finalEnabled ?? true);
+  const [mid, setMid] = useState(String(ev?.jipilMid ?? 0));
+  const [final, setFinal] = useState(String(ev?.jipilFinal ?? 0));
+  const midWeight = midOn ? Number(mid) || 0 : 0;
+  const finalWeight = finalOn ? Number(final) || 0 : 0;
+  const total =
+    perf
+      .split("\n")
+      .reduce((sum, line) => sum + (Number(line.split(":")[1]) || 0), 0) +
+    midWeight +
+    finalWeight;
 
   return (
     <section className="rounded-lg border border-neutral-200 p-4">
@@ -140,11 +160,12 @@ function SubjectCard({
       >
         <input type="hidden" name="subjectId" value={subject.subjectId} />
         <label className="block text-xs font-normal text-neutral-600">
-          수행평가 (한 줄에 "이름:비율")
+          수행평가 (한 줄에 &quot;이름:비율&quot;)
           <textarea
             name="performance"
             rows={2}
-            defaultValue={perfText}
+            value={perf}
+            onChange={(e) => setPerf(e.target.value)}
             placeholder={"실험보고서:30\n발표:20"}
             className="mt-1 w-full rounded border border-neutral-300 px-2 py-1 text-xs"
           />
@@ -154,33 +175,48 @@ function SubjectCard({
             <input
               type="checkbox"
               name="midEnabled"
-              defaultChecked={ev?.midEnabled ?? true}
+              checked={midOn}
+              onChange={(e) => setMidOn(e.target.checked)}
             />{" "}
             중간지필
             <input
               name="jipilMid"
               type="number"
-              defaultValue={ev?.jipilMid ?? 0}
-              className="w-16 rounded border border-neutral-300 px-1 py-0.5"
+              value={midOn ? mid : "0"}
+              disabled={!midOn}
+              onChange={(e) => setMid(e.target.value)}
+              className="w-16 rounded border border-neutral-300 px-1 py-0.5 disabled:opacity-40"
             />
           </label>
           <label className="flex items-center gap-1">
             <input
               type="checkbox"
               name="finalEnabled"
-              defaultChecked={ev?.finalEnabled ?? true}
+              checked={finalOn}
+              onChange={(e) => setFinalOn(e.target.checked)}
             />{" "}
             기말지필
             <input
               name="jipilFinal"
               type="number"
-              defaultValue={ev?.jipilFinal ?? 0}
-              className="w-16 rounded border border-neutral-300 px-1 py-0.5"
+              value={finalOn ? final : "0"}
+              disabled={!finalOn}
+              onChange={(e) => setFinal(e.target.value)}
+              className="w-16 rounded border border-neutral-300 px-1 py-0.5 disabled:opacity-40"
             />
           </label>
+          <span
+            className={
+              total === 100
+                ? "font-normal text-green-600"
+                : "font-normal text-amber-600"
+            }
+          >
+            합계 {total}/100
+          </span>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || total !== 100}
             className="rounded border border-green-600 bg-green-600 px-3 py-1 text-white hover:bg-green-500 disabled:opacity-40"
           >
             {saving ? "저장…" : "평가설정 저장"}
@@ -192,12 +228,6 @@ function SubjectCard({
             <span className="text-red-700">{evalState.message}</span>
           )}
         </div>
-        <p className="text-[11px] text-neutral-400">
-          수행 합 + 중간 + 기말 = 100 이어야 저장됩니다. 미시행 지필은 0.
-          {ev && (ev.performance.length > 0 || ev.jipilMid > 0 || ev.jipilFinal > 0) && (
-            <span className="ml-1 text-green-600">· 저장값 표시 중</span>
-          )}
-        </p>
       </form>
 
       {/* 분반 */}

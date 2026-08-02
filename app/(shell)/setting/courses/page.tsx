@@ -83,11 +83,12 @@ export default async function CoursesStagePage({
 
   return (
     <div>
-      <h2 className="text-lg">5. 수업 관리</h2>
-      <p className="mt-1 text-sm text-neutral-500">
-        분반별 평가설정(100% 검증)·수강 일괄등록·시험일·역할을 관리합니다. ({year}
-        학년도 {semester}학기{semester !== activeSem && " · 과거 학기 조회 중"})
-      </p>
+      <h2 className="flex flex-wrap items-baseline gap-2 text-lg">
+        5. 수업 관리
+        <span className="text-xs text-neutral-400">
+          {year}학년도{semester !== activeSem && " · 과거 학기 조회 중"}
+        </span>
+      </h2>
       <div className="mt-2 flex items-center gap-2 text-xs">
         {[1, 2].map((s) => (
           <Link
@@ -105,10 +106,10 @@ export default async function CoursesStagePage({
       </div>
 
       <section className="mt-5 rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm text-neutral-700">컴시간 시간표 동기화</h3>
-        <p className="mt-1 text-xs text-neutral-400">
-          컴시간알리미 학교·교사명으로 본인 시간표를 가져와 과목·분반을 생성합니다.
-        </p>
+        <h3 className="flex flex-wrap items-baseline gap-2 text-sm text-neutral-700">
+          컴시간 시간표 동기화
+          <span className="text-xs font-normal text-neutral-400">과목·분반 자동 생성</span>
+        </h3>
         <div className="mt-3">
           <TimetableSync
             defaultSchool={profile?.comciganSchool ?? ""}

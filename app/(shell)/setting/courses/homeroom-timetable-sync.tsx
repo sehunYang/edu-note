@@ -34,12 +34,12 @@ export function HomeroomTimetableSync() {
     <div className="mt-4 rounded-lg border border-neutral-200 p-4 text-sm">
       <form action={action}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h4>담임반 시간표 동기화</h4>
-            <p className="mt-1 text-xs text-neutral-500">
-              컴시간에서 담임반 시간표를 가져와 학생 안내 페이지에 표시합니다.
-            </p>
-          </div>
+          <h4 className="flex flex-wrap items-baseline gap-2">
+            담임반 시간표 동기화
+            <span className="text-xs font-normal text-neutral-500">
+              학생 안내 페이지에 표시
+            </span>
+          </h4>
           <Button
             type="submit"
             disabled={pending}
@@ -64,17 +64,14 @@ export function HomeroomTimetableSync() {
       <div className="mt-3 border-t border-neutral-100 pt-3">
         <form action={detectAction}>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h4>공통·선택 과목 자동 감지</h4>
-              <p className="mt-1 text-xs text-neutral-500">
-                컴시간 편성으로 반 전체 공통과목과 학생별 선택과목을 자동 구분합니다.
-                감지 결과를 확인한 뒤 적용합니다.
-                <span className="text-amber-600">
-                  {" "}
-                  정상 수업 주간(개학 후)에만 정확합니다.
-                </span>
-              </p>
-            </div>
+            <h4 className="flex flex-wrap items-baseline gap-2">
+              공통·선택 과목 자동 감지
+              {/* 이번 주 편성을 근거로 판별하므로 방학·시험주에는 결과가 틀린다.
+                  누르기 전에 알아야 하는 유일한 조건이라 남긴다. */}
+              <span className="text-xs font-normal text-amber-600">
+                정상 수업 주간에만 정확
+              </span>
+            </h4>
             <Button
               type="submit"
               disabled={detecting || applying}
@@ -94,8 +91,8 @@ export function HomeroomTimetableSync() {
         {preview && !(applyState && applyState.ok) && (
           <div className="mt-3 rounded border border-neutral-200 bg-neutral-50 p-3">
             <p className="text-xs text-neutral-600">
-              {preview.grade}학년 {preview.classNo}반 감지 결과 — 확인 후 적용하세요.
-              <span className="text-neutral-400"> (★ = 현재 설정과 달라짐)</span>
+              {preview.grade}학년 {preview.classNo}반 감지 결과
+              <span className="text-neutral-400"> · ★ = 현재 설정과 달라짐</span>
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {preview.detected.map((d) => (
@@ -114,8 +111,7 @@ export function HomeroomTimetableSync() {
             </div>
             {preview.unclassified.length > 0 && (
               <p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700">
-                이번 주 편성에 없어 판별 못 한 과목: {preview.unclassified.join(", ")} — 저장 시
-                건드리지 않습니다. 수동으로 확인하세요.
+                판별 못 함(저장 시 유지): {preview.unclassified.join(", ")}
               </p>
             )}
             <form action={applyAction} className="mt-3">

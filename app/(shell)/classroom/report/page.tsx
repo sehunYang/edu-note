@@ -14,6 +14,7 @@ import {
   ReportSelector,
   type SectionOption,
 } from "./report-selector";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "학생 보고서" };
 
@@ -67,15 +68,12 @@ export default async function ReportPage({
           <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>
         )}
       </h2>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        분반과 학생을 고르면 인적사항·관찰·성적을 모아 규칙기반 진단 플래그를
-        표시합니다(AI 미사용).
-      </p>
-
       {sectionOptions.length === 0 ? (
-        <p className="mt-8 text-sm text-neutral-400">
-          이 학기에 등록된 분반이 없습니다. 먼저 세팅실에서 수업·분반을 등록하세요.
-        </p>
+        <div className="mt-6">
+          <EmptyState actions={[{ href: "/setting/courses", label: "수업·분반 등록" }]}>
+            이 학기에 등록된 분반이 없습니다.
+          </EmptyState>
+        </div>
       ) : (
         <ReportSelector
           sections={sectionOptions}

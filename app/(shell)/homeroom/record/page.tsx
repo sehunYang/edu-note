@@ -6,6 +6,7 @@ import {
 } from "@/lib/db/queries";
 import { activeSchoolYear } from "@/lib/domain/school-year";
 import { RecordBulkClient } from "./record-bulk-client";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "생기부 작성" };
 
@@ -29,16 +30,12 @@ export default async function HomeroomRecordPage() {
   return (
     <div>
       <h2 className="text-base">생기부 작성 ({year})</h2>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        자율·진로·행동발달 원천자료를 CSV로 내보내 코워크에서 작성하고, 결과
-        CSV를 다시 올려 저장합니다(연말 1회).
-      </p>
-
       {students.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          담임반이 지정되어 있지 않습니다. 세팅실에서 담임 학급·학생을 먼저
-          등록하면 생기부를 작성할 수 있습니다.
-        </p>
+        <div className="mt-6">
+          <EmptyState actions={[{ href: "/setting/students", label: "담임 학급·학생 등록" }]}>
+            담임반이 지정되어 있지 않습니다.
+          </EmptyState>
+        </div>
       ) : (
         <RecordBulkClient
           students={students.map((s) => ({ id: s.id, label: `${s.sid} ${s.name}` }))}

@@ -26,7 +26,7 @@ export default async function ClubroomAssignPage() {
         <h2 className="text-base">부원 배정</h2>
         <div className="mt-8">
           <EmptyState actions={[{ href: "/clubroom/create", label: "동아리 개설" }]}>
-            아직 개설된 동아리가 없습니다. 먼저 동아리를 만드세요.
+            아직 개설된 동아리가 없습니다.
           </EmptyState>
         </div>
       </div>
@@ -49,8 +49,7 @@ export default async function ClubroomAssignPage() {
         부원 배정 — {club.name}
       </h2>
       <p className="mt-0.5 text-xs text-neutral-400">
-        {year}학년도 전체 명단에서 부원을 선택해 배정합니다. 명단에 없는 외부·타반
-        학생은 세팅실에서 먼저 등록하면 후보로 나타납니다.
+        후보 = {year}학년도 전체 명단. 없는 학생은 세팅실에서 먼저 등록하세요.
       </p>
 
       <section className="mt-6">

@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { getTeacherSettings } from "@/lib/db/queries";
 import { TabNav } from "@/app/ui/tab-nav";
 import { RoomHeader } from "@/app/ui/room-header";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -36,22 +36,16 @@ export default async function HomeroomLayout({
       <RoomHeader
         icon="🏠"
         title="담임 교실"
-        desc="담임반 학생의 자율·진로활동·출결·행특·상담·공지·생기부를 한곳에서 관리합니다."
-        note="학기 구분 없이 사용합니다"
+        note="학기 구분 없음"
       />
 
       {!settings?.isHomeroom ? (
-        <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          <p>
-            담임 교사로 설정되어 있지 않습니다. 세팅실-교사 기본설정에서 담임 학년/반을
-            설정하세요.
-          </p>
-          <Link
-            href="/setting/profile"
-            className="mt-2 inline-block underline hover:no-underline"
+        <div className="mt-5">
+          <EmptyState
+            actions={[{ href: "/setting/profile", label: "담임 학년·반 설정" }]}
           >
-            세팅실 → 교사 기본설정으로 이동
-          </Link>
+            담임 교사로 설정되어 있지 않습니다.
+          </EmptyState>
         </div>
       ) : (
         <>

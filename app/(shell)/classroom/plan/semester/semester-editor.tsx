@@ -79,6 +79,8 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
 
   if (!selected) return null;
 
+  const noExams = selected.examOrdinals.length === 0;
+
   return (
     <div className="mt-6 space-y-6">
       <div className="flex items-center gap-2">
@@ -101,16 +103,26 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
         </span>
       </div>
 
-      <ExamSegmentSection subject={selected} />
+      {/* 간략화 S-1: 시험 구간·목표 진도 두 섹션은 같은 조건(examOrdinals 없음)으로
+          비는데, 각자 같은 안내와 같은 버튼 2개를 띄워 한 화면에 똑같은 블록이
+          나란히 두 번 나왔다. 시험이 없으면 안내는 한 번만 한다. */}
+      {noExams ? (
+        <EmptyState
+          tone="neutral"
+          actions={[
+            { href: "/setting/calendar", label: "학사일정에 시험 등록" },
+            { href: "/setting/courses", label: "수업 관리 평가설정" },
+          ]}
+        >
+          이 과목이 보는 시험이 없습니다 — 시험 구간 차시 계획과 목표 진도는 시험을
+          등록해야 지정할 수 있습니다.
+        </EmptyState>
+      ) : (
+        <ExamSegmentSection subject={selected} />
+      )}
 
       <section>
         <h3 className="text-sm text-neutral-700">세부 단원</h3>
-        <p className="mt-1 text-xs text-neutral-400">
-          6자리 코드 = 대단원(2)·중단원(2)·소단원(2). 저장하면 코드 오름차순 ×
-          최소차시로 차시 계획에 자동 배치됩니다(1차 시험 목표 진도의 종료 단원까지는
-          1차 시험 전, 나머지는 1차 시험 후). 작성해 둔 차시별 수업내용은 그대로
-          유지됩니다.
-        </p>
         <ul className="mt-3 space-y-3">
           {sortedUnits.map((u) => (
             <UnitRow
@@ -124,45 +136,21 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
         <UnitRow subjectId={selected.subjectId} existingUnits={sortedUnits} />
       </section>
 
-      <ExamTargetsSection subject={selected} units={sortedUnits} />
+      {!noExams && <ExamTargetsSection subject={selected} units={sortedUnits} />}
     </div>
   );
 }
 
+/** 시험이 1개 이상일 때만 렌더된다(시험 없음 안내는 SemesterEditor 가 한 번만 한다). */
 function ExamSegmentSection({ subject }: { subject: SubjectSemesterView }) {
-  if (subject.examOrdinals.length === 0) {
-    return (
-      <section>
-        <h3 className="text-sm text-neutral-700">
-          시험 구간 차시 계획
-        </h3>
-        <div className="mt-2">
-          <EmptyState
-            tone="neutral"
-            actions={[
-              { href: "/setting/calendar", label: "학사일정에 시험 등록" },
-              { href: "/setting/courses", label: "수업 관리 평가설정" },
-            ]}
-          >
-            이 과목이 보는 시험이 없습니다. 세팅실 학사일정에 시험(1차/2차)을
-            등록하고, 수업 관리의 평가설정에서 중간/기말 지필 시행을 체크하면
-            구간별 진행 차시·여유 차시를 계획할 수 있습니다.
-          </EmptyState>
-        </div>
-      </section>
-    );
-  }
   return (
     <section>
-      <h3 className="text-sm text-neutral-700">
+      <h3 className="flex items-baseline gap-2 text-sm text-neutral-700">
         시험 구간 차시 계획
+        <span className="text-xs font-normal text-neutral-400">
+          대표분반 {subject.repLength}차시
+        </span>
       </h3>
-      <p className="mt-1 text-xs text-neutral-400">
-        시험 구간(1회=중간 전 / 2회=기말 전)별로 진행할 차시 수와 여유 차시 수를
-        입력합니다. 대표분반 차시{" "}
-        <span className="font-normal text-neutral-600">{subject.repLength}</span>개를
-        참고하세요.
-      </p>
       <ul className="mt-3 space-y-3">
         {subject.examOrdinals.map((ord) => (
           // key 에 subjectId 포함 — 과목 전환 시 리마운트되어 해당 과목의 저장값으로
@@ -466,25 +454,9 @@ function ExamTargetsSection({
   subject: SubjectSemesterView;
   units: SemesterUnit[];
 }) {
-  if (subject.examOrdinals.length === 0) {
-    return (
-      <section>
-        <h3 className="text-sm text-neutral-700">시험별 목표 진도</h3>
-        <p className="mt-1 text-xs text-neutral-400">
-          이 과목이 보는 시험이 없습니다. 세팅실 학사일정에 시험(1차/2차)을 등록하고,
-          수업 관리의 평가설정에서 중간/기말 지필 시행을 체크하면 목표 진도 범위를
-          지정할 수 있습니다.
-        </p>
-      </section>
-    );
-  }
   return (
     <section>
       <h3 className="text-sm text-neutral-700">시험별 목표 진도</h3>
-      <p className="mt-1 text-xs text-neutral-400">
-        시험까지 진행할 소단원 범위(어디~어디)를 지정합니다. 1차 시험의 종료 단원을
-        저장하면 차시 계획의 단원 배치가 1차 시험 전/후로 다시 나뉩니다.
-      </p>
       <ul className="mt-3 space-y-3">
         {subject.examOrdinals.map((ord) => (
           // key 에 subjectId 포함 — 과목 전환 시 리마운트(이전 과목 선택값 잔존 방지, ①).

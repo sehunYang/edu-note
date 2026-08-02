@@ -54,11 +54,10 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
     <div className="mt-5 space-y-6">
       {/* 학교 해석 */}
       <section className="rounded-lg border border-neutral-200 p-4">
-        <h3 className="text-sm text-neutral-700">학교 코드 해석</h3>
-        <p className="mt-1 text-xs text-neutral-400">
-          학교명을 한 번만 입력하면 NEIS(학사일정)와 컴시간(시간표) 식별자를 함께
-          찾습니다. 못 찾아도 수동 입력으로 진행할 수 있습니다.
-        </p>
+        <h3 className="flex flex-wrap items-baseline gap-2 text-sm text-neutral-700">
+          학교 코드 해석
+          <span className="text-xs font-normal text-neutral-400">NEIS · 컴시간</span>
+        </h3>
         <form action={resolve} className="mt-3 flex flex-wrap gap-2">
           <input aria-label="예: 인천해송고등학교"
             name="schoolName"

@@ -40,7 +40,7 @@ export default async function StaffroomPage() {
 
   return (
     <>
-      <RoomHeader icon="🗂️" title="교무실" desc="업무 to-do · 예산 집행 관리." />
+      <RoomHeader icon="🗂️" title="교무실" />
 
       {/* ── 업무 ── */}
       <section className="mt-5">

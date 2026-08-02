@@ -2,7 +2,7 @@
 export function LockedNotice() {
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-      🔒 선행 단계를 먼저 완료해야 이 단계를 설정할 수 있습니다.
+      🔒 선행 단계를 먼저 완료하세요.
     </div>
   );
 }

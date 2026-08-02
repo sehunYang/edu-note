@@ -82,7 +82,7 @@ export function SetechBulkClient({
       });
       if (r.ok) {
         downloadCsv(r.csv, `세특원천_${subject?.name ?? ""}_${semester}학기.csv`);
-        setMsg(`${r.count}명 원천자료를 내보냈습니다(점수 제외). 코워크에서 세특본문 열을 채워 다시 올리세요.`);
+        setMsg(`${r.count}명 내보냄 — 세특본문 열을 채워 다시 올리세요.`);
       } else {
         setMsg(r.message);
       }
@@ -318,11 +318,10 @@ function ExtraNoteForm({
 
   return (
     <section className="rounded-lg border border-neutral-200 p-4">
-      <h3 className="text-sm text-neutral-700">학생 추가 입력(자율 탐구 등)</h3>
-      <p className="mt-1 text-xs text-neutral-400">
-        세특 원천자료에 합류합니다. 과목을 고르면 그 과목 수강생만 표시됩니다. 점수가
-        아닌 활동 서술을 기입하세요.
-      </p>
+      <h3 className="flex items-baseline gap-2 text-sm text-neutral-700">
+        학생 추가 입력(자율 탐구 등)
+        <span className="text-xs font-normal text-neutral-400">세특 원천자료에 합류</span>
+      </h3>
       <div className="mt-3 flex flex-wrap gap-2">
         <select aria-label="과목"
           value={subjectId}

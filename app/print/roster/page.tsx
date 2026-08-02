@@ -3,6 +3,7 @@ import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { listStudents } from "@/lib/db/queries";
 import { PrintButton } from "../print-button";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "학생 명렬표" };
 
@@ -31,20 +32,14 @@ export default async function PrintRosterPage() {
         </div>
       </div>
 
-      <p className="mt-2 text-xs text-neutral-400 print:hidden">
-        아래 명렬표를 인쇄하거나 PDF 로 저장할 수 있습니다(브라우저 인쇄 → PDF로 저장).
-      </p>
-
       <section className="mt-6">
         <h2 className="mb-3 text-lg">학생 명렬표 ({year})</h2>
         {students.length === 0 ? (
-          <p className="text-sm text-neutral-400">
-            등록된 학생이 없습니다.{" "}
-            <Link href="/students" className="underline print:hidden">
-              학생 명단
-            </Link>
-            을 먼저 임포트하세요.
-          </p>
+          <div className="print:hidden">
+            <EmptyState actions={[{ href: "/students", label: "학생 명단 임포트" }]}>
+              등록된 학생이 없습니다.
+            </EmptyState>
+          </div>
         ) : (
           <table className="w-full border-collapse text-sm">
             <thead>

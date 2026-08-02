@@ -28,7 +28,7 @@ export default async function ClubroomPlanPage() {
         <h2 className="text-base">활동 계획</h2>
         <div className="mt-8">
           <EmptyState actions={[{ href: "/clubroom/create", label: "동아리 개설" }]}>
-            아직 개설된 동아리가 없습니다. 먼저 동아리를 만드세요.
+            아직 개설된 동아리가 없습니다.
           </EmptyState>
         </div>
       </div>
@@ -50,16 +50,12 @@ export default async function ClubroomPlanPage() {
           </Button>
         </form>
       </div>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        학사일정의 동아리 활동일을 차시로 자동 생성합니다. 차시마다 예정 활동을
-        기입하세요.
-      </p>
-
       {sessions.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          동아리 활동일이 없습니다. 세팅실 학사일정에서 동아리 활동일을 등록한 뒤
-          차시 동기화를 누르세요.
-        </p>
+        <div className="mt-6">
+          <EmptyState actions={[{ href: "/setting/calendar", label: "학사일정에 활동일 등록" }]}>
+            동아리 활동일이 없습니다. 등록 후 차시 동기화를 누르세요.
+          </EmptyState>
+        </div>
       ) : (
         <ul className="mt-6 space-y-3">
           {sessions.map((s) => (

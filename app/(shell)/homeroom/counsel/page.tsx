@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import {
@@ -21,6 +20,7 @@ import {
 import { CounselCsvPanel } from "./counsel-csv-panel";
 import { CounselSlotList, CounselLogList } from "./counsel-lists-client";
 import { Button } from "@/app/ui/button";
+import { EmptyState } from "@/app/ui/empty-state";
 import { kstDateString } from "@/lib/domain/kst";
 
 export const metadata = { title: "상담실" };
@@ -65,13 +65,11 @@ export default async function CounselPage() {
       <section className="mt-6 rounded-lg border border-neutral-200 p-5">
         <h2 className="text-sm text-neutral-700">새 상담일지</h2>
         {students.length === 0 ? (
-          <p className="mt-3 text-sm text-neutral-400">
-            먼저{" "}
-            <Link href="/students" className="underline">
-              학생 명단
-            </Link>
-            을 임포트하세요.
-          </p>
+          <div className="mt-3">
+            <EmptyState actions={[{ href: "/students", label: "학생 명단 임포트" }]}>
+              학생 명단이 비어 있습니다.
+            </EmptyState>
+          </div>
         ) : (
           <form action={createCounselingAction} className="mt-3 space-y-3">
             <div className="flex flex-wrap gap-3">

@@ -228,10 +228,7 @@ export default async function Home() {
         />
       </section>
 
-      <div className="mt-10 flex items-center justify-between border-t border-neutral-100 pt-4">
-        <p className="text-xs text-neutral-400">
-          AI 세특은 코워크(Claude Code) 내보내기 워크플로로 진행합니다.
-        </p>
+      <div className="mt-10 flex items-center justify-end border-t border-neutral-100 pt-4">
         <a
           href="/api/backup"
           download

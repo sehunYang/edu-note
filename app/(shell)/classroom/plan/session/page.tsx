@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import {
@@ -12,6 +11,7 @@ import {
 import { computeUnitOrdinalSum } from "@/lib/domain/lesson-plan";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { PlanStageNav } from "../plan-stage-nav";
+import { EmptyState } from "@/app/ui/empty-state";
 import { SessionEditor, type SubjectSessionView } from "./session-editor";
 
 export const metadata = { title: "차시 계획" };
@@ -96,27 +96,26 @@ export default async function SessionPlanPage({
           <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>
         )}
       </h2>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        차시 계획 단계입니다. 차시별 수업내용과 핵심개념을 기록하고, 6자리 코드(또는
-        선택)로 세부 단원을 연결하세요.
-      </p>
-
       <PlanStageNav active="session" semester={sp.semester} />
 
       {views.length === 0 ? (
-        <p className="mt-8 text-sm text-neutral-400">
-          이 학기에 등록된 과목이 없습니다. 먼저 세팅실에서 수업을 등록하세요.
-        </p>
+        <div className="mt-6">
+          <EmptyState actions={[{ href: "/setting/courses", label: "수업 등록" }]}>
+            이 학기에 등록된 과목이 없습니다.
+          </EmptyState>
+        </div>
       ) : !anyComplete ? (
-        <div className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          아직 학기 계획(세부 단원)이 등록된 과목이 없습니다. 먼저{" "}
-          <Link
-            href={`/classroom/plan/semester${sp.semester ? `?semester=${sp.semester}` : ""}`}
-            className="font-normal underline"
+        <div className="mt-6">
+          <EmptyState
+            actions={[
+              {
+                href: `/classroom/plan/semester${sp.semester ? `?semester=${sp.semester}` : ""}`,
+                label: "학기 계획에서 단원 등록",
+              },
+            ]}
           >
-            학기 계획 단계
-          </Link>
-          에서 단원을 등록하세요.
+            아직 학기 계획(세부 단원)이 등록된 과목이 없습니다.
+          </EmptyState>
         </div>
       ) : (
         <SessionEditor subjects={views} />

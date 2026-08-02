@@ -61,7 +61,7 @@ export function ImportForm({ defaultYear }: { defaultYear: number }) {
         rows={5}
         value={csv}
         onChange={(e) => setCsv(e.target.value)}
-        placeholder={"여기에 붙여넣거나 위에서 CSV 파일을 선택하세요.\n학번,이름,연락처\n10101,홍길동,010-1234-5678"}
+        placeholder={"학번,이름,연락처\n10101,홍길동,010-1234-5678"}
         className="w-full rounded border border-neutral-300 p-2 font-mono text-sm"
       />
 

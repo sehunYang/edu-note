@@ -4,6 +4,7 @@ import { saveFixedClassesAction, type FixedClassState } from "./actions";
 import type { GradeClassOffering } from "@/lib/db/queries";
 import { Button } from "@/app/ui/button";
 import { Disclosure } from "@/app/ui/disclosure";
+import { EmptyState } from "@/app/ui/empty-state";
 
 /**
  * 고정반 설정 패널 (QC v3 Part B AC-10.3). 담임 학년의 (반,과목) 제공목록을 체크박스로
@@ -39,12 +40,12 @@ export function FixedClassPanel({
         hint="체크=고정반(원반) · 미체크=선택과목(이동반)"
       >
       {!grade ? (
-        <p className="text-sm text-amber-600">
-          담임 학년이 설정되어 있지 않습니다. 세팅실에서 담임 정보를 먼저 입력하세요.
-        </p>
+        <EmptyState actions={[{ href: "/setting/profile", label: "담임 정보 설정" }]}>
+          담임 학년이 설정되어 있지 않습니다.
+        </EmptyState>
       ) : syncError || !offerings ? (
         <p className="text-sm text-amber-600">
-          동기화 실패, 수기로 시간표를 확인하세요.
+          시간표 동기화 실패
           {syncError ? <span className="block text-xs text-neutral-400">{syncError}</span> : null}
         </p>
       ) : (

@@ -9,6 +9,7 @@ import {
 } from "@/lib/db/queries";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { SetechBulkClient } from "./setech-bulk-client";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "세특 작성" };
 
@@ -52,15 +53,12 @@ export default async function SetechPage({
       <h2 className="text-base">
         세특 작성 · {sem}학기
       </h2>
-      <p className="mt-1 text-xs text-neutral-400">
-        과목·분반별 원천자료(점수 제외)를 CSV로 내보내 코워크에서 세특을 만들고, 결과 CSV를
-        다시 올려 저장합니다. 점수·지필성적은 기재요령상 포함하지 않습니다.
-      </p>
-
       {subjects.length === 0 ? (
-        <p className="mt-6 text-sm text-neutral-400">
-          {sem}학기 과목이 없습니다. 먼저 세팅실에서 수업을 등록하세요.
-        </p>
+        <div className="mt-6">
+          <EmptyState actions={[{ href: "/setting/courses", label: "수업 등록" }]}>
+            {sem}학기 과목이 없습니다.
+          </EmptyState>
+        </div>
       ) : (
         <SetechBulkClient
           semester={sem}

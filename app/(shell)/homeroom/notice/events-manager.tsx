@@ -35,10 +35,12 @@ export function EventsManager({
 
   return (
     <section className="mt-8">
-      <h2 className="text-sm text-neutral-700">할 일 / 공지</h2>
-      <p className="mt-1 text-xs text-neutral-400">
-        공개 페이지에는 오늘부터 7일 이내 항목이 “이번 주 할 일”로 표시됩니다.
-      </p>
+      <h2 className="flex flex-wrap items-baseline gap-2 text-sm text-neutral-700">
+        할 일 / 공지
+        <span className="text-xs text-neutral-400">
+          7일 이내 = 학생 페이지 &lsquo;이번 주 할 일&rsquo;
+        </span>
+      </h2>
 
       <form action={addNoticeEventAction} className="mt-3 space-y-2">
         <div className="flex flex-wrap items-center gap-2">

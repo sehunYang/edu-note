@@ -39,6 +39,7 @@ export default async function GradesViewPage({
       <div className="flex items-center justify-between">
         <h2 className="text-base">
           저장 성적 테이블 · {sem}학기
+          <span className="ml-2 text-xs text-neutral-400">환산 전 원자료</span>
         </h2>
         <Link
           href={`/classroom/grades?semester=${sem}`}
@@ -47,10 +48,6 @@ export default async function GradesViewPage({
           ← 성적 기록
         </Link>
       </div>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        업로드되어 저장된 지필 원점수와 수행 항목별 점수·서술을 조회합니다(환산 전 원자료).
-      </p>
-
       {tables.length === 0 ? (
         <p className="mt-8 text-sm text-neutral-400">
           이 학기에 등록된 과목이 없습니다.

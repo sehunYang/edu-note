@@ -34,7 +34,7 @@ export default async function SettingLayout({
       <RoomHeader
         icon="⚙️"
         title="세팅실"
-        desc={`${year}학년도 기초 환경을 순서대로 설정합니다.`}
+        desc={`${year}학년도`}
       />
 
       <StageNav

@@ -120,13 +120,15 @@ export function NotifyCard({ token }: { token: string }) {
         </p>
       ) : iosBlocked ? (
         <p className="mt-2 text-sm text-neutral-500">
-          아이폰·아이패드는 홈 화면에 추가한 뒤 앱으로 열어야 알림을 받을 수
-          있어요. Safari 공유 버튼 → &lsquo;홈 화면에 추가&rsquo;
+          아이폰·아이패드는 홈 화면에 추가한 뒤 앱으로 열어야 알림을 받아요.
+          <span className="block text-xs text-neutral-400">
+            Safari 공유 버튼 → &lsquo;홈 화면에 추가&rsquo;
+          </span>
         </p>
       ) : !subscribed ? (
         <div className="mt-3 space-y-2">
           <p className="text-sm text-neutral-500">
-            새 공지·상담 통지·서류 마감을 알림으로 받아보세요.
+            새 공지 · 상담 통지 · 서류 마감
           </p>
           <Button
             onClick={onSubscribe}

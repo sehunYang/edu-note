@@ -10,6 +10,7 @@ import {
   type SelfActivityEvent,
   type ActivityEntry,
 } from "./activities-client";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "자율·진로활동" };
 
@@ -74,15 +75,12 @@ export default async function HomeroomActivitiesPage() {
       <h2 className="text-base">
         자율·진로활동 ({year})
       </h2>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        담임반 학생의 자율·진로 활동 특기 내역을 기입합니다.
-      </p>
-
       {students.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          담임반이 지정되어 있지 않습니다. 세팅실에서 담임 학급·학생을 먼저
-          등록하면 활동을 기입할 수 있습니다.
-        </p>
+        <div className="mt-6">
+          <EmptyState actions={[{ href: "/setting/students", label: "담임 학급·학생 등록" }]}>
+            담임반이 지정되어 있지 않습니다.
+          </EmptyState>
+        </div>
       ) : (
         <ActivitiesClient
           students={students}

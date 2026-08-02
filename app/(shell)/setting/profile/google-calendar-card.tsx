@@ -54,11 +54,12 @@ export function GoogleCalendarCard() {
 
   return (
     <section className="mt-6 rounded-lg border border-neutral-200 p-4">
-      <h3 className="text-sm text-neutral-700">구글 캘린더</h3>
-      <p className="mt-1 text-xs text-neutral-400">
-        오늘의 학교에서 직접 추가한 일정을 본인 구글 캘린더로 자동 동기화합니다
-        (단방향).
-      </p>
+      <h3 className="flex flex-wrap items-baseline gap-2 text-sm text-neutral-700">
+        구글 캘린더
+        <span className="text-xs font-normal text-neutral-400">
+          내 일정 → 구글 (단방향)
+        </span>
+      </h3>
 
       <div className="mt-3 text-sm">
         {status === null && <span className="text-neutral-400">확인 중…</span>}

@@ -7,6 +7,7 @@ import {
 } from "@/lib/db/queries";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { ObservationsClient, type SectionOption } from "./observations-client";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "교과 관찰" };
 
@@ -81,15 +82,12 @@ export default async function ClassroomObservationsPage({
           <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>
         )}
       </h2>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        분반을 반드시 지정해 관찰을 기록합니다. 학생을 고르면 수강 분반이 자동
-        매칭되고, 분반을 고르면 학생 명단이 그 분반으로 좁혀집니다.
-      </p>
-
       {sectionOptions.length === 0 ? (
-        <p className="mt-8 text-sm text-neutral-400">
-          이 학기에 등록된 분반이 없습니다. 먼저 세팅실에서 수업·분반을 등록하세요.
-        </p>
+        <div className="mt-6">
+          <EmptyState actions={[{ href: "/setting/courses", label: "수업·분반 등록" }]}>
+            이 학기에 등록된 분반이 없습니다.
+          </EmptyState>
+        </div>
       ) : (
         <ObservationsClient
           semester={sem}

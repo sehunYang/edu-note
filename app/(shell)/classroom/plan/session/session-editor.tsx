@@ -13,6 +13,7 @@ import { Paginator } from "@/lib/ui/paginator";
 import { paginate, DEFAULT_PAGE_SIZE } from "@/lib/db/pagination";
 import { Button } from "@/app/ui/button";
 import { SaveStatus, useSaveStatus } from "@/app/ui/save-status";
+import { EmptyState } from "@/app/ui/empty-state";
 
 /**
  * 차시 계획 클라이언트 에디터 (QC v4 US-2, AC-1.6~1.10). 과목 선택 → 차시 1..N 행.
@@ -135,9 +136,11 @@ export function SessionEditor({ subjects }: { subjects: SubjectSessionView[] }) 
       </div>
 
       {!selected.semesterComplete ? (
-        <p className="text-sm text-amber-700">
-          이 과목은 학기 계획(세부 단원)이 비어 있어 차시 계획을 작성할 수 없습니다.
-        </p>
+        <EmptyState
+          actions={[{ href: "/classroom/plan/semester", label: "학기 계획에서 단원 등록" }]}
+        >
+          이 과목은 학기 계획(세부 단원)이 비어 있습니다.
+        </EmptyState>
       ) : (
         // key 에 entries 시그니처를 포함해, 여유차시 토글(서버 시프트+revalidate) 후
         // 새 서버 상태로 에디터가 remount 되어 로컬 rows 가 최신 배치를 반영하게 한다.
@@ -276,10 +279,9 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
 
   if (rowCount === 0) {
     return (
-      <p className="text-sm text-neutral-400">
-        이 과목의 시간표·수업일이 없어 차시 수를 산출할 수 없습니다. 세팅실에서
-        시간표를 동기화하세요.
-      </p>
+      <EmptyState actions={[{ href: "/setting/courses", label: "시간표 동기화" }]}>
+        이 과목의 시간표·수업일이 없어 차시 수를 산출할 수 없습니다.
+      </EmptyState>
     );
   }
 
@@ -314,9 +316,8 @@ function SubjectSessionEditor({ subject }: { subject: SubjectSessionView }) {
         </div>
         {repLength > 0 && !matchesRep && (
           <p className="mt-2 text-xs text-amber-700">
-            세부단원 차시합({contentRows}) + 여유차시({slackNum}) ={" "}
-            {contentRows + slackNum} 이(가) 대표분반 차시({repLength})와 다릅니다.
-            차이를 확인하세요(강제는 아닙니다).
+            세부단원 {contentRows} + 여유 {slackNum} = {contentRows + slackNum}차시
+            · 대표분반 {repLength}차시와 다름
           </p>
         )}
       </div>
@@ -484,11 +485,7 @@ function SessionRow({
                 type="button"
                 onClick={() => onChange({ keywords: addKeyword(row.keywords, kw) })}
                 disabled={already}
-                title={
-                  already
-                    ? "이미 이 차시의 핵심개념에 있습니다."
-                    : "클릭하면 이 차시의 핵심개념에 추가됩니다."
-                }
+                title={already ? "이미 추가됨" : "핵심개념에 추가"}
                 className={`rounded px-1.5 py-0.5 text-xs ${
                   already
                     ? "bg-neutral-100 text-neutral-400"
@@ -539,8 +536,7 @@ function ExceedModal({
           학기 계획을 변경하시겠습니까?
         </h3>
         <p className="mt-2 text-sm text-neutral-600">
-          아래 단원은 학기 계획의 최소 차시보다 더 많은 차시가 배정되었습니다. &quot;네&quot;를
-          누르면 단원의 최소 차시를 실제 차시 수로 갱신합니다.
+          단원의 최소 차시를 실제 차시 수로 갱신합니다.
         </p>
         <ul className="mt-3 space-y-1 text-sm text-neutral-700">
           {exceeded.map((e) => (

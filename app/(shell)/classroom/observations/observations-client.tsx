@@ -198,9 +198,7 @@ export function ObservationsClient({
         {/* 자동매칭 토글(학생의 수강 분반이 복수일 때) */}
         {sectionToggle && sectionToggle.length > 1 && (
           <div className="rounded border border-blue-100 bg-blue-50/50 p-2">
-            <p className="text-xs text-neutral-500">
-              이 학생의 수강 분반(자동매칭) — 하나를 선택하세요.
-            </p>
+            <p className="text-xs text-neutral-500">수강 분반</p>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {sectionToggle.map((s) => (
                 <button

@@ -10,6 +10,7 @@ import {
 import { GenerateButton } from "./generate-button";
 import { setBoundaryAction, setStatusAction } from "./actions";
 import { Button } from "@/app/ui/button";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "시수" };
 
@@ -56,23 +57,20 @@ export default async function SessionsPage() {
       </div>
 
       <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-        <p className="text-xs text-neutral-400">
-          과목별 <strong>시험 날짜</strong>를 정하면, 오늘부터 그날까지 시간표·수업일
-          기준으로 남은 차시를 계산합니다. (잔여 = 아직 안 한 예정 차시)
-        </p>
-        <div className="mt-3">
+        <div className="flex flex-wrap items-center gap-3">
           <GenerateButton />
+          <span className="text-xs text-neutral-400">
+            잔여 = 시험일까지 남은 예정 차시
+          </span>
         </div>
       </section>
 
       {sections.length === 0 ? (
-        <p className="mt-8 text-sm text-neutral-400">
-          분반이 없습니다. 먼저{" "}
-          <Link href="/timetable" className="underline">
-            시간표
-          </Link>
-          에서 컴시간 동기화를 하세요.
-        </p>
+        <div className="mt-6">
+          <EmptyState actions={[{ href: "/timetable", label: "시간표 동기화" }]}>
+            분반이 없습니다.
+          </EmptyState>
+        </div>
       ) : (
         <div className="mt-8 space-y-8">
           {[...bySubject.values()].map((secs) => {

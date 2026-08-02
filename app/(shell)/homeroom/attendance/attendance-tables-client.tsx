@@ -268,13 +268,13 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
   return (
     <>
       {/* 등급 기준 표기 (사용성 개선 P2-13). '심각/위험' 이 무엇을 뜻하는지, 마감
-          옆 괄호 숫자가 무엇인지 화면에 없어 추측해야 했다. */}
+          옆 괄호 숫자가 무엇인지 화면에 없어 추측해야 했다. 간략화 S-1: 문장이
+          아니라 기호로 — 읽는 줄이 아니라 대조하는 범례가 되게 한다. */}
       <p className="mt-3 text-xs text-neutral-500">
-        마감일 경과 수업일 기준 —{" "}
-        <span className={TIER_CLASS.normal}>정상</span> 3일 이내 ·{" "}
-        <span className={TIER_CLASS.warning}>위험</span> 3일 초과 ·{" "}
-        <span className={TIER_CLASS.critical}>심각</span> 5일 초과. 마감 옆
-        괄호는 남은 수업일(음수면 초과일)입니다.
+        마감 초과 수업일 <span className={TIER_CLASS.normal}>정상</span> ≤3 ·{" "}
+        <span className={TIER_CLASS.warning}>위험</span> &gt;3 ·{" "}
+        <span className={TIER_CLASS.critical}>심각</span> &gt;5 · 마감 옆 괄호 =
+        남은 수업일
       </p>
       <table className="mt-3 w-full text-sm">
         <thead className="text-left text-neutral-400">

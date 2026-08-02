@@ -6,6 +6,7 @@ import { listSubjectsWithSections, getGradeView } from "@/lib/db/queries";
 import { subjects, performanceItems } from "@/lib/db/schema/classes";
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { GradesUploader, type SubjectGradeView } from "./grades-uploader";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "성적 기록" };
 
@@ -91,15 +92,12 @@ export default async function GradesPage({
           저장 테이블 조회 →
         </Link>
       </div>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        원점수만 저장하고 환산값은 읽기시점에 계산합니다. 수행은 항목별, 지필은
-        활성 회차별로 CSV를 업로드하세요(학번 기준 매칭).
-      </p>
-
       {views.length === 0 ? (
-        <p className="mt-8 text-sm text-neutral-400">
-          이 학기에 등록된 과목이 없습니다. 먼저 세팅실에서 수업을 등록하세요.
-        </p>
+        <div className="mt-6">
+          <EmptyState actions={[{ href: "/setting/courses", label: "수업 등록" }]}>
+            이 학기에 등록된 과목이 없습니다.
+          </EmptyState>
+        </div>
       ) : (
         <GradesUploader subjects={views} />
       )}

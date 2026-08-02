@@ -22,10 +22,6 @@ export default async function ClubroomCreatePage() {
   return (
     <div>
       <h2 className="text-base">동아리 개설</h2>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        담당 동아리를 1개 만듭니다. 부원 배정·활동 계획·활동 입력·생기부 작성은
-        동아리를 만든 뒤 사용할 수 있습니다.
-      </p>
 
       {club ? (
         <section className="mt-6 rounded-lg border border-neutral-200 p-5">
@@ -46,9 +42,6 @@ export default async function ClubroomCreatePage() {
               </ConfirmButton>
             </form>
           </div>
-          <p className="mt-3 text-xs text-neutral-400">
-            동아리를 삭제하면 부원·활동 차시가 함께 삭제됩니다.
-          </p>
         </section>
       ) : (
         <section className="mt-6 rounded-lg border border-neutral-200 p-5">

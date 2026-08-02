@@ -55,10 +55,6 @@ export function TodayAttendanceCard({
 
       <AttendancePeriodClient students={students} date={date} />
 
-      <p className="mt-2 text-xs text-neutral-400">
-        질병결석·비고 ‘생리통’은 신고서가 필요합니다(자동 판정).
-      </p>
-
       <div className="mt-4 border-t border-neutral-100 pt-3">
         <h3 className="text-xs text-neutral-500">
           오늘 기록 {records.length}건

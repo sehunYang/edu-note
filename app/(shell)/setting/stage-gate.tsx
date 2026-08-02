@@ -16,12 +16,9 @@ export function StageGate({
   disabled?: boolean;
 }) {
   return (
-    <div className="mt-8 flex items-center justify-between border-t border-neutral-100 pt-4">
-      <p className="text-xs text-neutral-400">
-        {completed
-          ? "이 단계는 완료되었습니다. 다음 단계로 진행하세요."
-          : "이 단계를 완료하면 다음 단계가 해제됩니다."}
-      </p>
+    /* 간략화 S-1: 버튼 옆 설명문 삭제. "이 단계 완료 →" 와 상단 StageNav 의 자물쇠가
+       같은 말을 이미 하고 있었다. */
+    <div className="mt-8 flex items-center justify-end border-t border-neutral-100 pt-4">
       {completed ? (
         <form action={reopenStageAction}>
           <input type="hidden" name="stage" value={stage} />

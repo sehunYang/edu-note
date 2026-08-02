@@ -56,9 +56,6 @@ export default async function CalendarStagePage() {
   return (
     <div>
       <h2 className="text-lg">3. 학사 일정 + 키워드</h2>
-      <p className="mt-1 text-sm text-neutral-500">
-        NEIS 학사일정을 동기화하고 시험·방학·동아리 속성을 보정합니다.
-      </p>
       <CalendarAttrs events={events} />
 
       <div className="mt-8 grid gap-8 md:grid-cols-2">

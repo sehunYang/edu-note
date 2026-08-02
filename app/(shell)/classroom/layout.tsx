@@ -32,7 +32,6 @@ export default function ClassroomLayout({
       <RoomHeader
         icon="🏫"
         title="교실"
-        desc="수업 계획부터 세특 작성까지, 학기별 수업 운영을 한곳에서 관리합니다."
         actions={<SemesterSelector defaultSemester={defaultSemester} />}
       />
 

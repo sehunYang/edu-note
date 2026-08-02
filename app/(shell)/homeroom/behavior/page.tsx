@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { listHomeroomStudents, listBehaviorNotes } from "@/lib/db/queries";
 import { activeSchoolYear } from "@/lib/domain/school-year";
 import { BehaviorClient, type HomeroomStudent } from "./behavior-client";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "행동특성 기록" };
 
@@ -60,15 +61,12 @@ export default async function HomeroomBehaviorPage({
   return (
     <div>
       <h2 className="text-base">행동특성 기록 ({year})</h2>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        담임반 학생의 행동특성을 누가기록합니다(당일 미작성 시 종일 넛지).
-      </p>
-
       {students.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          담임반이 지정되어 있지 않습니다. 세팅실에서 담임 학급·학생을 먼저
-          등록하면 행동특성을 기록할 수 있습니다.
-        </p>
+        <div className="mt-6">
+          <EmptyState actions={[{ href: "/setting/students", label: "담임 학급·학생 등록" }]}>
+            담임반이 지정되어 있지 않습니다.
+          </EmptyState>
+        </div>
       ) : (
         <BehaviorClient
           students={students}

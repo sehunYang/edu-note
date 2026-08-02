@@ -5,6 +5,7 @@ import { listStudents, listStudentActivities } from "@/lib/db/queries";
 import { createActivityAction, deleteActivityAction } from "./actions";
 import { SubmitButton } from "./submit-button";
 import { ConfirmButton } from "@/app/ui/confirm-button";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "활동 기입" };
 
@@ -45,19 +46,20 @@ export default async function ActivitiesPage() {
       </div>
 
       <section className="mt-6 rounded-lg border border-neutral-200 p-5">
-        <h2 className="text-sm text-neutral-700">새 활동 기입</h2>
-        <p className="mt-1 text-xs text-neutral-400">
-          자율·진로 모두 해당하는 활동은 <strong>자율+진로</strong>로 선택하면 한 곳(기본:
-          자율)으로 자동 배치되어 세특에 중복 들어가지 않습니다.
-        </p>
+        <h2 className="flex flex-wrap items-baseline gap-2 text-sm text-neutral-700">
+          새 활동 기입
+          {/* '자율+진로' 를 골랐을 때 두 곳에 들어가지 않는다는 건 선택지 이름만으로는
+              반대로 읽힌다 — 중복 걱정을 없애는 한 줄만 남긴다. */}
+          <span className="text-xs font-normal text-neutral-400">
+            자율+진로 선택 시 한 곳에만 배치
+          </span>
+        </h2>
         {students.length === 0 ? (
-          <p className="mt-3 text-sm text-neutral-400">
-            먼저{" "}
-            <Link href="/students" className="underline">
-              학생 명단
-            </Link>
-            을 임포트하세요.
-          </p>
+          <div className="mt-3">
+            <EmptyState actions={[{ href: "/students", label: "학생 명단 임포트" }]}>
+              학생 명단이 비어 있습니다.
+            </EmptyState>
+          </div>
         ) : (
           <form action={createActivityAction} className="mt-3 space-y-3">
             <div className="flex flex-wrap gap-3">

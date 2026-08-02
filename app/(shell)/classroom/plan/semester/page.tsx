@@ -10,6 +10,7 @@ import {
 import { activeSchoolYear, activeSemester } from "@/lib/domain/school-year";
 import { PlanStageNav } from "../plan-stage-nav";
 import { SemesterEditor, type SubjectSemesterView } from "./semester-editor";
+import { EmptyState } from "@/app/ui/empty-state";
 
 export const metadata = { title: "학기 계획" };
 
@@ -88,18 +89,14 @@ export default async function SemesterPlanPage({
           <span className="ml-2 text-xs text-neutral-400">(과거/타 학기 조회 중)</span>
         )}
       </h2>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        학기 계획 단계입니다. 과목별로 대/중/소단원과 핵심개념·최소차시를 입력하고,
-        시험별 목표 진도를 소단원 범위로 지정하세요. 단원을 1개 이상 등록하면 차시
-        계획 단계로 넘어갈 수 있습니다.
-      </p>
-
       <PlanStageNav active="semester" semester={sp.semester} />
 
       {views.length === 0 ? (
-        <p className="mt-8 text-sm text-neutral-400">
-          이 학기에 등록된 과목이 없습니다. 먼저 세팅실에서 수업을 등록하세요.
-        </p>
+        <div className="mt-6">
+          <EmptyState actions={[{ href: "/setting/courses", label: "수업 등록" }]}>
+            이 학기에 등록된 과목이 없습니다.
+          </EmptyState>
+        </div>
       ) : (
         <SemesterEditor subjects={views} />
       )}

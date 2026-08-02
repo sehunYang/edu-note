@@ -87,10 +87,14 @@ export function AlertPanel({
               key={s.kind}
               className="rounded-md border border-neutral-200 px-3 py-2 text-xs text-neutral-500"
             >
-              {KIND_LABEL[s.kind]}이 전체 {cohortSize}명 중{" "}
-              <span className="tabular-nums text-neutral-300">{s.count}명</span>(
-              {Math.round(s.ratio * 100)}%)에게 해당해 개별 경보에서 제외했습니다 —
-              특정 학생의 이상이 아니라 학급 전체 상태입니다.
+              {/* 간략화 S-1: "왜 개별 경보에 안 뜨는가"를 두 문장으로 설명하던 것을
+                  수치 + 라벨로 줄인다. '학급 전체' 라는 말이 곧 제외 이유다. */}
+              <span className="text-neutral-300">학급 전체</span>{" "}
+              {KIND_LABEL[s.kind]} ·{" "}
+              <span className="tabular-nums text-neutral-300">
+                {s.count}/{cohortSize}명
+              </span>{" "}
+              ({Math.round(s.ratio * 100)}%)
             </li>
           ))}
         </ul>

@@ -9,6 +9,7 @@ import {
 import { performanceCsvExample, jipilCsvExample } from "@/lib/csv/grades";
 import { downloadCsv } from "@/lib/ui/download-csv";
 import { Button } from "@/app/ui/button";
+import { EmptyState } from "@/app/ui/empty-state";
 
 /**
  * 성적 기록 클라이언트 업로더 (교실 2-2 단계4). 과목 선택 → 수행 항목별 업로드칸
@@ -80,10 +81,14 @@ export function GradesUploader({ subjects }: { subjects: SubjectGradeView[] }) {
       <section>
         <h3 className="text-sm text-neutral-700">수행평가</h3>
         {selected.performanceItems.length === 0 ? (
-          <p className="mt-1 text-xs text-neutral-400">
-            이 과목에 등록된 수행평가 항목이 없습니다. 세팅실에서 평가설정을
-            등록하세요.
-          </p>
+          <div className="mt-2">
+            <EmptyState
+              tone="neutral"
+              actions={[{ href: "/setting/courses", label: "평가설정" }]}
+            >
+              등록된 수행평가 항목이 없습니다.
+            </EmptyState>
+          </div>
         ) : (
           <ul className="mt-2 space-y-3">
             {selected.performanceItems.map((item) => (
@@ -448,10 +453,6 @@ function GradePreview({
           </Button>
         </form>
       </div>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        칸을 직접 고친 뒤 <strong>변경 저장</strong>을 누르세요. 대량 입력은 위의 CSV
-        업로드를 쓰면 됩니다. 지필은 활성 회차별, 수행은 항목별로 분해됩니다.
-      </p>
       {state && <UploadResult state={state} />}
       <div className="mt-2 overflow-x-auto">
         <table className="min-w-full text-xs">

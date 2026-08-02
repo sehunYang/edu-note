@@ -29,7 +29,7 @@ export default async function ClubroomEntryPage() {
         <h2 className="text-base">활동 입력</h2>
         <div className="mt-8">
           <EmptyState actions={[{ href: "/clubroom/create", label: "동아리 개설" }]}>
-            아직 개설된 동아리가 없습니다. 먼저 동아리를 만드세요.
+            아직 개설된 동아리가 없습니다.
           </EmptyState>
         </div>
       </div>
@@ -57,20 +57,16 @@ export default async function ClubroomEntryPage() {
       <h2 className="text-base">
         활동 입력 — {club.name}
       </h2>
-      <p className="mt-0.5 text-xs text-neutral-400">
-        차시별 공통 활동 내용과 부원별 개별 메모를 기입합니다.
-      </p>
-
       {sessions.length === 0 ? (
-        <div className="mt-8">
+        <div className="mt-6">
           <EmptyState actions={[{ href: "/clubroom/plan", label: "활동 계획에서 차시 동기화" }]}>
-            차시가 없습니다. 활동 계획에서 차시를 먼저 동기화하세요.
+            차시가 없습니다.
           </EmptyState>
         </div>
       ) : members.length === 0 ? (
-        <div className="mt-8">
+        <div className="mt-6">
           <EmptyState actions={[{ href: "/clubroom/assign", label: "부원 배정" }]}>
-            배정된 부원이 없습니다. 부원을 먼저 배정하세요.
+            배정된 부원이 없습니다.
           </EmptyState>
         </div>
       ) : (

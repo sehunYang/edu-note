@@ -156,11 +156,11 @@ export function SetechForm({
         <label className="text-xs font-normal text-neutral-600">
           ② 코워크 결과 붙여넣기 → 검수 후 저장
         </label>
-        <textarea aria-label="코워크(Claude Code)에서 생성된 세특 본문을 붙여넣으세요."
+        <textarea aria-label="세특 본문 붙여넣기"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={6}
-          placeholder="코워크(Claude Code)에서 생성된 세특 본문을 붙여넣으세요."
+          placeholder="세특 본문 붙여넣기"
           className="w-full rounded border border-neutral-300 px-3 py-2 text-sm"
         />
         <Button

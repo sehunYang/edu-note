@@ -9,6 +9,7 @@ import { Paginator } from "@/lib/ui/paginator";
 import { paginate } from "@/lib/db/pagination";
 import { Button } from "@/app/ui/button";
 import { Disclosure } from "@/app/ui/disclosure";
+import { EmptyState } from "@/app/ui/empty-state";
 
 /** 분반별 진척도 통계 뷰(서버 getSectionProgressStats 결과 미러). */
 export interface StatView {
@@ -80,16 +81,15 @@ export function ProgressBoard({
 
       {/* 차시 생성 */}
       <section className="rounded-lg border border-neutral-200 p-5">
-        <p className="text-xs text-neutral-400">
-          학기 전체(개학~학기말) 시간표·수업일 기준으로 차시를 생성합니다.
-          완료·미진행 차시는 보존됩니다.
-        </p>
-        <form action={generateSessionsAction} className="mt-3">
+        <form action={generateSessionsAction} className="flex flex-wrap items-center gap-3">
           <input type="hidden" name="year" value={year} />
           <input type="hidden" name="semester" value={semester} />
           <Button className="px-3 py-1.5 text-sm">
             {semester}학기 차시 생성/정리
           </Button>
+          <span className="text-xs text-neutral-400">
+            완료·미진행 차시는 보존됩니다
+          </span>
         </form>
       </section>
 
@@ -102,9 +102,11 @@ export function ProgressBoard({
           분반별 차시
         </h3>
         {sections.length === 0 ? (
-          <p className="mt-3 text-sm text-neutral-400">
-            이 학기에 등록된 분반이 없습니다. 먼저 세팅실에서 수업·시간표를 등록하세요.
-          </p>
+          <div className="mt-3">
+            <EmptyState actions={[{ href: "/setting/courses", label: "수업·시간표 등록" }]}>
+              이 학기에 등록된 분반이 없습니다.
+            </EmptyState>
+          </div>
         ) : (
           <div className="mt-3 space-y-1.5">
             {sections.map((sec) => (
@@ -205,11 +207,10 @@ function StatsHeader({ stats }: { stats: StatView[] }) {
     r > 1 ? "100% (시험 경과)" : `${Math.round(r * 100)}%`;
   return (
     <section className="rounded-lg border border-neutral-200 p-5">
-      <h3 className="text-neutral-800">진도 현황(분반별)</h3>
-      <p className="mt-1 text-xs text-neutral-400">
-        단원진도 = 완료(done) 차시의 마지막 도달 단원(여유차시 제외, 자동 도출). 시험진도율은
-        지필 시행 과목만 표시(목표 = 오늘까지 차시 ÷ 시험목표 차시, 2차시 이상 뒤지면 빨강).
-      </p>
+      <h3 className="flex items-baseline gap-2 text-neutral-800">
+        진도 현황(분반별)
+        <span className="text-xs text-neutral-400">빨강 = 목표보다 2차시 이상 뒤짐</span>
+      </h3>
       <ul className="mt-3 space-y-2">
         {stats.map((st) => (
           <li

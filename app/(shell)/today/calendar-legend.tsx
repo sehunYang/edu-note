@@ -52,22 +52,27 @@ export function CalendarLegend() {
               </li>
             ))}
           </ul>
+          {/* 간략화 S-1: 문장 설명을 "표기 → 뜻" 대조표로 바꾼다. 범례는 읽는 글이
+              아니라 화면의 표기와 눈으로 맞춰 보는 것이다 — 방학도 말로 색을
+              설명하는 대신 그 색 자체를 보여준다. */}
           <ul className="space-y-1 text-neutral-500">
-            <li>
+            <li className="flex flex-wrap items-baseline gap-1.5">
               <span className="rounded bg-blue-100 px-1.5 py-0.5 text-blue-700">
                 G
-              </span>{" "}
-              로 시작하는 일정은 연결된 <strong>구글 캘린더</strong>에서 가져온
-              것입니다(읽기 전용 — 수정·삭제는 구글에서).
+              </span>
+              구글 캘린더 (읽기 전용)
             </li>
-            <li>
+            <li className="flex flex-wrap items-baseline gap-1.5">
               <span className="rounded bg-purple-100 px-1.5 py-0.5 text-purple-700">
                 메모 N
-              </span>{" "}
-              는 그날 적어 둔 메모 개수입니다. 날짜를 누르면 열립니다.
+              </span>
+              그날의 메모 — 날짜를 누르면 열림
             </li>
-            <li>
-              방학 기간은 칸 배경이 옅은 <strong>노란색</strong>으로 칠해집니다.
+            <li className="flex flex-wrap items-baseline gap-1.5">
+              <span className="rounded bg-amber-100/60 px-1.5 py-0.5 text-amber-700">
+                칸 배경
+              </span>
+              방학
             </li>
           </ul>
         </div>
