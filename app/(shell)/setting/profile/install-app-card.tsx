@@ -134,7 +134,7 @@ export function InstallAppCard() {
 
         {!standalone && !installed && !installEvent && platform === "other" && (
           <p className="text-xs text-neutral-400">
-            주소창 오른쪽 설치 아이콘 또는 브라우저 메뉴 → &lsquo;설치&rsquo;
+            주소창 설치 아이콘 또는 브라우저 메뉴 → &lsquo;설치&rsquo;
           </p>
         )}
 

@@ -29,7 +29,7 @@ export default function GlobalError({
             앱을 불러오지 못했습니다
           </h1>
           <p className="mt-2 text-sm text-neutral-500">
-            잠시 후 다시 시도해 주세요. 계속되면 브라우저를 새로고침해 주세요.
+            잠시 후 다시 시도해 주세요.
           </p>
           {error.digest && (
             <p className="mt-2 font-mono text-xs text-neutral-600">

@@ -31,12 +31,12 @@ export default async function LoginPage({
 
       {error === "forbidden" && (
         <p className="mt-6 text-sm text-red-600">
-          허용되지 않은 계정입니다. 등록된 교사 계정으로 로그인하세요.
+          등록된 교사 계정이 아닙니다.
         </p>
       )}
       {error === "auth" && (
         <p className="mt-6 text-sm text-red-600">
-          로그인 처리 중 문제가 발생했습니다. 다시 시도해 주세요.
+          로그인에 실패했습니다. 다시 시도해 주세요.
         </p>
       )}
       </main>

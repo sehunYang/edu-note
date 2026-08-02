@@ -114,8 +114,7 @@ export function SemesterEditor({ subjects }: { subjects: SubjectSemesterView[] }
             { href: "/setting/courses", label: "수업 관리 평가설정" },
           ]}
         >
-          이 과목이 보는 시험이 없습니다 — 시험 구간 차시 계획과 목표 진도는 시험을
-          등록해야 지정할 수 있습니다.
+          이 과목이 보는 시험이 없습니다.
         </EmptyState>
       ) : (
         <ExamSegmentSection subject={selected} />

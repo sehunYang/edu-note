@@ -86,7 +86,7 @@ export function CoursesManager({
 
       {subjects.length === 0 ? (
         <EmptyState actions={[{ href: "/setting/profile", label: "교사 설정" }]}>
-          등록된 과목이 없습니다. 위에서 시간표를 동기화하세요.
+          등록된 과목 없음 · 위에서 시간표 동기화
         </EmptyState>
       ) : (
         subjects.map((s) => (

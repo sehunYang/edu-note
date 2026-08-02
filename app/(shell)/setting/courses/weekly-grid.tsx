@@ -7,7 +7,7 @@ export function WeeklyGrid({ slots }: { slots: TimetableViewSlot[] }) {
   if (slots.length === 0) {
     return (
       <p className="mt-3 text-sm text-neutral-400">
-        아직 시간표가 없습니다. 위에서 컴시간 동기화를 실행하세요.
+        시간표 없음 · 위에서 컴시간 동기화
       </p>
     );
   }

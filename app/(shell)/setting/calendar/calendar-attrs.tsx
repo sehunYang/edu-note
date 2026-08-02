@@ -143,7 +143,7 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
 
         {events.length === 0 ? (
           <p className="mt-2 text-sm text-neutral-400">
-            아직 동기화된 학사일정이 없습니다. 위에서 동기화하세요.
+            학사일정 없음 · 위에서 동기화
           </p>
         ) : (
           <div className="mt-3 space-y-2">
