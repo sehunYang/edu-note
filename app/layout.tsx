@@ -9,9 +9,45 @@ import { SwRegister } from "./sw-register";
 // title.template: 각 page 가 `title: "출결 관리"` 만 선언하면 "출결 관리 · Edu_Note"
 // 가 된다(사용성 개선 P0-4). 이전에는 50개 페이지 중 2개만 제목을 설정해 모든
 // 브라우저 탭·방문기록·북마크가 "Edu_Note" 하나로 뭉개졌다.
+// metadataBase: openGraph 이미지를 상대경로로 쓰려면 절대 URL 기준이 필요하다.
+// Vercel 은 프로덕션 도메인을 VERCEL_PROJECT_PRODUCTION_URL 로 넣어준다(프리뷰
+// 배포에서도 프로덕션 도메인이 들어와, 미리보기 카드가 항상 실서비스를 가리킨다).
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
+
+const SITE_DESCRIPTION =
+  "고등학교 교사 1인용 교수-수업-평가-기록 일체화 플랫폼";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  applicationName: "Edu_Note",
   title: { default: "Edu_Note", template: "%s · Edu_Note" },
-  description: "고등학교 교사 1인용 교수-수업-평가-기록 일체화 플랫폼",
+  description: SITE_DESCRIPTION,
+  // 색인할 공개 랜딩이 없는 서비스다(교사=로그인 뒤, 학생=비밀 토큰 링크).
+  // 루트에서 noindex 를 기본값으로 깔아 로그인 화면 등이 검색에 노출되지 않게 한다.
+  // /p/* 는 유출 위험이 커 페이지에서 한 번 더 명시한다.
+  robots: { index: false, follow: false },
+  // 카카오톡·슬랙 등 메신저 링크 미리보기용. noindex 와 무관하게 메신저 크롤러는
+  // og 태그를 읽으므로, 제목만 덩그러니 뜨던 카드에 설명·아이콘을 채운다.
+  openGraph: {
+    type: "website",
+    siteName: "Edu_Note",
+    locale: "ko_KR",
+    title: "Edu_Note",
+    description: SITE_DESCRIPTION,
+    images: [
+      { url: "/icons/icon-512.png", width: 512, height: 512, alt: "Edu_Note" },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Edu_Note",
+    description: SITE_DESCRIPTION,
+    images: ["/icons/icon-512.png"],
+  },
 };
 
 export const viewport: Viewport = {
@@ -56,6 +92,11 @@ export default function RootLayout({
         />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        {/* iOS 홈 화면 아이콘 이름. 경로별로 바꾸지 않는다 — 학생 페이지에서
+            "학생 안내"로 바꾸려면 스크립트 생성이 필요한데, /p/* 에서는 스크립트가
+            head 에 붙인 노드가 렌더 경로에 따라 사라지는 것이 실측됐다(같은 이유로
+            manifest 링크도 /p/* 404 화면에서는 유실된다). 안드로이드 쪽 구분은
+            토큰 manifest 의 short_name("학생 안내")이 담당한다. */}
         <meta name="apple-mobile-web-app-title" content="Edu_Note" />
         <meta
           name="apple-mobile-web-app-status-bar-style"

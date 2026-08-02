@@ -28,9 +28,14 @@ export async function GET(
   return NextResponse.json(
     {
       id: path,
-      name: "Edu_Note",
-      short_name: "Edu_Note",
+      // 교사 앱과 이름이 같으면 한 기기에 둘 다 설치했을 때 홈 화면에서 구분이
+      // 안 된다(가정에서 교사가 쓰던 기기, 형제 자매 공용 기기). 설치 프롬프트에
+      // 뜨는 name 은 풀네임, 아이콘 밑에 붙는 short_name 은 짧게 나눠 쓴다.
+      name: "학생 안내 · Edu_Note",
+      short_name: "학생 안내",
       description: "학생 안내 페이지 — 시간표·일정·안내를 한곳에서",
+      lang: "ko",
+      dir: "ltr",
       start_url: path,
       scope: path,
       display: "standalone",
