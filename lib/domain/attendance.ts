@@ -40,11 +40,20 @@ export function absentPeriods(
 }
 
 /**
- * 남은 수업일 수 → 제출 티어.
- * ≥3 → normal, <3 && ≥0 → warning, <0 → critical.
+ * 미제출 화면 티어. DB report_tier(3단)와 달리 마감 경과 = 제출불가(expired)를
+ * 별도 상태로 가진다 — 결석계는 마감(5수업일)을 넘기면 미인정 전환 대상이라
+ * "심각"으로 계속 보여줄 일이 아니라 제출 자체가 불가하기 때문.
  */
-export function submissionTier(remainingSchoolDays: number): ReportTier {
+export type SubmissionTier = ReportTier | "expired";
+
+/**
+ * 남은 수업일 수 → 제출 티어. 결석계 마감이 사건 후 5수업일이므로, 경과 수업일로
+ * 읽으면 1·2일째=정상, 3일째=위험, 4·5일째=심각, 5일 초과=제출불가다.
+ * ≥3 → normal, 2 → warning, 1~0 → critical, <0 → expired.
+ */
+export function submissionTier(remainingSchoolDays: number): SubmissionTier {
   if (remainingSchoolDays >= 3) return "normal";
-  if (remainingSchoolDays >= 0) return "warning";
-  return "critical";
+  if (remainingSchoolDays >= 2) return "warning";
+  if (remainingSchoolDays >= 0) return "critical";
+  return "expired";
 }

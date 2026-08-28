@@ -10,7 +10,11 @@ import { studentYears } from "../schema/identity";
 import { homeroomMembers } from "../schema/classes";
 import { schoolDayCalendar } from "../schema/misc";
 import { isReportRequired } from "@/lib/domain/attendance-rules";
-import { absentPeriods, submissionTier } from "@/lib/domain/attendance";
+import {
+  absentPeriods,
+  submissionTier,
+  type SubmissionTier,
+} from "@/lib/domain/attendance";
 import {
   buildAttendanceTally,
   type StudentTally,
@@ -18,11 +22,15 @@ import {
 import type {
   AttendanceReason,
   AttendanceKind,
-  ReportTier,
 } from "@/lib/domain/types";
 import { applyPaging } from "../pagination";
 import { listHomeroomStudents } from "./observations";
 import { writeAudit } from "./audit";
+import {
+  ATTENDANCE_REPORT_DEADLINE_SCHOOL_DAYS,
+  FIELD_TRIP_POST_REPORT_DEADLINE_SCHOOL_DAYS,
+  nthSchoolDayAfter,
+} from "./escalation";
 
 /**
  * 출결 쿼리 계층 (계획 §3.3 F, §3.4 attendanceRules, AC-F).
@@ -365,7 +373,9 @@ export async function updateAttendanceRecord(
       kind: input.kind,
       noteField: input.noteField ?? null,
       reportRequired,
-      periods: input.periods ?? null,
+      // periods 미지정이면 기존 값 보존 — 예전엔 무조건 null 로 덮어써서
+      // 인라인 수정 한 번에 교시 기록이 통째로 사라졌다.
+      ...(input.periods !== undefined ? { periods: input.periods } : {}),
       updatedAt: new Date(),
     })
     .where(
@@ -628,7 +638,7 @@ export async function searchAttendanceByStudent(
 export type UnsubmittedAttendanceRow = AttendanceStudentRow & {
   deadlineDate: string | null;
   remainingSchoolDays: number | null;
-  tier: ReportTier;
+  tier: SubmissionTier;
   /** dedupe·UI 구분용 사건 출처. attendance=출결 신고서, fieldTrip=교외체험 사후보고서. */
   source: "attendance" | "fieldTrip";
 };
@@ -657,12 +667,11 @@ export async function listUnsubmittedAttendance(
 ): Promise<UnsubmittedAttendanceRow[]> {
   const ids = await homeroomStudentIds(db, ownerId, year);
 
-  // (1) attendance 소스 — 신고서 필요·미제출 출결 + 추적행(마감/추적 id).
+  // (1) attendance 소스 — 신고서 필요·미제출 출결 + 추적행(dedupe 용 추적 id).
   const attRows = await db
     .select({
       ...STUDENT_ROW_COLUMNS,
       reportTrackingId: reportTracking.id,
-      deadlineDate: reportTracking.deadlineDate,
     })
     .from(attendanceRecords)
     .innerJoin(studentYears, eq(attendanceRecords.studentYearId, studentYears.id))
@@ -685,10 +694,10 @@ export async function listUnsubmittedAttendance(
       studentYearId: fieldTripReports.studentYearId,
       tripDate: fieldTripReports.tripDate,
       startDate: fieldTripReports.startDate,
+      endDate: fieldTripReports.endDate,
       sid: studentYears.sid,
       name: studentYears.name,
       reportTrackingId: reportTracking.id,
-      deadlineDate: reportTracking.deadlineDate,
     })
     .from(fieldTripReports)
     .innerJoin(studentYears, eq(fieldTripReports.studentYearId, studentYears.id))
@@ -713,10 +722,27 @@ export async function listUnsubmittedAttendance(
   const sortedSchoolDays = cal.map((c) => c.date).sort();
   const today = asOf.toISOString().slice(0, 10);
 
-  const tierFor = (deadline: string | null) => {
-    const remaining =
-      deadline == null ? null : remainingSchoolDays(sortedSchoolDays, today, deadline);
-    return { remaining, tier: submissionTier(remaining ?? 0) };
+  // 마감일은 추적 스냅샷(report_tracking.deadline_date)이 아니라 여기서 직접
+  // 계산한다 — 스냅샷은 일일 재계산(recomputeEscalation/pg_cron)이 채우는
+  // 값이라 그 전엔 null 이고, null 을 남은 0일로 취급하면 방금 입력한 기록까지
+  // 전부 심각으로 오판정됐다(실측 버그). 기준일=결석일(출결)/종료일(교외체험),
+  // 마감=기준일 이후 수업일 5일(출결)/10일(교외체험).
+  const deadlineFor = (base: string, days: number) =>
+    nthSchoolDayAfter(sortedSchoolDays, base, days);
+
+  // 제출불가(expired)는 결석계에만 적용 — 결석계는 5수업일을 넘기면 미인정 전환
+  // 대상이라 제출이 무의미하지만, 교외체험 사후보고서(마감 10수업일)는 늦어도
+  // 받기는 하므로 마감 경과 시 심각으로 캡한다. 마감을 알 수 없으면(캘린더가
+  // 그 날짜까지 없음 = 마감이 알려진 지평선 밖) 정상으로 둔다.
+  const tierFor = (
+    deadline: string | null,
+    source: "attendance" | "fieldTrip",
+  ): { remaining: number | null; tier: SubmissionTier } => {
+    if (deadline == null) return { remaining: null, tier: "normal" };
+    const remaining = remainingSchoolDays(sortedSchoolDays, today, deadline);
+    let tier = submissionTier(remaining);
+    if (tier === "expired" && source === "fieldTrip") tier = "critical";
+    return { remaining, tier };
   };
 
   // (4) 양쪽 homeroom 필터 + tier 계산 → UnsubmittedAttendanceRow + dedupe 키.
@@ -725,10 +751,11 @@ export async function listUnsubmittedAttendance(
   const attMapped: Merged[] = attRows
     .filter((r) => ids.has(r.studentYearId))
     .map((r) => {
-      const { remaining, tier } = tierFor(r.deadlineDate);
+      const deadline = deadlineFor(r.date, ATTENDANCE_REPORT_DEADLINE_SCHOOL_DAYS);
+      const { remaining, tier } = tierFor(deadline, "attendance");
       return {
         ...toStudentRow(r),
-        deadlineDate: r.deadlineDate,
+        deadlineDate: deadline,
         remainingSchoolDays: remaining,
         tier,
         source: "attendance" as const,
@@ -740,7 +767,11 @@ export async function listUnsubmittedAttendance(
   const tripMapped: Merged[] = tripRows
     .filter((r) => ids.has(r.studentYearId))
     .map((r) => {
-      const { remaining, tier } = tierFor(r.deadlineDate);
+      const deadline = deadlineFor(
+        r.endDate ?? r.startDate ?? r.tripDate,
+        FIELD_TRIP_POST_REPORT_DEADLINE_SCHOOL_DAYS,
+      );
+      const { remaining, tier } = tierFor(deadline, "fieldTrip");
       const date = r.startDate ?? r.tripDate;
       return {
         id: r.id,
@@ -754,7 +785,7 @@ export async function listUnsubmittedAttendance(
         periods: null,
         sid: r.sid,
         name: r.name,
-        deadlineDate: r.deadlineDate,
+        deadlineDate: deadline,
         remainingSchoolDays: remaining,
         tier,
         source: "fieldTrip" as const,

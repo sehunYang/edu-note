@@ -34,16 +34,27 @@ describe("absentPeriods", () => {
   });
 });
 
-describe("submissionTier (남은 수업일 기준)", () => {
-  it("경계값: 3→normal, 2→warning, 0→warning, -1→critical", () => {
+describe("submissionTier (남은 수업일 기준, 마감=5수업일)", () => {
+  it("경계값: 3→normal, 2→warning, 1→critical, 0→critical, -1→expired", () => {
     expect(submissionTier(3)).toBe("normal");
     expect(submissionTier(2)).toBe("warning");
-    expect(submissionTier(0)).toBe("warning");
-    expect(submissionTier(-1)).toBe("critical");
+    expect(submissionTier(1)).toBe("critical");
+    expect(submissionTier(0)).toBe("critical");
+    expect(submissionTier(-1)).toBe("expired");
   });
 
-  it("큰 양수는 normal, 큰 음수는 critical", () => {
+  it("경과 수업일로 읽으면 1·2일=정상, 3일=위험, 4·5일=심각, 초과=제출불가", () => {
+    // 경과 n일 = 남은 5-n일.
+    expect(submissionTier(5 - 1)).toBe("normal");
+    expect(submissionTier(5 - 2)).toBe("normal");
+    expect(submissionTier(5 - 3)).toBe("warning");
+    expect(submissionTier(5 - 4)).toBe("critical");
+    expect(submissionTier(5 - 5)).toBe("critical");
+    expect(submissionTier(5 - 6)).toBe("expired");
+  });
+
+  it("큰 양수는 normal, 큰 음수는 expired", () => {
     expect(submissionTier(99)).toBe("normal");
-    expect(submissionTier(-99)).toBe("critical");
+    expect(submissionTier(-99)).toBe("expired");
   });
 });

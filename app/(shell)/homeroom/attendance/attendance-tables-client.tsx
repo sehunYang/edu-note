@@ -10,6 +10,7 @@ import {
   markUnsubmittedSubmittedAction,
 } from "./actions";
 import type { AttendanceStudentRow } from "@/lib/db/queries";
+import type { SubmissionTier } from "@/lib/domain/attendance";
 import { Button } from "@/app/ui/button";
 import { ATTENDANCE_KIND_CHIP, ATTENDANCE_REASON_CHIP } from "@/lib/domain/attendance-display";
 import { ConfirmButton } from "@/app/ui/confirm-button";
@@ -17,7 +18,8 @@ import { ConfirmButton } from "@/app/ui/confirm-button";
 /**
  * 출결 목록 클라이언트 (QC v4 US-4, AC-4.5~4.7).
  * - 월별/학생별/미제출/교외체험 목록 10개씩 페이지네이션(공용 Paginator).
- * - 출결 기록 인라인 수정(사유/성격/비고) — 삭제만 가능하던 기존 동작 확장.
+ * - 출결 기록 인라인 수정(사유/성격/비고/교시) — 지조결은 교시도 함께 수정.
+ * - 학생/날짜 링크는 월별뿐 아니라 오늘 입력·학생별·미제출에서도 각자 켠다.
  */
 const PAGE_SIZE = 10;
 
@@ -36,22 +38,171 @@ const KIND_LABEL: Record<string, string> = {
 const REASONS = ["illness", "accepted", "unaccepted", "etc"] as const;
 const KINDS = ["late", "early_leave", "absent_period", "absent"] as const;
 
+// 조회=0, 이후 1..7교시 (attendance-period-client 와 동일 목록).
+const PERIODS = Array.from({ length: 8 }, (_, i) => i);
+
+function periodLabel(p: number): string {
+  return p === 0 ? "조회" : `${p}교시`;
+}
+
 /** 교시 배열 → 라벨(조회=0). */
 function periodsLabel(periods: number[] | null): string {
   if (!periods || periods.length === 0) return "—";
   return periods.map((p) => (p === 0 ? "조회" : `${p}교시`)).join(", ");
 }
 
+/** 학생별 검색 뷰 링크. */
+function studentHref(studentYearId: string): string {
+  return `/homeroom/attendance?view=student&studentYearId=${studentYearId}`;
+}
+
+/** 해당 날짜의 오늘 입력 뷰 링크. */
+function dateHref(date: string): string {
+  return `/homeroom/attendance?view=today&date=${date}`;
+}
+
+/** 저장된 periods 에서 지각/조퇴 기점을 복원한다(지각=최대, 조퇴=최소). */
+function initialPivot(kind: string, periods: number[] | null): number {
+  if (!periods || periods.length === 0) return 0;
+  if (kind === "late") return Math.max(...periods);
+  if (kind === "early_leave") return Math.min(...periods);
+  return 0;
+}
+
+/**
+ * 인라인 수정 폼. 성격을 바꾸면 교시 입력도 그 성격의 방식으로 바뀐다
+ * (지각/조퇴=기점 라디오, 결과=다중 체크, 결석=전체라 입력 없음) — 신규 입력
+ * (AttendancePeriodClient)과 같은 규칙. 서버가 absentPeriods 로 재파생한다.
+ */
+function EditAttendanceForm({
+  row,
+  onDone,
+}: {
+  row: AttendanceStudentRow;
+  onDone: () => void;
+}) {
+  const [kind, setKind] = useState<string>(row.kind);
+  const [pivotPeriod, setPivotPeriod] = useState(() =>
+    initialPivot(row.kind, row.periods),
+  );
+  const [selected, setSelected] = useState<number[]>(() =>
+    row.kind === "absent_period" ? (row.periods ?? []) : [],
+  );
+
+  const showPivot = kind === "late" || kind === "early_leave";
+  const showMulti = kind === "absent_period";
+
+  function toggle(p: number) {
+    setSelected((cur) =>
+      cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p],
+    );
+  }
+
+  return (
+    <form
+      action={updateAttendanceAction}
+      className="space-y-2"
+      onSubmit={onDone}
+    >
+      <input type="hidden" name="id" value={row.id} />
+      <div className="flex flex-wrap items-center gap-2">
+        <select aria-label="출결 성격"
+          name="kind"
+          value={kind}
+          onChange={(e) => setKind(e.target.value)}
+          className="rounded border border-neutral-300 px-2 py-1 text-xs"
+        >
+          {KINDS.map((k) => (
+            <option key={k} value={k}>
+              {KIND_LABEL[k]}
+            </option>
+          ))}
+        </select>
+        <select aria-label="출결 사유"
+          name="reason"
+          defaultValue={row.reason}
+          className="rounded border border-neutral-300 px-2 py-1 text-xs"
+        >
+          {REASONS.map((rs) => (
+            <option key={rs} value={rs}>
+              {REASON_LABEL[rs]}
+            </option>
+          ))}
+        </select>
+        <input aria-label="비고"
+          name="noteField"
+          defaultValue={row.noteField ?? ""}
+          placeholder="비고"
+          className="rounded border border-neutral-300 px-2 py-1 text-xs"
+        />
+        <Button className="px-2 py-1 text-xs">
+          저장
+        </Button>
+        <button
+          type="button"
+          onClick={onDone}
+          className="text-xs text-neutral-500 hover:underline"
+        >
+          취소
+        </button>
+      </div>
+
+      {showPivot && (
+        <fieldset className="flex flex-wrap items-center gap-2 text-xs">
+          <legend className="mr-2 text-xs text-neutral-500">
+            {kind === "late" ? "지각 기점(이 교시까지)" : "조퇴 기점(이 교시부터)"}
+          </legend>
+          {PERIODS.map((p) => (
+            <label key={p} className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="pivotPeriod"
+                value={p}
+                checked={pivotPeriod === p}
+                onChange={() => setPivotPeriod(p)}
+              />
+              {periodLabel(p)}
+            </label>
+          ))}
+        </fieldset>
+      )}
+
+      {showMulti && (
+        <fieldset className="flex flex-wrap items-center gap-2 text-xs">
+          <legend className="mr-2 text-xs text-neutral-500">
+            결과 교시(다중 선택)
+          </legend>
+          {PERIODS.map((p) => (
+            <label key={p} className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                name="periods"
+                value={p}
+                checked={selected.includes(p)}
+                onChange={() => toggle(p)}
+              />
+              {periodLabel(p)}
+            </label>
+          ))}
+        </fieldset>
+      )}
+    </form>
+  );
+}
+
 /** 수정 가능한 출결 기록 테이블(인라인 편집 + 신고서 토글 + 삭제) + 페이지네이션. */
 export function EditableAttendanceTable({
   rows,
   withDate = false,
-  navLinks = false,
+  linkStudent = false,
+  linkDate = false,
 }: {
   rows: AttendanceStudentRow[];
   withDate?: boolean;
-  /** 월별 검색 결과에서 학생명/날짜 클릭 시 학생별/일별 뷰로 이동(AC-2.2/2.3). 편집 모드에는 미적용. */
-  navLinks?: boolean;
+  /** 학생명 클릭 → 학생별 검색 뷰(AC-2.2). 편집 모드에는 미적용. */
+  linkStudent?: boolean;
+  /** 날짜 클릭 → 그 날짜의 오늘 입력 뷰(AC-2.3). withDate 일 때만 의미. */
+  linkDate?: boolean;
 }) {
   const [page, setPage] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -84,59 +235,15 @@ export function EditableAttendanceTable({
                 </td>
                 {withDate && <td className="py-2">{r.date}</td>}
                 <td colSpan={4} className="py-2">
-                  <form
-                    action={updateAttendanceAction}
-                    className="flex flex-wrap items-center gap-2"
-                    onSubmit={() => setEditingId(null)}
-                  >
-                    <input type="hidden" name="id" value={r.id} />
-                    <select aria-label="출결 사유"
-                      name="kind"
-                      defaultValue={r.kind}
-                      className="rounded border border-neutral-300 px-2 py-1 text-xs"
-                    >
-                      {KINDS.map((k) => (
-                        <option key={k} value={k}>
-                          {KIND_LABEL[k]}
-                        </option>
-                      ))}
-                    </select>
-                    <select aria-label="출결 성격"
-                      name="reason"
-                      defaultValue={r.reason}
-                      className="rounded border border-neutral-300 px-2 py-1 text-xs"
-                    >
-                      {REASONS.map((rs) => (
-                        <option key={rs} value={rs}>
-                          {REASON_LABEL[rs]}
-                        </option>
-                      ))}
-                    </select>
-                    <input aria-label="비고"
-                      name="noteField"
-                      defaultValue={r.noteField ?? ""}
-                      placeholder="비고"
-                      className="rounded border border-neutral-300 px-2 py-1 text-xs"
-                    />
-                    <Button className="px-2 py-1 text-xs">
-                      저장
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingId(null)}
-                      className="text-xs text-neutral-500 hover:underline"
-                    >
-                      취소
-                    </button>
-                  </form>
+                  <EditAttendanceForm row={r} onDone={() => setEditingId(null)} />
                 </td>
               </tr>
             ) : (
               <tr key={r.id} className="border-t border-neutral-100">
                 <td className="py-2">
-                  {navLinks ? (
+                  {linkStudent ? (
                     <Link
-                      href={`/homeroom/attendance?view=student&studentYearId=${r.studentYearId}`}
+                      href={studentHref(r.studentYearId)}
                       className="hover:underline"
                     >
                       {r.sid} {r.name}
@@ -149,11 +256,8 @@ export function EditableAttendanceTable({
                 </td>
                 {withDate && (
                   <td className="py-2">
-                    {navLinks ? (
-                      <Link
-                        href={`/homeroom/attendance?view=today&date=${r.date}`}
-                        className="hover:underline"
-                      >
+                    {linkDate ? (
+                      <Link href={dateHref(r.date)} className="hover:underline">
                         {r.date}
                       </Link>
                     ) : (
@@ -236,7 +340,7 @@ export function EditableAttendanceTable({
 export interface UnsubmittedRow extends AttendanceStudentRow {
   deadlineDate: string | null;
   remainingSchoolDays: number | null;
-  tier: "normal" | "warning" | "critical";
+  tier: SubmissionTier;
   /** 출처: attendance=출결 신고서(id=attendance_record), fieldTrip=교외체험 사후보고서(id=field_trip). */
   source: "attendance" | "fieldTrip";
 }
@@ -250,11 +354,13 @@ const TIER_LABEL: Record<string, string> = {
   normal: "정상",
   warning: "위험",
   critical: "심각",
+  expired: "제출불가",
 };
 const TIER_CLASS: Record<string, string> = {
   normal: "text-neutral-400",
   warning: "text-orange-600",
   critical: "font-normal text-red-600",
+  expired: "font-normal text-red-700",
 };
 
 /** 미제출 신고서 목록(페이지네이션 10). */
@@ -267,14 +373,14 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
   }
   return (
     <>
-      {/* 등급 기준 표기 (사용성 개선 P2-13). '심각/위험' 이 무엇을 뜻하는지, 마감
-          옆 괄호 숫자가 무엇인지 화면에 없어 추측해야 했다. 간략화 S-1: 문장이
-          아니라 기호로 — 읽는 줄이 아니라 대조하는 범례가 되게 한다. */}
+      {/* 등급 범례 — 남은 수업일 기준(마감 = 결석계 5수업일·교외체험 10수업일).
+          결석계는 마감을 넘기면 미인정 전환 대상이라 제출불가로 닫는다. */}
       <p className="mt-3 text-xs text-neutral-500">
-        마감 초과 수업일 <span className={TIER_CLASS.normal}>정상</span> ≤3 ·{" "}
-        <span className={TIER_CLASS.warning}>위험</span> &gt;3 ·{" "}
-        <span className={TIER_CLASS.critical}>심각</span> &gt;5 · 마감 옆 괄호 =
-        남은 수업일
+        남은 수업일 <span className={TIER_CLASS.normal}>정상</span> 3+ ·{" "}
+        <span className={TIER_CLASS.warning}>위험</span> 2 ·{" "}
+        <span className={TIER_CLASS.critical}>심각</span> 1~0 ·{" "}
+        <span className={TIER_CLASS.expired}>제출불가</span> 마감 경과(미인정 전환)
+        · 마감 옆 괄호 = 남은 수업일
       </p>
       <table className="mt-3 w-full text-sm">
         <thead className="text-left text-neutral-400">
@@ -283,6 +389,7 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
             <th className="py-1 font-normal">날짜</th>
             <th className="py-1 font-normal">성격</th>
             <th className="py-1 font-normal">교시</th>
+            <th className="py-1 font-normal">사유</th>
             <th className="py-1 font-normal">마감</th>
             <th className="py-1 font-normal">상태</th>
             <th className="py-1" />
@@ -292,9 +399,18 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
           {pageItems.map((r) => (
             <tr key={r.id} className="border-t border-neutral-100">
               <td className="py-2">
-                {r.sid} {r.name}
+                <Link
+                  href={studentHref(r.studentYearId)}
+                  className="hover:underline"
+                >
+                  {r.sid} {r.name}
+                </Link>
               </td>
-              <td className="py-2">{r.date}</td>
+              <td className="py-2">
+                <Link href={dateHref(r.date)} className="hover:underline">
+                  {r.date}
+                </Link>
+              </td>
               <td className="py-2">
                 <span className={`rounded px-1.5 py-0.5 text-xs ${ATTENDANCE_KIND_CHIP[r.kind]}`}>
                   {KIND_LABEL[r.kind]}
@@ -304,6 +420,14 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
                 </span>
               </td>
               <td className="py-2 text-xs text-neutral-500">{periodsLabel(r.periods)}</td>
+              <td className="py-2">
+                <span className={`rounded px-1.5 py-0.5 text-xs ${ATTENDANCE_REASON_CHIP[r.reason]}`}>
+                  {REASON_LABEL[r.reason]}
+                </span>
+                {r.noteField ? (
+                  <span className="ml-1 text-xs text-neutral-400">({r.noteField})</span>
+                ) : null}
+              </td>
               <td className="py-2 text-xs text-neutral-500">
                 {r.deadlineDate ?? "—"}
                 {r.remainingSchoolDays != null && (
@@ -319,13 +443,19 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
                 {TIER_LABEL[r.tier]}
               </td>
               <td className="py-2 text-right">
-                <form action={markUnsubmittedSubmittedAction} className="inline">
-                  <input type="hidden" name="id" value={r.id} />
-                  <input type="hidden" name="source" value={r.source} />
-                  <button className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-                    제출 처리
-                  </button>
-                </form>
+                {r.tier === "expired" ? (
+                  // 마감 경과 결석계는 제출을 받지 않는다 — 기록의 사유를
+                  // 미인정으로 수정하는 게 다음 행동이다.
+                  <span className="text-xs text-neutral-400">기한 경과</span>
+                ) : (
+                  <form action={markUnsubmittedSubmittedAction} className="inline">
+                    <input type="hidden" name="id" value={r.id} />
+                    <input type="hidden" name="source" value={r.source} />
+                    <button className="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+                      제출 처리
+                    </button>
+                  </form>
+                )}
               </td>
             </tr>
           ))}

@@ -23,6 +23,7 @@ import {
   UnsubmittedTable,
 } from "./attendance-tables-client";
 import { FieldTripSection } from "./field-trip-client";
+import { AttendanceDateJump } from "./date-jump-client";
 import type { AttendanceReason } from "@/lib/domain/types";
 import { Button } from "@/app/ui/button";
 import { EmptyState } from "@/app/ui/empty-state";
@@ -178,19 +179,7 @@ export default async function AttendancePage({
 
       {view === "today" && (
         <>
-          <form method="get" className="mt-4 flex items-center gap-2 text-sm">
-            <input type="hidden" name="view" value="today" />
-            <label className="text-neutral-500">날짜</label>
-            <input aria-label="날짜"
-              type="date"
-              name="date"
-              defaultValue={date}
-              className="rounded border border-neutral-300 px-2 py-1"
-            />
-            <Button className="px-2 py-1 text-xs">
-              이동
-            </Button>
-          </form>
+          <AttendanceDateJump date={date} />
 
           <section className="mt-6 rounded-lg border border-neutral-200 p-5">
             <h2 className="text-sm text-neutral-700">출결 입력 ({date})</h2>
@@ -209,7 +198,7 @@ export default async function AttendancePage({
             <h2 className="text-sm text-neutral-700">
               {date} 출결 {todayRecords.length}건
             </h2>
-            <EditableAttendanceTable rows={todayRecords} />
+            <EditableAttendanceTable rows={todayRecords} linkStudent />
           </section>
         </>
       )}
@@ -260,7 +249,7 @@ export default async function AttendancePage({
           <h2 className="mt-4 text-sm text-neutral-700">
             {month} 출결 {monthRows.length}건
           </h2>
-          <EditableAttendanceTable rows={monthRows} withDate navLinks />
+          <EditableAttendanceTable rows={monthRows} withDate linkStudent linkDate />
         </section>
       )}
 
@@ -303,7 +292,7 @@ export default async function AttendancePage({
               <h2 className="mt-4 text-sm text-neutral-700">
                 출결 {studentRows.length}건
               </h2>
-              <EditableAttendanceTable rows={studentRows} withDate />
+              <EditableAttendanceTable rows={studentRows} withDate linkDate />
             </>
           ) : (
             <p className="mt-4 text-sm text-neutral-400">학생을 선택하세요.</p>

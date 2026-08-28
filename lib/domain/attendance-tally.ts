@@ -25,12 +25,12 @@ export const TALLY_KINDS: AttendanceKind[] = [
   "absent_period",
 ];
 
-/** 각 성격 안의 사유 순서(NEIS 와 동일). */
+/** 각 성격 안의 사유 순서: 질병 → 미인정 → 기타 → 인정. 화면·CSV 열 순서 공통. */
 export const TALLY_REASONS: AttendanceReason[] = [
   "illness",
   "unaccepted",
-  "accepted",
   "etc",
+  "accepted",
 ];
 
 export const TALLY_KIND_LABELS: Record<AttendanceKind, string> = {

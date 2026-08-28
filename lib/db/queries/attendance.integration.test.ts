@@ -222,8 +222,9 @@ describe.skipIf(!RUN)("출결 — reportRequired + report_tracking", () => {
   it("submissionTier 경계값(남은 수업일 기준)", () => {
     expect(submissionTier(3)).toBe("normal");
     expect(submissionTier(2)).toBe("warning");
-    expect(submissionTier(0)).toBe("warning");
-    expect(submissionTier(-1)).toBe("critical");
+    expect(submissionTier(1)).toBe("critical");
+    expect(submissionTier(0)).toBe("critical");
+    expect(submissionTier(-1)).toBe("expired");
   });
 
   it("addFieldTrip 기간은 수업일에만 인정결석 자동 생성 (AC-4.2)", async () => {

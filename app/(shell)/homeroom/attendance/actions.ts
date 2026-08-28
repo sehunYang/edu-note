@@ -12,7 +12,9 @@ import {
   setFieldTripSubmitted,
   writeAudit,
   isOwnerHomeroomStudent,
+  DEFAULT_PERIOD_LIST,
 } from "@/lib/db/queries";
+import { absentPeriods } from "@/lib/domain/attendance";
 import type { AttendanceReason, AttendanceKind } from "@/lib/domain/types";
 
 /**
@@ -106,9 +108,17 @@ export async function updateAttendanceAction(formData: FormData): Promise<void> 
   const kind = String(formData.get("kind") ?? "") as AttendanceKind;
   const noteField = String(formData.get("noteField") ?? "").trim() || null;
   if (!id || !REASONS.includes(reason) || !KINDS.includes(kind)) return;
+  // 교시 재파생(신규 입력과 동일 규칙): 지각/조퇴=기점, 결과=다중선택, 결석=전체.
+  const pivotPeriod = Number(formData.get("pivotPeriod") ?? 0) || 0;
+  const selectedPeriods = formData
+    .getAll("periods")
+    .map((p) => Number(p))
+    .filter((p) => Number.isInteger(p));
+  const periods = absentPeriods(kind, pivotPeriod, selectedPeriods, DEFAULT_PERIOD_LIST);
   const db = getDb();
-  await updateAttendanceRecord(db, ownerId, id, { reason, kind, noteField });
+  await updateAttendanceRecord(db, ownerId, id, { reason, kind, noteField, periods });
   revalidatePath("/homeroom/attendance");
+  revalidatePath("/today");
 }
 
 /** 결석 기간 입력(AC-4.4). 범위 내 수업일마다 결석 자동 생성. */
