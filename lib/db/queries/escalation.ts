@@ -17,7 +17,8 @@ import { writeAudit } from "./audit";
  * 신고서 에스컬레이션 재계산 (계획 §3.3 F, §3.4 escalation, AC-F).
  *
  * 미제출 신고서(출결/교외체험 사후보고서)의 경과 수업일을 school_day_calendar 로
- * 세어 티어(정상≤3/위험>3/심각>5)를 재계산하고 report_tracking 스냅샷을 갱신한다.
+ * 세어 티어를 재계산하고 report_tracking 스냅샷을 갱신한다. 티어 규칙은 미제출
+ * 화면과 동일(남은 수업일 ≥3 정상 / 2 위험 / ≤1 심각, 마감=출결 5·교외체험 10수업일).
  * 티어가 바뀌면 audit_log(escalation_transition)에 전이를 남긴다.
  * 제출된 신고서는 정상으로 정리한다. 일일 pg_cron(0005)이 이 로직의 SQL 백스톱.
  */
@@ -33,7 +34,7 @@ export const ATTENDANCE_REPORT_DEADLINE_SCHOOL_DAYS = 5;
 export const FIELD_TRIP_POST_REPORT_DEADLINE_SCHOOL_DAYS = 10;
 
 /** base 이후 n번째 수업일(신고서 마감일). 없으면 null. */
-function nthSchoolDayAfter(
+export function nthSchoolDayAfter(
   sortedSchoolDays: string[],
   base: string,
   n: number,
@@ -99,7 +100,7 @@ export interface RecomputeResult {
 
 /**
  * 한 owner 의 모든 신고서 추적 티어를 재계산. asOf 기준(기본 오늘).
- * 출결/교외체험에 동일한 5일·3/5 규칙(기준일=결석일/체험일)을 적용한다.
+ * 기준일=결석일(출결)/종료일(교외체험), 마감=수업일 5일(출결)/10일(교외체험).
  */
 export async function recomputeEscalation(
   db: DB,
@@ -147,13 +148,13 @@ export async function recomputeEscalation(
     if (!base) continue; // 손상된 추적행 방어
     const submitted = r.attSubmitted ?? r.tripSubmitted ?? false;
 
-    const newTier: ReportTier = submitted
-      ? "normal"
-      : tierFromDates(dateAtUtc(base), asOf, isSchoolDay);
     // 마감일: 출결=수업일 5일, 교외체험 사후보고서=수업일 10일.
     const deadlineDays = r.fieldTripId
       ? FIELD_TRIP_POST_REPORT_DEADLINE_SCHOOL_DAYS
       : ATTENDANCE_REPORT_DEADLINE_SCHOOL_DAYS;
+    const newTier: ReportTier = submitted
+      ? "normal"
+      : tierFromDates(dateAtUtc(base), asOf, isSchoolDay, deadlineDays);
     const deadline = nthSchoolDayAfter(sortedSchoolDays, base, deadlineDays);
 
     if (newTier !== r.lastTier) {
