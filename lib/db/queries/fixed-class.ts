@@ -55,23 +55,47 @@ export interface DetectedFixedClass {
 }
 
 /**
- * 자료542(교사별 배열) 슬롯에서 담임반의 과목별 **공통(고정반)/선택(이동반)을 자동 판별**한다.
+ * 담임반의 과목별 **공통(고정반)/선택(이동반)을 자동 판별**한다. 컴시간 데이터 형태에 따라
+ * 두 경로를 쓴다:
  *
- * 원리: 반을 쪼개는 선택과목은 같은 (요일,교시) 칸에 여러 교사가 서로 다른 과목을 편성한다
- * (물Ⅱ 학생은 물Ⅱ 교사에게, 나머지는 화학 교사에게 → code=과목×1000+학년·반 이 같은
- * (2,9,요일,교시) 에 물Ⅱ·화학 둘 다 등장). 공통과목은 한 교사가 반 전체라 그 칸에 1과목뿐.
- * 따라서 **한 과목이 등장한 칸 중 하나라도 다중(≥2)이면 선택**(isFixed=false), 전부 단독이면
- * 공통(isFixed=true) 으로 본다.
+ * ① 신형(2026-08 2학기~): `동시그룹` 키가 이동수업 묶음(같은 시간에 함께 도는 과목×교실)을
+ *    명시한다. 표준(classSlots, 자료481)의 담임반 과목 중 동시그룹에 (이 학년, 이 반)으로
+ *    등장하는 과목만 선택, 나머지는 공통. 원본·구조 데이터만 쓰므로 **금주 편성과 무관**
+ *    (방학·시험 주간에도 정확) — 호출측은 이 경로일 때 축소 주간 가드를 건너뛰어도 된다.
+ *    ⚠ 신형 자료542 는 칸마다 반별 1과목만 실어(분반 병기가 사라짐) 아래 ② 원리가 더는
+ *    성립하지 않는다 — 그대로 돌리면 전 과목이 공통으로 오판된다(2026-08 실측).
  *
- * ⚠ 소스가 자료542(금주 반영본)라 축소 주간(방학·시험·행사)엔 칸이 비어 판별이 무의미하다.
- * 호출측이 weekdayCoverage 로 정상 주간인지 먼저 가드해야 오판을 막는다.
+ * ② 구형 폴백(동시그룹/classSlots 부재): 자료542 에서 반을 쪼개는 선택과목은 같은
+ *    (요일,교시) 칸에 여러 교사가 서로 다른 과목을 편성한다(물Ⅱ 학생은 물Ⅱ 교사에게,
+ *    나머지는 화학 교사에게 → 같은 칸에 물Ⅱ·화학 둘 다 등장). **한 과목이 등장한 칸 중
+ *    하나라도 다중(≥2)이면 선택**, 전부 단독이면 공통. 소스가 금주 반영본이라 축소
+ *    주간엔 판별이 무의미 → 호출측이 weekdayCoverage 로 가드해야 한다.
  */
 export function detectFixedClasses(
   decoded: DecodedTimetable,
   grade: number,
   classNo: number,
 ): DetectedFixedClass[] {
-  // (요일,교시) → 그 칸에 편성된 과목 집합.
+  // ① 동시그룹 기반(신형).
+  if (decoded.simultaneousGroups.length > 0 && decoded.classSlots.length > 0) {
+    const classSubjects = new Set<string>();
+    for (const s of decoded.classSlots) {
+      if (s.grade === grade && s.classNo === classNo) classSubjects.add(s.subject);
+    }
+    if (classSubjects.size > 0) {
+      const electives = new Set<string>();
+      for (const group of decoded.simultaneousGroups) {
+        for (const e of group) {
+          if (e.grade === grade && e.classNo === classNo) electives.add(e.subjectName);
+        }
+      }
+      return [...classSubjects]
+        .map((subjectName) => ({ subjectName, isFixed: !electives.has(subjectName) }))
+        .sort((a, b) => a.subjectName.localeCompare(b.subjectName));
+    }
+  }
+
+  // ② 구형 폴백 — (요일,교시) → 그 칸에 편성된 과목 집합.
   const cell = new Map<string, Set<string>>();
   for (const s of decoded.slots) {
     if (s.grade !== grade || s.classNo !== classNo) continue;

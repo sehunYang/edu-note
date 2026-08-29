@@ -115,9 +115,18 @@ export interface TimetableSlot {
   teacher: string; // 학생뷰는 마스킹됨(예: "양세*")
   /**
    * 원본 코드. ⚠ 인코딩이 출처마다 다르다 — `slots`(자료542)는 `과목×1000+학년·반`,
-   * `classSlots`(자료481)는 `교사×1000+과목`. 두 목록을 합치거나 code 로 비교하지 말 것.
+   * `classSlots`(자료481)는 학기 데이터에 따라 `교사×1000+과목` 또는 `과목×1000+교사`
+   * (2026-08 2학기 데이터에서 방향이 뒤집힌 것을 실측 — decodeTimetable 이 자동 판별).
+   * 두 목록을 합치거나 code 로 비교하지 말 것.
    */
   code: number;
+}
+
+/** 동시그룹(이동수업 묶음) 1건 — 같은 시간에 함께 도는 (과목, 개설 교실). */
+export interface SimultaneousOffering {
+  grade: number;
+  classNo: number;
+  subjectName: string;
 }
 
 export interface DecodedTimetable {
@@ -133,6 +142,12 @@ export interface DecodedTimetable {
    * 탐지 실패 시 빈 배열(호출측이 안내). 담임반 표준 시간표의 정답 소스.
    */
   classSlots: TimetableSlot[];
+  /**
+   * 동시그룹(이동수업 묶음, 2026-08 2학기 데이터부터 등장) — 각 그룹은 같은 시간에
+   * 함께 도는 (과목, 개설 교실) 목록. 어떤 반의 그리드 과목이 여기 등장하면 그 칸은
+   * 그 반 학생들이 흩어지는 **선택(이동반)** 이다. 키 부재(구형 데이터)면 빈 배열.
+   */
+  simultaneousGroups: SimultaneousOffering[][];
 }
 
 function isStringArray(v: unknown): v is string[] {
@@ -214,7 +229,7 @@ function countCodes(v: unknown[]): number {
  *
  * | | 자료542 교사별 → `slots` | 자료481 학급별 → `classSlots` |
  * |---|---|---|
- * | 인코딩 | `과목×1000 + (학년×100+반)` | `교사×1000 + 과목` (학년·반은 배열 위치) |
+ * | 인코딩 | `과목×1000 + (학년×100+반)` | `교사×1000+과목` 또는 `과목×1000+교사` — 학기 데이터마다 달라 자동 판별 (학년·반은 배열 위치) |
  * | 기준 주 | **금주 반영본**(보강·변경 적용) | **원본 표준**(변경 무관) |
  * | 선택과목 | 교사의 전체 수업 포함 | 반 기준으론 포함, **교사 기준으론 누락** |
  * | 용도 | 교사 본인 시간표·시수관리 | 담임반 표준(학생 공개 페이지) |
@@ -310,11 +325,16 @@ export function decodeTimetable(raw: unknown): DecodedTimetable {
     }
   }
 
-  // 학급별 원본(자료481) → classSlots. 인코딩이 교사별과 다르다:
-  // **code = 교사index×1000 + 과목index** (교사별은 과목×1000 + 학년·반).
-  // 학년·반은 배열 위치가 곧 좌표라 code 에 들어있지 않다.
-  const classSlots: TimetableSlot[] = [];
-  if (classTT) {
+  // 학급별 원본(자료481) → classSlots. 인코딩이 교사별과 다르고, **학기 데이터에 따라
+  // 방향까지 뒤집힌다**: 2026-07 실측은 `교사×1000+과목`, 2026-08 2학기 데이터는
+  // `과목×1000+교사` (뒤집힌 채 구형 해석을 쓰면 교사index 가 과목으로 읽혀 담임반
+  // 시간표 전체가 엉뚱한 과목으로 저장된다). 학년·반은 배열 위치가 곧 좌표.
+  // → 두 방향으로 디코딩해 (1) 자료542 와 같은 칸 과목 일치 수, (2) 유효 슬롯 수로
+  //   더 그럴듯한 쪽을 채택한다. 방학 주간엔 542 가 조각이라 (1)이 0:0 일 수 있는데,
+  //   그땐 (2)가 가른다(뒤집힌 해석은 index 초과로 슬롯이 덜 나온다).
+  const decodeClassTT = (subjectFirst: boolean): TimetableSlot[] => {
+    const out: TimetableSlot[] = [];
+    if (!classTT) return out;
     for (let grade = 1; grade < classTT.length; grade++) {
       const gd = classTT[grade];
       if (!Array.isArray(gd)) continue;
@@ -328,22 +348,77 @@ export function decodeTimetable(raw: unknown): DecodedTimetable {
           for (let period = 1; period <= periods; period++) {
             const code = day[period];
             if (typeof code !== "number" || !code) continue; // 0=공강
-            // subjects[0] 은 과목 '개수'(number)라 code 가 1000 배수면 숫자가 잡힌다 →
+            const subjectIdx = subjectFirst ? Math.floor(code / 1000) : code % 1000;
+            const teacherIdx = subjectFirst ? code % 1000 : Math.floor(code / 1000);
+            // subjects[0] 은 과목 '개수'(number)라 index 0 이면 숫자가 잡힌다 →
             // 타입까지 확인해야 .replace 에서 TypeError 로 액션이 죽지 않는다.
-            const subject = subjects[code % 1000];
+            const subject = subjects[subjectIdx];
             if (typeof subject !== "string" || !subject) continue;
-            classSlots.push({
+            if (teacherIdx >= teachers.length) continue; // 방향이 틀리면 index 초과
+            out.push({
               grade,
               classNo,
               weekday,
               period,
               subject: subject.replace(/_/g, ""),
-              teacher: teachers[Math.floor(code / 1000)] ?? "",
+              teacher: teachers[teacherIdx] ?? "",
               code,
             });
           }
         }
       }
+    }
+    return out;
+  };
+  // 자료542 와의 (학년,반,요일,교시)→과목 일치 수. 진짜 방향은 금주 반영본과 대체로 겹친다.
+  const cellSubjects = new Map<string, Set<string>>();
+  for (const s of slots) {
+    const key = `${s.grade}:${s.classNo}:${s.weekday}:${s.period}`;
+    let set = cellSubjects.get(key);
+    if (!set) cellSubjects.set(key, (set = new Set()));
+    set.add(s.subject);
+  }
+  const agreement = (cand: TimetableSlot[]): number => {
+    let n = 0;
+    for (const s of cand) {
+      if (cellSubjects.get(`${s.grade}:${s.classNo}:${s.weekday}:${s.period}`)?.has(s.subject)) n++;
+    }
+    return n;
+  };
+  const teacherFirst = decodeClassTT(false);
+  const subjectFirst = decodeClassTT(true);
+  const agreeTF = agreement(teacherFirst);
+  const agreeSF = agreement(subjectFirst);
+  const classSlots =
+    agreeSF !== agreeTF
+      ? agreeSF > agreeTF
+        ? subjectFirst
+        : teacherFirst
+      : subjectFirst.length > teacherFirst.length
+        ? subjectFirst
+        : teacherFirst;
+
+  // 동시그룹(이동수업 묶음) — code 인코딩은 자료542 와 같은 `과목×1000+학년·반`.
+  // 구형 데이터엔 키 자체가 없거나 비어 있다 → 빈 배열(호출측이 구형 판별로 폴백).
+  const simultaneousGroups: SimultaneousOffering[][] = [];
+  const groupsRaw = result["동시그룹"];
+  if (Array.isArray(groupsRaw)) {
+    for (const g of groupsRaw) {
+      if (!Array.isArray(g)) continue;
+      const entries: SimultaneousOffering[] = [];
+      for (let i = 1; i < g.length; i++) {
+        const code = g[i];
+        if (typeof code !== "number" || !code) continue;
+        const subject = subjects[Math.floor(code / 1000)];
+        if (typeof subject !== "string" || !subject) continue;
+        const gc = code % 1000;
+        const grade = Math.floor(gc / 100);
+        const classNo = gc % 100;
+        if (grade < 1 || grade > maxGrade || classNo < 1) continue;
+        entries.push({ grade, classNo, subjectName: subject.replace(/_/g, "") });
+      }
+      // 1건짜리는 '묶음'이 아니다(오파싱 노이즈 방지).
+      if (entries.length >= 2) simultaneousGroups.push(entries);
     }
   }
 
@@ -355,6 +430,7 @@ export function decodeTimetable(raw: unknown): DecodedTimetable {
     classTimes: (result["일과시간"] as string[]) ?? [],
     slots,
     classSlots,
+    simultaneousGroups,
   };
 }
 

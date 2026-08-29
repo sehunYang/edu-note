@@ -248,8 +248,11 @@ export async function autoDetectFixedClassesAction(
     if (!res.ok) return { ok: false, message: `컴시간 조회 실패: ${res.error}` };
 
     // 축소 주간 가드: 자료542 는 금주 반영본이라 방학·시험 주간엔 칸이 비어 오판한다.
+    // 단, 신형(동시그룹+학급별 원본) 경로는 금주 편성과 무관하게 정확하므로 가드 불필요.
+    const hasStructuralDetection =
+      res.data.simultaneousGroups.length > 0 && res.data.classSlots.length > 0;
     const coverage = weekdayCoverage(res.data.slots);
-    if (coverage < 5) {
+    if (!hasStructuralDetection && coverage < 5) {
       return {
         ok: false,
         message:
