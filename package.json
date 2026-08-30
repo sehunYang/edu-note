@@ -2,10 +2,11 @@
   "name": "edu-note",
   "version": "0.0.1",
   "private": true,
+  "license": "MIT",
   "description": "Edu_Note — 고등학교 교사 1인용 교수-수업-평가-기록 일체화 플랫폼 (Edu_Flow Core)",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/migrate.mjs && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -13,7 +14,10 @@
     "test:watch": "vitest",
     "scan:secrets": "node scripts/scan-client-secrets.mjs",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node --env-file=.env.local scripts/migrate.mjs",
+    "db:migrate:status": "node --env-file=.env.local scripts/migrate.mjs --dry-run",
+    "db:migrate:baseline": "node --env-file=.env.local scripts/migrate.mjs --baseline",
+    "db:migrate:selftest": "node --env-file=.env.local scripts/migrate.mjs --self-test",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {

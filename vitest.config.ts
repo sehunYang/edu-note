@@ -14,6 +14,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["lib/**/*.test.ts"],
+    // scripts/ 도 포함 — 마이그레이션 러너의 순수 로직(목록·체크섬·실행 판단)은
+    // DB 없이 검증할 수 있고, 빌드를 중단시키는 코드라 회귀를 잡아야 한다.
+    include: ["lib/**/*.test.ts", "scripts/**/*.test.mjs"],
   },
 });
