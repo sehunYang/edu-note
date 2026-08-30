@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOwnerId } from "@/lib/auth/owner";
 import { getClaudeClient, CLAUDE_MODELS } from "@/lib/integrations/claude";
+import { features } from "@/lib/config/features";
 
 /**
  * 실행 전 검증 엔드포인트 (계획 §0 / §6 assumptions-to-verify).
@@ -22,6 +23,12 @@ export async function GET() {
     await getOwnerId();
   } catch {
     return new Response("Unauthorized", { status: 401 });
+  }
+
+  // 배포판 기본값에는 ANTHROPIC_API_KEY 가 없다. 없는 기능의 진단 경로는 존재하지
+  // 않는 편이 낫다 — 500 스택 대신 404 를 준다(S4).
+  if (!features.claude) {
+    return new Response("Not Found", { status: 404 });
   }
 
   const startedAt = Date.now();

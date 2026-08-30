@@ -12,6 +12,8 @@ import { StageGate } from "../stage-gate";
 import { LockedNotice } from "../locked-notice";
 import { CalendarAttrs } from "./calendar-attrs";
 import { kstDateString } from "@/lib/domain/kst";
+import { neisEnabled } from "@/lib/config/features";
+import { FeatureOff } from "@/app/ui/feature-off";
 
 export const metadata = { title: "학사일정 설정" };
 
@@ -44,6 +46,7 @@ export default async function CalendarStagePage() {
   const ownerId = await getOwnerId();
   const db = getDb();
   if (!(await isStageUnlocked(db, ownerId, "calendar"))) return <LockedNotice />;
+  const neisOn = await neisEnabled();
   const range = schoolYearRange(activeSchoolYear(new Date()));
   const today = todayStr();
   const [completed, events, upcoming, meals] = await Promise.all([
@@ -56,6 +59,15 @@ export default async function CalendarStagePage() {
   return (
     <div>
       <h2 className="text-lg">3. 학사 일정 + 키워드</h2>
+      {!neisOn && (
+        <FeatureOff
+          title="나이스 연동이 꺼져 있습니다"
+          description="학사일정과 급식을 자동으로 가져오려면 나이스 인증키가 필요합니다. 일정은 직접 입력해서 쓸 수도 있습니다."
+          howTo="나이스 교육정보 개방포털에서 무료로 즉시 발급됩니다. 발급받은 키를 세팅실 → 시스템 상태에서 등록하세요."
+          href="https://open.neis.go.kr"
+          linkLabel="인증키 발급받기"
+        />
+      )}
       <CalendarAttrs events={events} />
 
       <div className="mt-8 grid gap-8 [&>*]:min-w-0 md:grid-cols-2">
