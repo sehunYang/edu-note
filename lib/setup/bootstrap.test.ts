@@ -8,8 +8,8 @@ import { projectRefFromUrl, redirectUrlsFor } from "./bootstrap";
 
 describe("projectRefFromUrl", () => {
   it("Supabase 프로젝트 URL 에서 ref 를 뽑는다", () => {
-    expect(projectRefFromUrl("https://ntdvgneiqzeopmlevuwj.supabase.co")).toBe(
-      "ntdvgneiqzeopmlevuwj",
+    expect(projectRefFromUrl("https://abcdefghijklmnopqrst.supabase.co")).toBe(
+      "abcdefghijklmnopqrst",
     );
   });
 
