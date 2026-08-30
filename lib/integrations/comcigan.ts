@@ -234,7 +234,7 @@ function countCodes(v: unknown[]): number {
  * | 선택과목 | 교사의 전체 수업 포함 | 반 기준으론 포함, **교사 기준으론 누락** |
  * | 용도 | 교사 본인 시간표·시수관리 | 담임반 표준(학생 공개 페이지) |
  *
- * 실측: 양세훈의 물Ⅱ·생과는 학급 그리드에서 다른 교사에게 귀속돼 교사별로 뽑으면
+ * 실측: 특정 교사의 일부 과목은 학급 그리드에서 다른 교사에게 귀속돼 교사별로 뽑으면
  * 물리 9칸만 나온다(→ 교사 경로는 542 유지). 반대로 542 는 금주 반영본이라 방학 주간엔
  * 전교 209칸/2개 요일로 쪼그라든다(원본은 893칸/5개 요일 → 담임반 경로는 481).
  *
@@ -449,7 +449,7 @@ export function weekdayCoverage(slots: TimetableSlot[]): number {
 
 // ── 교사 매칭(학생뷰 마스킹 대응) ──
 
-/** 마스킹된 교사명("양세*")이 전체 이름("양세훈")과 일치하는지. */
+/** 마스킹된 교사명("홍길*")이 전체 이름("홍길동")과 일치하는지. */
 export function teacherNameMatches(masked: string, fullName: string): boolean {
   const prefix = masked.replace(/\*+$/, "");
   if (prefix.length === 0) return false;

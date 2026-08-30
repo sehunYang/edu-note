@@ -17,7 +17,7 @@ describe("parseSchoolInfo", () => {
           {
             ATPT_OFCDC_SC_CODE: "E10",
             SD_SCHUL_CODE: "7310349",
-            SCHUL_NM: "인천해송고등학교",
+            SCHUL_NM: "한빛고등학교",
           },
         ],
       },
@@ -25,7 +25,7 @@ describe("parseSchoolInfo", () => {
   };
   it("학교 코드(교육청·학교)와 학교명을 추출", () => {
     expect(parseSchoolInfo(json)).toEqual([
-      { officeCode: "E10", schoolCode: "7310349", name: "인천해송고등학교" },
+      { officeCode: "E10", schoolCode: "7310349", name: "한빛고등학교" },
     ]);
   });
   it("무데이터는 빈 배열", () => {
@@ -183,7 +183,7 @@ describe("parseMealService", () => {
 });
 
 describe("parseHisTimetable", () => {
-  // 실측 필드 구조(인천해송고 2-9반) 스냅샷.
+  // 실측 필드 구조(한빛고 2-9반) 스냅샷.
   const ttJson = {
     hisTimetable: [
       { head: [{ RESULT: { CODE: "INFO-000" } }] },

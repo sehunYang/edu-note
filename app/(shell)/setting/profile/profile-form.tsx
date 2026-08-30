@@ -59,11 +59,11 @@ export function ProfileForm({ initial }: { initial: TeacherSettings | null }) {
           <span className="text-xs font-normal text-neutral-400">NEIS · 컴시간</span>
         </h3>
         <form action={resolve} className="mt-3 flex flex-wrap gap-2">
-          <input aria-label="예: 인천해송고등학교"
+          <input aria-label="예: 한빛고등학교"
             name="schoolName"
             value={schoolName}
             onChange={(e) => setSchoolName(e.target.value)}
-            placeholder="예: 인천해송고등학교"
+            placeholder="예: 한빛고등학교"
             className="min-w-0 flex-1 rounded border border-neutral-300 px-3 py-1.5 text-sm"
           />
           <Button

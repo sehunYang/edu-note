@@ -35,10 +35,10 @@ function neisJson(rows: { office: string; code: string; name: string }[]) {
 describe("NEIS parseSchoolInfo + 분기", () => {
   it("단일 매칭", () => {
     const rows = parseSchoolInfo(
-      neisJson([{ office: "E10", code: "7530560", name: "인천해송고등학교" }]),
+      neisJson([{ office: "E10", code: "7530560", name: "한빛고등학교" }]),
     );
     expect(rows).toEqual([
-      { officeCode: "E10", schoolCode: "7530560", name: "인천해송고등학교" },
+      { officeCode: "E10", schoolCode: "7530560", name: "한빛고등학교" },
     ]);
     expect(matchStatus(rows.length)).toBe("single");
   });
@@ -63,9 +63,9 @@ describe("NEIS parseSchoolInfo + 분기", () => {
 
 describe("comcigan parseSchoolSearch + 분기", () => {
   it("단일 매칭", () => {
-    const rows = parseSchoolSearch('{"학교검색":[[24966,"인천","인천해송고등학교",79119]]}');
+    const rows = parseSchoolSearch('{"학교검색":[[24966,"인천","한빛고등학교",79119]]}');
     expect(rows).toEqual([
-      { regionCode: 24966, region: "인천", name: "인천해송고등학교", code: 79119 },
+      { regionCode: 24966, region: "인천", name: "한빛고등학교", code: 79119 },
     ]);
     expect(matchStatus(rows.length)).toBe("single");
   });

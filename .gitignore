@@ -36,3 +36,18 @@ yarn-error.log*
 
 .vercel
 .env*
+
+# Playwright MCP 산출물 (페이지 스냅샷에 학생 실명이 들어감 — 절대 커밋 금지)
+/.playwright-mcp/
+
+# OMC 훅이 하위 디렉터리에 남기는 상태 파일 (공개 리포에 들어가면 안 되는 잡음)
+**/.omc/state/
+
+# 개발 부산물 — 공개 저장소에 들어갈 이유가 없다 (배포판 S7)
+/.omc/
+/.codex/
+/report/
+/qc-report-*.md
+
+# Claude Code 개인 권한 설정 (로컬 전용)
+.claude/settings.local.json

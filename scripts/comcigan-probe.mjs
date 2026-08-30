@@ -1,17 +1,24 @@
 /**
  * 컴시간 라이브 스모크 테스트 (네트워크 ON, 일회성 검증용).
  *   node scripts/comcigan-probe.mjs ["학교명"] ["교사명"]
- * 기본: 인천해송고등학교 / 양세훈.
+ * 기본값은 PROBE_SCHOOL·PROBE_TEACHER 환경변수로 지정한다(없으면 인자로 전달).
  *
  * lib/integrations/comcigan.ts 와 동일한 프로토콜을 인라인으로 재현해, 실제 서버
- * 호출이 살아있는지(인천해송고 → 양세훈 시간표)까지 확인한다. 컴시간 구조가 바뀌면
+ * 호출이 살아있는지(학교 → 교사 시간표)까지 확인한다. 컴시간 구조가 바뀌면
  * 여기서 먼저 깨지므로 회귀 탐지에도 쓴다.
  */
 import iconv from "iconv-lite";
 
 const BASE = "http://comci.net:4082";
-const SCHOOL = process.argv[2] || "인천해송고등학교";
-const TEACHER = process.argv[3] || "양세훈";
+const SCHOOL = process.argv[2] || process.env.PROBE_SCHOOL;
+const TEACHER = process.argv[3] || process.env.PROBE_TEACHER;
+if (!SCHOOL || !TEACHER) {
+  console.error(
+    "사용: node scripts/comcigan-probe.mjs <학교명> <교사명>\n" +
+      "  또는 PROBE_SCHOOL·PROBE_TEACHER 환경변수를 설정하세요.",
+  );
+  process.exit(1);
+}
 
 const eucKrHex = (kw) => {
   let h = "";

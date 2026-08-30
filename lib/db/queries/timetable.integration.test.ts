@@ -18,6 +18,12 @@ import { persons, studentYears } from "../schema/identity";
 import { calendarEvents } from "../schema/misc";
 import { fetchTimetableBySchool } from "@/lib/integrations/comcigan-client";
 import { teacherSlots, type TimetableSlot } from "@/lib/integrations/comcigan";
+
+// 실학교/실교사 이름은 공개 저장소에 남기지 않는다. 이 테스트는 RUN_DB_ITEST
+// 게이트라 평소 스킵되며, 돌릴 때만 env 로 지정한다(배포판 S7).
+const PROBE_SCHOOL = process.env.PROBE_SCHOOL ?? "";
+const PROBE_TEACHER = process.env.PROBE_TEACHER ?? "";
+
 import {
   syncTeacherTimetable,
   getTeacherTimetable,
@@ -45,7 +51,7 @@ import {
 
 /**
  * 시간표 sync 실DB+라이브 컴시간 통합 테스트.
- * RUN_DB_ITEST=1 + DATABASE_URL + 네트워크일 때만 실행. 인천해송고/양세훈 →
+ * RUN_DB_ITEST=1 + DATABASE_URL + 네트워크일 때만 실행. 실학교/실교사(env 지정) →
  * subjects=물리·sections=2-7/8/9·slots=9 를 실제로 sync·검증하고 정리한다.
  */
 const RUN = process.env.RUN_DB_ITEST === "1" && !!process.env.DATABASE_URL;
@@ -69,12 +75,12 @@ describe.skipIf(!RUN)("시간표 sync — 컴시간 라이브 → DB", () => {
     await sql.end();
   });
 
-  it("인천해송고/양세훈 시간표를 sync 하고 화면용으로 조회", async () => {
-    const res = await fetchTimetableBySchool("인천해송고등학교");
+  it("실학교/실교사(env 지정) 시간표를 sync 하고 화면용으로 조회", async () => {
+    const res = await fetchTimetableBySchool(PROBE_SCHOOL);
     expect(res.ok).toBe(true);
     if (!res.ok) return;
 
-    const slots = teacherSlots(res.data, "양세훈");
+    const slots = teacherSlots(res.data, PROBE_TEACHER);
     // 교사별 배열(자료542) 디코딩 → 선택과목 포함 전체 수업
     expect(slots.length).toBeGreaterThan(9); // 물리 9 + 선택과목들
     const subjectSet = new Set(slots.map((s) => s.subject));
@@ -103,9 +109,9 @@ describe.skipIf(!RUN)("시간표 sync — 컴시간 라이브 → DB", () => {
   });
 
   it("재sync 는 멱등(중복 슬롯 미생성)", async () => {
-    const res = await fetchTimetableBySchool("인천해송고등학교");
+    const res = await fetchTimetableBySchool(PROBE_SCHOOL);
     if (!res.ok) return;
-    const slots = teacherSlots(res.data, "양세훈");
+    const slots = teacherSlots(res.data, PROBE_TEACHER);
 
     await syncTeacherTimetable(db, owner, YEAR, 1, slots);
     const view = await getTeacherTimetable(db, owner, YEAR, 1);

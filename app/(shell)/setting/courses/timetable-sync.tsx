@@ -21,19 +21,19 @@ export function TimetableSync({
       <div className="flex flex-wrap gap-3">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-neutral-500">학교명</label>
-          <input aria-label="예: 인천해송고등학교"
+          <input aria-label="예: 한빛고등학교"
             name="school"
             defaultValue={defaultSchool}
-            placeholder="예: 인천해송고등학교"
+            placeholder="예: 한빛고등학교"
             className="w-56 rounded border border-neutral-300 px-2 py-1.5 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-neutral-500">교사명(본인)</label>
-          <input aria-label="예: 양세훈"
+          <input aria-label="예: 홍길동"
             name="teacher"
             defaultValue={defaultTeacher}
-            placeholder="예: 양세훈"
+            placeholder="예: 홍길동"
             className="w-40 rounded border border-neutral-300 px-2 py-1.5 text-sm"
           />
         </div>

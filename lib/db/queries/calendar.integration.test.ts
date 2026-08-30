@@ -20,10 +20,16 @@ import {
 } from "./calendar";
 import type { NeisScheduleEntry, NeisMealEntry } from "@/lib/integrations/neis";
 
+// 실학교/실교사 이름은 공개 저장소에 남기지 않는다. 이 테스트는 RUN_DB_ITEST
+// 게이트라 평소 스킵되며, 돌릴 때만 env 로 지정한다(배포판 S7).
+const PROBE_SCHOOL = process.env.PROBE_SCHOOL ?? "";
+const PROBE_TEACHER = process.env.PROBE_TEACHER ?? "";
+
+
 /**
  * 캘린더 sync 실DB+라이브 NEIS 통합 테스트.
  * RUN_DB_ITEST=1 + DATABASE_URL + NEIS_API_KEY + 네트워크일 때만 실행.
- * 인천해송고 2026-06 → school_day_calendar/이벤트/급식 sync·검증·정리.
+ * 실학교 2026-06 → school_day_calendar/이벤트/급식 sync·검증·정리.
  */
 const RUN =
   process.env.RUN_DB_ITEST === "1" &&
@@ -48,7 +54,7 @@ describe.skipIf(!RUN)("캘린더 sync — 라이브 NEIS → DB", () => {
   });
 
   it("학교검색 → 학사일정·급식 sync → 수업일/이벤트/급식 DB 반영", async () => {
-    const found = await searchSchoolInfo("인천해송고등학교");
+    const found = await searchSchoolInfo(PROBE_SCHOOL);
     expect(found.ok).toBe(true);
     if (!found.ok) return;
     const school = found.data[0];
@@ -108,7 +114,7 @@ describe.skipIf(!RUN)("캘린더 sync — 라이브 NEIS → DB", () => {
   });
 
   it("재sync 는 멱등(수업일 행 중복 없음)", async () => {
-    const found = await searchSchoolInfo("인천해송고등학교");
+    const found = await searchSchoolInfo(PROBE_SCHOOL);
     if (!found.ok) return;
     const q = {
       officeCode: found.data[0].officeCode,
