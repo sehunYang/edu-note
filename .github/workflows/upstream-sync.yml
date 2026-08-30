@@ -1,0 +1,144 @@
+name: 업데이트 확인
+
+# Edu_Note 업데이트 전달 (배포판 S6)
+#
+# Vercel Deploy 버튼은 원본을 **복제(clone)** 하므로 GitHub 의 "Sync fork" 버튼이
+# 없다. 그래서 이 워크플로가 대신 원본을 확인하고, 새 버전이 있으면 Pull Request 를
+# 만들어 둔다. 교사가 할 일은 그 PR 에서 **[Merge] 한 번**이고, 머지되면 Vercel 이
+# 자동 재배포하며 빌드 단계에서 DB 마이그레이션까지 알아서 적용된다.
+#
+# PR 로 만드는 이유(자동 머지하지 않는 이유): 파괴적 스키마 변경이 섞일 수 있어
+# 무엇이 바뀌는지 보고 결정할 기회가 있어야 한다. 본문에 경고를 함께 적는다.
+
+on:
+  schedule:
+    - cron: "0 0 * * 1" # 매주 월요일 09:00 KST
+  workflow_dispatch: # 수동 실행 버튼
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 원본 저장소에서는 실행하지 않음
+        id: guard
+        run: |
+          if [ "$GITHUB_REPOSITORY" = "$UPSTREAM_REPO" ]; then
+            echo "여기가 원본입니다. 확인할 것이 없습니다."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          UPSTREAM_REPO: sehunYang/edu-note
+
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.skip == 'false'
+        with:
+          fetch-depth: 0
+
+      - name: 원본에서 새 커밋 가져오기
+        if: steps.guard.outputs.skip == 'false'
+        id: fetch
+        run: |
+          set -euo pipefail
+          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git" 2>/dev/null || true
+          git fetch upstream "${UPSTREAM_BRANCH}"
+          BASE="$(git rev-parse HEAD)"
+          AHEAD="$(git rev-list --count "HEAD..upstream/${UPSTREAM_BRANCH}")"
+          echo "새 커밋 ${AHEAD}개"
+          echo "ahead=${AHEAD}" >> "$GITHUB_OUTPUT"
+          echo "base=${BASE}" >> "$GITHUB_OUTPUT"
+        env:
+          UPSTREAM_REPO: sehunYang/edu-note
+          UPSTREAM_BRANCH: main
+
+      - name: 업데이트 브랜치 만들기
+        if: steps.guard.outputs.skip == 'false' && steps.fetch.outputs.ahead != '0'
+        id: branch
+        run: |
+          set -euo pipefail
+          BRANCH="update/$(date +%Y%m%d)"
+          git config user.name "edu-note-updater"
+          git config user.email "actions@github.com"
+          git checkout -B "$BRANCH"
+
+          # 충돌하면 여기서 멈춘다 — 직접 고친 부분이 있다는 뜻이라
+          # 자동으로 덮어쓰지 않고 사람이 판단하게 한다.
+          if ! git merge --no-edit "upstream/${UPSTREAM_BRANCH}"; then
+            git merge --abort || true
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 이번 업데이트에 파괴적 마이그레이션이 있는가 (러너와 같은 표기 규칙).
+          DESTRUCTIVE=""
+          for f in $(git diff --name-only --diff-filter=A "${BASE}"..HEAD -- 'lib/db/migrations/*.sql'); do
+            if head -n 8 "$f" | grep -qi 'DESTRUCTIVE'; then
+              DESTRUCTIVE="${DESTRUCTIVE}- \`$(basename "$f")\`\n"
+            fi
+          done
+          {
+            echo "conflict=false"
+            echo "branch=${BRANCH}"
+            echo "destructive<<EOF"
+            printf '%b' "${DESTRUCTIVE}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          git push -f origin "$BRANCH"
+        env:
+          UPSTREAM_BRANCH: main
+          BASE: ${{ steps.fetch.outputs.base }}
+
+      - name: 충돌 안내 이슈 남기기
+        if: steps.branch.outputs.conflict == 'true'
+        run: |
+          gh issue create \
+            --title "업데이트 자동 병합 실패 (직접 수정한 부분과 충돌)" \
+            --body "$(cat <<'BODY'
+원본의 새 버전을 자동으로 합치려 했으나 충돌이 났습니다.
+코드를 직접 고친 부분이 있으면 자연스러운 일입니다.
+
+도움이 필요하면 이 이슈 내용을 그대로 복사해
+https://github.com/sehunYang/edu-note/issues 에 남겨 주세요.
+BODY
+)" || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Request 만들기
+        if: steps.branch.outputs.conflict == 'false'
+        run: |
+          set -euo pipefail
+          WARN=""
+          if [ -n "${DESTRUCTIVE}" ]; then
+            WARN=$(printf '## ⚠️ 데이터가 바뀌는 변경이 포함돼 있습니다\n\n%b\n**머지 전에 세팅실 → 시스템 상태에서 백업을 내려받아 주세요.**\n' "${DESTRUCTIVE}")
+          fi
+
+          BODY=$(cat <<BODY
+새 버전이 나왔습니다. 아래 **Merge pull request** 를 누르면 자동으로 반영됩니다.
+
+- 몇 분 뒤 Vercel 이 새 버전을 배포합니다.
+- 데이터베이스 변경이 있으면 배포 중에 자동으로 적용됩니다.
+- 내 데이터는 그대로 유지됩니다.
+
+${WARN}
+
+<sub>이 PR 은 주 1회 자동으로 만들어집니다. 자세한 내용은 [docs/UPDATE.md](docs/UPDATE.md) 를 보세요.</sub>
+BODY
+)
+          gh pr create \
+            --title "Edu_Note 업데이트 ($(date +%Y-%m-%d))" \
+            --body "$BODY" \
+            --base "${DEFAULT_BRANCH}" \
+            --head "${BRANCH}" \
+          || echo "PR 생성 실패 — 저장소 Settings → Actions → General 에서 'Allow GitHub Actions to create and approve pull requests' 를 켜 주세요. 브랜치(${BRANCH})는 푸시돼 있으니 직접 PR 을 열어도 됩니다."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          DESTRUCTIVE: ${{ steps.branch.outputs.destructive }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
