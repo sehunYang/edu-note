@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getDb } from "@/lib/db";
 import { upsertGoogleConnection } from "@/lib/db/queries";
 import { encryptToken } from "@/lib/integrations/google-calendar";
+import { allowedEmail } from "@/lib/config/env";
 
 /**
  * OAuth 콜백 (계획 §3.2). Google 로그인 후 code 를 세션으로 교환하고 홈으로.
@@ -30,11 +31,10 @@ export async function GET(request: Request) {
       const refreshToken = (data.session as any)?.provider_refresh_token as
         | string
         | undefined;
-      console.log("has refresh token:", !!refreshToken);
       if (
         refreshToken &&
         data.session?.user?.email &&
-        data.session.user.email === process.env.ALLOWED_EMAIL
+        data.session.user.email === allowedEmail()
       ) {
         const db = getDb();
         await upsertGoogleConnection(db, data.session.user.id, encryptToken(refreshToken));
