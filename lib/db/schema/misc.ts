@@ -482,6 +482,14 @@ export const mealCache = pgTable(
   (t) => [unique("uq_meal_cache").on(t.ownerId, t.date)],
 );
 
+// 앱 자가 생성 시크릿 (0063). owner_id 없음 — 배포(오리진) 전체의 신원이라
+// 소유자별로 나눌 수 없다. 예: VAPID 키쌍. RLS 로 전면 차단돼 있다.
+export const appSecrets = pgTable("app_secrets", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // 감사 로그
 export const auditLog = pgTable("audit_log", {
   id: pk(),

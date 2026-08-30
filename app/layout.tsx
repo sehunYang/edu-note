@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SwRegister } from "./sw-register";
+import { siteUrl } from "@/lib/config/env";
 
 // manifest/appleWebApp을 metadata export에 넣지 않는 이유: Next 15.2+ 스트리밍
 // 메타데이터가 이 태그들을 <body>로 흘려보낸 뒤 하이드레이션 때 <head>로 끌어올리는데,
@@ -12,11 +13,7 @@ import { SwRegister } from "./sw-register";
 // metadataBase: openGraph 이미지를 상대경로로 쓰려면 절대 URL 기준이 필요하다.
 // Vercel 은 프로덕션 도메인을 VERCEL_PROJECT_PRODUCTION_URL 로 넣어준다(프리뷰
 // 배포에서도 프로덕션 도메인이 들어와, 미리보기 카드가 항상 실서비스를 가리킨다).
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : "http://localhost:3000");
+const SITE_URL = siteUrl() ?? "http://localhost:3000";
 
 const SITE_DESCRIPTION =
   "고등학교 교사 1인용 교수-수업-평가-기록 일체화 플랫폼";

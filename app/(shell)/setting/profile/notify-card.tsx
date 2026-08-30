@@ -30,8 +30,7 @@ const REASON_MESSAGE: Record<string, string> = {
  * 가 없으면 어떤 액션도 호출하지 않고 안내만 표시(무해성). 구독/토글/테스트발송은
  * 모두 서버액션 경유이며, 실제 알림 수신은 비동기라 발송 요청 여부까지만 안내한다.
  */
-export function NotifyCard() {
-  const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+export function NotifyCard({ vapidKey }: { vapidKey: string }) {
   const [state, setState] = useState<State>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);

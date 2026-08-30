@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { allowedEmail } from "@/lib/config/env";
 
 /**
  * 인증 컨텍스트 → ownerId (계획 §3.2). owner_id = Supabase auth.uid().
@@ -35,7 +36,7 @@ export async function getOwnerId(): Promise<string> {
   const user = await getCurrentUser();
   if (!user) throw new Error("로그인이 필요합니다.");
   // fail-closed: ALLOWED_EMAIL 미설정이면 거부 (미들웨어와 동일 정책).
-  const allowed = process.env.ALLOWED_EMAIL;
+  const allowed = allowedEmail();
   if (!allowed || user.email !== allowed) {
     throw new Error("허용되지 않은 계정입니다.");
   }

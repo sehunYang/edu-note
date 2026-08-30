@@ -4,6 +4,8 @@ import { getPublicPage } from "@/lib/public/get-public-page";
 import { CoveLight } from "@/app/ui/cove-light";
 import { GoneNotice } from "./gone";
 import { PublicPageView } from "./public-page-view";
+import { getDb } from "@/lib/db";
+import { getVapidPublicKey } from "@/lib/config/secrets";
 
 /**
  * 공개 학생 안내 페이지 `/p/[token]` (QC v3 Part B, US-B13, AC-12.x).
@@ -84,7 +86,11 @@ export default async function PublicStudentPage({
   return (
     <>
       <CoveLight />
-      <PublicPageView token={token} payload={result.payload} />
+      <PublicPageView
+        token={token}
+        payload={result.payload}
+        vapidKey={await getVapidPublicKey(getDb())}
+      />
     </>
   );
 }

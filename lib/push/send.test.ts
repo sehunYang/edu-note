@@ -62,14 +62,37 @@ beforeEach(() => {
 });
 
 describe("sendToTeacher", () => {
-  it("VAPID 미설정이면 no-op — DB 조회조차 안 함", async () => {
+  // S2 이후 키 저장소가 env → DB(app_secrets) 로 확장됐다. 그래서 "DB 를 아예 안
+  // 본다"는 더 이상 계약이 아니다. 지켜야 할 계약은 "키를 어디서도 못 구하면 아무것도
+  // 발송하지 않고 조용히 끝난다"이다(무해성). 목업 DB 는 secrets 조회에서 실패하므로
+  // 키 없음 경로를 그대로 재현한다.
+  it("VAPID 키를 어디서도 못 구하면 발송하지 않고 조용히 끝난다", async () => {
     delete process.env.VAPID_PUBLIC_KEY;
+    delete process.env.VAPID_PRIVATE_KEY;
+    const webpush = await loadWebpush();
     const { sendToTeacher } = await loadSend();
     const m = makeDb([]);
     await expect(
       sendToTeacher(m.db, "owner-1", "instant", PAYLOAD),
     ).resolves.toBeUndefined();
-    expect(m.select).not.toHaveBeenCalled();
+    expect(webpush.sendNotification).not.toHaveBeenCalled();
+    expect(webpush.setVapidDetails).not.toHaveBeenCalled();
+    expect(m.insert).not.toHaveBeenCalled(); // 감사로그도 남지 않는다
+  });
+
+  // AC-9: VAPID env 로 이미 운영 중인 배포는 동작이 바뀌면 안 된다 —
+  // env 가 있으면 DB 를 보지 않고 그 키로 바로 발송한다.
+  it("env 에 키가 있으면 DB 를 보지 않고 그 키로 초기화한다", async () => {
+    const webpush = await loadWebpush();
+    webpush.sendNotification.mockResolvedValue(undefined);
+    const { sendToTeacher } = await loadSend();
+    const m = makeDb([
+      { id: "s1", endpoint: "e1", p256dh: "p", auth: "a", prefs: {} },
+    ]);
+    await sendToTeacher(m.db, "owner-1", "instant", PAYLOAD);
+    expect(webpush.setVapidDetails).toHaveBeenCalledWith("mailto:a@b.c", "pub", "priv");
+    // select 는 구독 조회 1회뿐 — 키를 DB 에서 찾지 않았다는 뜻.
+    expect(m.select).toHaveBeenCalledTimes(1);
   });
 
   it("sendNotification 이 throw 해도 정상 resolve(무해성 보장)", async () => {
@@ -160,14 +183,17 @@ describe("sendToTeacher", () => {
 });
 
 describe("sendToStudents", () => {
-  it("VAPID 미설정이면 no-op — DB 조회 안 함", async () => {
+  it("VAPID 키를 어디서도 못 구하면 발송하지 않고 조용히 끝난다", async () => {
+    delete process.env.VAPID_PUBLIC_KEY;
     delete process.env.VAPID_PRIVATE_KEY;
+    const webpush = await loadWebpush();
     const { sendToStudents } = await loadSend();
     const m = makeDb([]);
     await expect(
       sendToStudents(m.db, [{ publicPageId: "pp1" }], "s1", PAYLOAD),
     ).resolves.toBeUndefined();
-    expect(m.select).not.toHaveBeenCalled();
+    expect(webpush.sendNotification).not.toHaveBeenCalled();
+    expect(m.insert).not.toHaveBeenCalled();
   });
 
   it("targets 가 비면 no-op — DB 조회 안 함", async () => {

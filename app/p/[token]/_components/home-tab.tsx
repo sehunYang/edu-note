@@ -268,11 +268,13 @@ function UpcomingEvents({
 export function HomeTab({
   token,
   payload,
+  vapidKey,
   onNavigateTimetable,
   onNavigateSchedule,
 }: {
   token: string;
   payload: PublicPagePayload;
+  vapidKey: string;
   onNavigateTimetable: () => void;
   onNavigateSchedule: () => void;
 }) {
@@ -295,7 +297,7 @@ export function HomeTab({
         onNavigate={onNavigateTimetable}
       />
       <UpcomingEvents todos={payload.weekTodos} onNavigate={onNavigateSchedule} />
-      <NotifyCard token={token} />
+      <NotifyCard token={token} vapidKey={vapidKey} />
     </div>
   );
 }

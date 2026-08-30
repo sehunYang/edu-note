@@ -3,6 +3,7 @@ import postgres from "postgres";
 import { and, count, eq, sql } from "drizzle-orm";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "@/lib/db/schema";
+import { publicDatabaseUrl } from "@/lib/config/env";
 import {
   upsertStudentElectiveMapping,
   reserveCounselSlot,
@@ -30,8 +31,8 @@ const globalForPublicWrite = globalThis as unknown as {
 
 function publicDb(): PostgresJsDatabase<typeof schema> {
   if (!globalForPublicWrite._eduPublicWriteDb) {
-    const url = process.env.PUBLIC_DATABASE_URL ?? process.env.DATABASE_URL;
-    if (!url) throw new Error("PUBLIC_DATABASE_URL(또는 DATABASE_URL) 미설정");
+    const url = publicDatabaseUrl();
+    if (!url) throw new Error("공개 페이지용 DB 접속 정보가 없습니다(PUBLIC_DATABASE_URL/DATABASE_URL/POSTGRES_URL).");
     // idle_timeout 10분 — 재연결 비용 제거(지연 개선 ③, lib/db/index.ts 와 동일)
     const sql = postgres(url, { prepare: false, max: 2, idle_timeout: 600 });
     globalForPublicWrite._eduPublicWriteClient = sql;

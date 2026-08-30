@@ -1,5 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { supabaseUrl, supabaseAnonKey } from "@/lib/config/public-env";
+import { allowedEmail } from "@/lib/config/env";
 
 /**
  * 세션 갱신 + 단일 이메일 allowlist 강제 (계획 §3.2, AC — 본인 외 전면 차단).
@@ -12,8 +14,8 @@ export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -40,7 +42,7 @@ export async function updateSession(request: NextRequest) {
 
   // fail-closed: ALLOWED_EMAIL 미설정이면 전면 차단. (미설정 시 아무 계정이나
   // 통과시키는 fail-open 은 env 누락 한 번으로 조용히 전체 개방되는 구조였음)
-  const allowed = process.env.ALLOWED_EMAIL;
+  const allowed = allowedEmail();
   const authorized = !!claims && !!allowed && claims.email === allowed;
 
   if (!authorized) {

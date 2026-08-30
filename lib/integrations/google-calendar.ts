@@ -1,4 +1,6 @@
 import "server-only";
+import { googleOAuth } from "@/lib/config/env";
+import { googleTokenEncKey } from "@/lib/config/derive";
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 import type { GoogleCalendarApiEvent } from "@/lib/domain/google-event";
 
@@ -21,13 +23,12 @@ export class GoogleAuthExpiredError extends Error {
 }
 
 function getEncryptionKey(): Buffer {
-  const raw = process.env.GOOGLE_TOKEN_ENC_KEY;
-  if (!raw) {
-    throw new Error("GOOGLE_TOKEN_ENC_KEY 환경변수가 설정되지 않았습니다.");
-  }
-  const key = Buffer.from(raw, "base64");
-  if (key.length !== 32) {
-    throw new Error("GOOGLE_TOKEN_ENC_KEY는 base64 인코딩된 32바이트여야 합니다.");
+  // 명시 env → 없으면 서버 시크릿에서 파생(배포판은 이 값을 물을 수 없다).
+  const key = googleTokenEncKey();
+  if (!key) {
+    throw new Error(
+      "구글 토큰 암호화 키를 만들 수 없습니다(SUPABASE_SERVICE_ROLE_KEY/DATABASE_URL 미설정).",
+    );
   }
   return key;
 }
@@ -77,8 +78,8 @@ export async function refreshAccessToken(
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      client_id: googleOAuth()?.clientId ?? "",
+      client_secret: googleOAuth()?.clientSecret ?? "",
       refresh_token: refreshToken,
       grant_type: "refresh_token",
     }),

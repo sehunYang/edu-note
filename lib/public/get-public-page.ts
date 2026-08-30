@@ -1,5 +1,6 @@
 import "server-only";
 import postgres from "postgres";
+import { publicDatabaseUrl } from "@/lib/config/env";
 import {
   parsePublicPagePayload,
   type PublicPageState,
@@ -20,8 +21,8 @@ const globalForPublic = globalThis as unknown as {
   _eduPublicPgClient?: ReturnType<typeof postgres>;
 };
 function publicSql() {
-  const url = process.env.PUBLIC_DATABASE_URL ?? process.env.DATABASE_URL;
-  if (!url) throw new Error("PUBLIC_DATABASE_URL(또는 DATABASE_URL) 미설정");
+  const url = publicDatabaseUrl();
+  if (!url) throw new Error("공개 페이지용 DB 접속 정보가 없습니다(PUBLIC_DATABASE_URL/DATABASE_URL/POSTGRES_URL).");
   if (!globalForPublic._eduPublicPgClient) {
     globalForPublic._eduPublicPgClient = postgres(url, {
       prepare: false,

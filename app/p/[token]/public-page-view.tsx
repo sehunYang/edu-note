@@ -27,9 +27,12 @@ function normalizeTab(value: string | null): TabId {
 export function PublicPageView({
   token,
   payload,
+  vapidKey,
 }: {
   token: string;
   payload: PublicPagePayload;
+  /** 서버에서 내려받은 VAPID 공개키. 배포판은 앱이 직접 생성하므로 빌드타임 값이 없다. */
+  vapidKey: string;
 }) {
   const search = useSearchParams();
   const [tab, setTab] = useState<TabId>(() => normalizeTab(search.get("tab")));
@@ -57,6 +60,7 @@ export function PublicPageView({
           <HomeTab
             token={token}
             payload={payload}
+            vapidKey={vapidKey}
             onNavigateTimetable={() => selectTab("timetable")}
             onNavigateSchedule={() => selectTab("schedule")}
           />

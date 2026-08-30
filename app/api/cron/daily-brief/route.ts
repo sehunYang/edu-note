@@ -20,6 +20,9 @@ import {
   distinctStudentS3Owners,
 } from "@/lib/push/cron-brief";
 import { syncNeisTimetables } from "@/lib/integrations/neis-timetable-sync";
+import { cronSecret } from "@/lib/config/env";
+import { neisEnabled } from "@/lib/config/features";
+import { claimDailyRun } from "@/lib/config/secrets";
 
 /**
  * 일일 아침 브리핑 크론 (합의 계획 push-notifications, US-8).
@@ -58,7 +61,17 @@ async function isSchoolDayFor(
 }
 
 export async function GET(request: NextRequest) {
-  if (!authorizeCron(request.headers.get("authorization"), process.env.CRON_SECRET)) {
+  // CRON_SECRET 이 있으면 Bearer 검증(강함). 배포판 기본값처럼 없으면 Vercel 크론
+  // user-agent 로만 판정하는데, 그건 외부에서 흉내낼 수 있으므로 아래 "하루 1회"
+  // 가드를 함께 건다 — 흉내를 내도 발송을 하루 한 번 이상 유발할 수 없다.
+  const secret = cronSecret();
+  if (
+    !authorizeCron(
+      request.headers.get("authorization"),
+      secret,
+      request.headers.get("user-agent"),
+    )
+  ) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -68,13 +81,19 @@ export async function GET(request: NextRequest) {
   const semester = activeSemester(now);
   const { date: today, weekday } = kstToday();
 
+  if (!secret && !(await claimDailyRun(db, "daily-brief", today))) {
+    return NextResponse.json({ skipped: "already-ran-today" });
+  }
+
   // ── 0단계: NEIS '이번 주 실제' 시간표 갱신(브리핑보다 먼저) ──
   // 읽기전용 오버레이 레이어만 갱신하며 수업계획/시수관리 테이블은 건드리지 않는다.
   // 실패가 브리핑 발송을 절대 막지 않도록 격리한다(NEIS 클라이언트는 Result라 통상 throw
   // 없지만 DB 오류 등 예외를 방어).
   let neisSync: unknown = null;
   try {
-    neisSync = await syncNeisTimetables(db, today);
+    neisSync = (await neisEnabled())
+      ? await syncNeisTimetables(db, today)
+      : { skipped: "neis-disabled" };
   } catch (e) {
     neisSync = { error: e instanceof Error ? e.message : "neis sync 실패" };
   }

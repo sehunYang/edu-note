@@ -1,5 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { anthropicApiKey } from "@/lib/config/env";
 
 /**
  * 서버 전용 Claude 클라이언트.
@@ -20,7 +21,7 @@ export type ClaudeModel = (typeof CLAUDE_MODELS)[keyof typeof CLAUDE_MODELS];
 let cachedClient: Anthropic | null = null;
 
 export function getClaudeClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = anthropicApiKey();
   if (!apiKey) {
     throw new Error(
       "ANTHROPIC_API_KEY 가 설정되지 않았습니다. 서버 env 에 등록하세요.",

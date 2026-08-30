@@ -5,6 +5,7 @@ import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "@/lib/db/schema";
 import { writeAudit } from "@/lib/db/queries";
 import { prefEnabled } from "./targeting";
+import { getOrCreateVapidKeys } from "@/lib/config/secrets";
 
 /**
  * 웹푸시 발송 유틸 (합의 계획 push-notifications, US-2).
@@ -29,22 +30,28 @@ interface SubRow {
   auth: string;
 }
 
-// VAPID 는 모듈 전역에서 1회만 초기화. 미설정이면 configured=false 로 남아
-// 모든 발송이 no-op.
+// VAPID 는 프로세스당 1회만 초기화한다.
+//
+// 배포판(S2)에서는 키쌍이 env 에 없을 수 있다 — 교사에게 물을 수 없는 값이라
+// app_secrets 에 앱이 직접 만들어 넣는다. 그래서 판정이 비동기가 됐다.
+// env 가 있으면 그쪽이 우선이라 기존 배포는 동작이 바뀌지 않는다.
 let vapidReady: boolean | null = null;
 
-function vapidConfigured(): boolean {
+async function vapidConfigured(db: DB): Promise<boolean> {
   if (vapidReady !== null) return vapidReady;
-  const publicKey = process.env.VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
-  const subject = process.env.VAPID_SUBJECT;
-  if (!publicKey || !privateKey || !subject) {
+  const keys = await getOrCreateVapidKeys(db);
+  if (!keys) {
     vapidReady = false;
     return false;
   }
-  webpush.setVapidDetails(subject, publicKey, privateKey);
+  webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
   vapidReady = true;
   return true;
+}
+
+/** 테스트 전용 — 모듈 캐시 초기화. */
+export function __resetVapidReady(): void {
+  vapidReady = null;
 }
 
 /**
@@ -108,7 +115,7 @@ export async function sendToTeacher(
   kind: "instant" | "briefing" | "test",
   payload: PushPayload,
 ): Promise<void> {
-  if (!vapidConfigured()) return;
+  if (!(await vapidConfigured(db))) return;
 
   const rows = await db
     .select({
@@ -150,7 +157,7 @@ export async function sendToStudents(
   kind: "s1" | "s2" | "s3" | "test",
   payload: PushPayload,
 ): Promise<void> {
-  if (!vapidConfigured()) return;
+  if (!(await vapidConfigured(db))) return;
   if (targets.length === 0) return;
 
   const pageIds = [...new Set(targets.map((t) => t.publicPageId))];

@@ -14,9 +14,13 @@ import { prefEnabled } from "@/lib/push/targeting";
  */
 export function authorizeCron(
   authHeader: string | null,
-  secret: string | undefined,
+  secret: string | undefined | null,
+  userAgent?: string | null,
 ): boolean {
-  if (!secret) return false;
+  // 시크릿이 없을 때(배포판 기본값): Vercel 크론 인프라가 붙이는 user-agent 만 통과.
+  // 외부에서 흉내낼 수 있는 약한 판정이라, 호출부가 "하루 1회" 멱등 가드를 함께 건다.
+  // CRON_SECRET 을 등록하면 아래 Bearer 검증으로 승격된다(권장).
+  if (!secret) return /^vercel-cron\//i.test(userAgent ?? "");
   const header = authHeader ?? "";
   const provided = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (!provided) return false;

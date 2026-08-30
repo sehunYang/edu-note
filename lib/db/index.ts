@@ -2,6 +2,7 @@ import "server-only";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
+import { databaseUrl } from "@/lib/config/env";
 
 /**
  * 서버 전용 Drizzle 클라이언트 (계획 §3.5 /lib/db).
@@ -14,9 +15,12 @@ const globalForDb = globalThis as unknown as {
 };
 
 function pgClient() {
-  const url = process.env.DATABASE_URL;
+  const url = databaseUrl();
   if (!url) {
-    throw new Error("DATABASE_URL 이 설정되지 않았습니다. 서버 env 에 등록하세요.");
+    throw new Error(
+      "DB 접속 정보가 없습니다. Vercel 환경변수에 DATABASE_URL 또는 POSTGRES_URL 을 " +
+        "등록한 뒤 다시 배포하세요(Supabase 통합을 붙이면 자동으로 설정됩니다).",
+    );
   }
   if (!globalForDb._eduPgClient) {
     globalForDb._eduPgClient = postgres(url, {

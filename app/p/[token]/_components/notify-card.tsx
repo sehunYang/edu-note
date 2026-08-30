@@ -14,7 +14,6 @@ import {
  * VAPID 공개키 미설정 시 안내만 노출(버튼 비활성). 구독 전에는 "알림 받기" 버튼,
  * 구독 후에는 S1/S2/S3 토글 + 테스트 발송. iOS 비standalone 은 홈 화면 추가 안내.
  */
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
 const PREF_LABELS: { key: "s1" | "s2" | "s3"; label: string; desc: string }[] = [
   { key: "s1", label: "새 공지", desc: "교사가 새 공지를 올리면" },
@@ -35,7 +34,13 @@ function isIOS(): boolean {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
 }
 
-export function NotifyCard({ token }: { token: string }) {
+export function NotifyCard({
+  token,
+  vapidKey,
+}: {
+  token: string;
+  vapidKey: string;
+}) {
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -60,13 +65,13 @@ export function NotifyCard({ token }: { token: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const configured = VAPID_PUBLIC_KEY.length > 0;
+  const configured = vapidKey.length > 0;
 
   const onSubscribe = async () => {
     setBusy(true);
     setError(null);
     setStatus(null);
-    const result = await subscribeToPush(VAPID_PUBLIC_KEY);
+    const result = await subscribeToPush(vapidKey);
     if (!result.ok) {
       const msg: Record<typeof result.reason, string> = {
         unsupported: "이 브라우저는 알림을 지원하지 않습니다.",
