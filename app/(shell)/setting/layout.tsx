@@ -47,6 +47,17 @@ export default async function SettingLayout({
         }))}
       />
 
+      {/* 시스템 상태는 5단계 게이팅과 무관하다 — 설치 진단·키 등록은 언제나 열려
+          있어야 한다(배포판 S5). 그래서 StageNav 밖에 별도 링크로 둔다. */}
+      <div className="mt-3">
+        <a
+          href="/setting/system"
+          className="text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-300"
+        >
+          시스템 상태 · 인증키 등록 →
+        </a>
+      </div>
+
       <section className="mt-5">{children}</section>
     </div>
   );

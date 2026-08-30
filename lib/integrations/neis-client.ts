@@ -1,4 +1,5 @@
 import "server-only";
+import { resolveNeisKey } from "@/lib/config/runtime-key";
 import {
   parseMealService,
   parseSchoolSchedule,
@@ -30,11 +31,15 @@ interface NeisQuery {
   schoolCode: string;
 }
 
-function buildUrl(
+/**
+ * NEIS 요청 URL 을 만든다. 인증키는 env 에 없으면 DB(app_secrets)에서 가져오므로
+ * 비동기다 — 교사가 설치 후에 앱 안에서 키를 넣을 수 있어야 하기 때문(S5).
+ */
+async function buildUrl(
   endpoint: string,
   query: NeisQuery,
   extra: Record<string, string>,
-): string {
+): Promise<string> {
   const params = new URLSearchParams({
     Type: "json",
     pIndex: "1",
@@ -43,7 +48,7 @@ function buildUrl(
     SD_SCHUL_CODE: query.schoolCode,
     ...extra,
   });
-  const key = process.env.NEIS_API_KEY;
+  const key = await resolveNeisKey();
   if (key) params.set("KEY", key);
   return `${NEIS_BASE}/${endpoint}?${params.toString()}`;
 }
@@ -68,7 +73,7 @@ export async function searchSchoolInfo(
     pSize: "20",
     SCHUL_NM: name,
   });
-  const key = process.env.NEIS_API_KEY;
+  const key = await resolveNeisKey();
   if (key) params.set("KEY", key);
   const res = await fetchJson(`${NEIS_BASE}/schoolInfo?${params.toString()}`);
   if (!res.ok) return res;
@@ -81,7 +86,7 @@ export async function fetchSchoolSchedule(
   fromYmd: string,
   toYmd: string,
 ): Promise<NeisResult<NeisScheduleEntry[]>> {
-  const url = buildUrl("SchoolSchedule", query, {
+  const url = await buildUrl("SchoolSchedule", query, {
     AA_FROM_YMD: fromYmd,
     AA_TO_YMD: toYmd,
   });
@@ -96,7 +101,7 @@ export async function fetchMealService(
   fromYmd: string,
   toYmd: string,
 ): Promise<NeisResult<NeisMealEntry[]>> {
-  const url = buildUrl("mealServiceDietInfo", query, {
+  const url = await buildUrl("mealServiceDietInfo", query, {
     MLSV_FROM_YMD: fromYmd,
     MLSV_TO_YMD: toYmd,
   });
@@ -116,7 +121,7 @@ export async function fetchHisTimetable(
   fromYmd: string,
   toYmd: string,
 ): Promise<NeisResult<NeisTimetableEntry[]>> {
-  const url = buildUrl("hisTimetable", query, {
+  const url = await buildUrl("hisTimetable", query, {
     GRADE: String(grade),
     CLASS_NM: String(classNm),
     TI_FROM_YMD: fromYmd,
