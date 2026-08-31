@@ -71,9 +71,29 @@ describe("업데이트 전달 워크플로", () => {
     expect(triggers.schedule?.[0]?.cron).toBeTruthy();
   });
 
-  it("원본 저장소에서는 돌지 않는다", () => {
+  it("원본 저장소에서는 실제 작업을 하지 않는다", () => {
     const { job } = read();
-    expect(job.if).toContain("github.repository !=");
+    const runs = job.steps.map((s) => s.run ?? "").join("\n");
+    expect(runs).toContain("UPSTREAM_REPO");
+  });
+
+  it("원본에서 실행되면 이유를 남긴다 — 조용한 skip 은 왜 안 돌았는지 알 수 없다", () => {
+    // job 레벨 if 로 통째로 건너뛰면 회색 skip 만 남는다. 실제로 그렇게 만들었다가
+    // "아무 작업도 하지 않았다"는 혼란을 샀다.
+    const { job } = read();
+    expect(job.if).toBeUndefined();
+    const guard = job.steps.find((s) => s.id === "guard");
+    expect(guard).toBeTruthy();
+    expect(guard.run).toContain("::notice::");
+  });
+
+  it("가드 이후 모든 스텝이 가드 결과를 확인한다", () => {
+    const { job } = read();
+    const after = job.steps.filter((s) => s.id !== "guard");
+    const gated = after.filter((s) => (s.if ?? "").includes("steps.guard.outputs.upstream"));
+    // PR·이슈 스텝은 branch 스텝 결과에 의존하고, branch 자체가 가드를 확인하므로
+    // 연쇄로 보호된다. 체크아웃·fetch·branch 는 직접 확인해야 한다.
+    expect(gated.length).toBeGreaterThanOrEqual(3);
   });
 
   it("PR 을 만들 권한을 선언한다", () => {

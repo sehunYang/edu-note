@@ -29,16 +29,30 @@ env:
 
 jobs:
   sync:
-    # 원본 저장소에서는 돌 이유가 없다(자기 자신을 확인하게 된다).
-    if: github.repository != 'sehunYang/edu-note'
     runs-on: ubuntu-latest
     steps:
+      # 원본 저장소에서는 확인할 것이 없다(자기 자신을 비교하게 된다).
+      # job 레벨 `if` 로 통째로 건너뛰면 회색 skip 만 남아 "왜 아무 일도 안 했는지"를
+      # 알 수 없다(실제로 그렇게 만들었다가 혼란을 샀다). 스텝으로 두고 이유를 남긴다.
+      - name: 실행 대상 저장소 확인
+        id: guard
+        run: |
+          if [ "$GITHUB_REPOSITORY" = "$UPSTREAM_REPO" ]; then
+            echo "::notice::여기는 원본 저장소($UPSTREAM_REPO)입니다. 이 워크플로는 원본을 복제해 만든 '내 저장소'에서 실행해야 합니다. 확인할 것이 없어 여기서 끝냅니다."
+            echo "upstream=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "확인 대상: $GITHUB_REPOSITORY (원본: $UPSTREAM_REPO)"
+            echo "upstream=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.guard.outputs.upstream == 'false'
         with:
           fetch-depth: 0
 
       - name: 원본에서 새 커밋 가져오기
         id: fetch
+        if: steps.guard.outputs.upstream == 'false'
         run: |
           set -euo pipefail
           git remote add upstream "https://github.com/${UPSTREAM_REPO}.git" || true
@@ -50,12 +64,12 @@ jobs:
           echo "base=${BASE}" >> "$GITHUB_OUTPUT"
 
       - name: 최신 상태면 여기서 끝
-        if: steps.fetch.outputs.ahead == '0'
+        if: steps.guard.outputs.upstream == 'false' && steps.fetch.outputs.ahead == '0'
         run: echo "이미 최신입니다. 만들 PR 이 없습니다."
 
       - name: 업데이트 브랜치 만들기
         id: branch
-        if: steps.fetch.outputs.ahead != '0'
+        if: steps.guard.outputs.upstream == 'false' && steps.fetch.outputs.ahead != '0'
         env:
           BASE: ${{ steps.fetch.outputs.base }}
         run: |
