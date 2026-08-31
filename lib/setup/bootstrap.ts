@@ -189,45 +189,45 @@ export async function runBootstrap(
 }
 
 /**
- * 소유자를 초대한다. service role 키로 Auth Admin API 를 직접 호출한다
- * (Management API 가 아니라 프로젝트의 /auth/v1/invite).
- * 이미 존재하는 계정이면 성공으로 본다 — 재실행 가능해야 하기 때문.
+ * 소유자 계정을 만든다. service role 키로 Auth Admin API 를 호출한다.
+ *
+ * ⚠ 초대 메일(/auth/v1/invite)을 보내지 않는다. **Supabase 무료 프로젝트의 내장 메일은
+ * 시간당 2통**뿐이라, 초대 메일 1통을 쓰면 교사가 로그인 링크를 두 번만 요청해도 429 로
+ * 막힌다(2026-08-31 실배포에서 실제로 발생). 대신 `email_confirm: true` 로 **확인된
+ * 계정을 메일 없이 바로 생성**한다. 교사는 로그인 화면에서 매직링크를 받으면 되고,
+ * 받은편지함에 정체 모를 초대 메일이 하나 덜 쌓인다.
+ *
+ * 신규가입(disable_signup)을 막아 둬도 Admin API 는 통과한다 — 그게 이 키의 권한이다.
+ * 이미 존재하는 계정이면 성공으로 본다(재실행 가능해야 한다).
  */
 async function inviteOwner(email: string): Promise<StepResult> {
+  const label = "소유자 계정 등록";
   const secret = supabaseSecretKey();
   if (!secret) {
     return {
-      label: "소유자 계정 초대",
+      label,
       ok: false,
       detail: "SUPABASE_SERVICE_ROLE_KEY(또는 SUPABASE_SECRET_KEY)가 없습니다.",
     };
   }
   try {
-    const res = await fetch(`${supabaseUrl}/auth/v1/invite`, {
+    const res = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
       method: "POST",
       headers: {
         apikey: secret,
         Authorization: `Bearer ${secret}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, email_confirm: true }),
       cache: "no-store",
     });
-    if (res.ok) return { label: "소유자 계정 초대", ok: true, detail: email };
+    if (res.ok) return { label, ok: true, detail: `${email} (메일 발송 없음)` };
     // 이미 등록된 사용자 — 재실행 시 정상 경로다.
-    if (res.status === 422 || res.status === 400) {
-      return {
-        label: "소유자 계정 초대",
-        ok: true,
-        detail: `${email} (이미 등록됨)`,
-      };
+    if (res.status === 422 || res.status === 409 || res.status === 400) {
+      return { label, ok: true, detail: `${email} (이미 등록됨)` };
     }
-    return {
-      label: "소유자 계정 초대",
-      ok: false,
-      detail: `Supabase 응답 ${res.status}`,
-    };
+    return { label, ok: false, detail: `Supabase 응답 ${res.status}` };
   } catch {
-    return { label: "소유자 계정 초대", ok: false, detail: "네트워크 오류" };
+    return { label, ok: false, detail: "네트워크 오류" };
   }
 }

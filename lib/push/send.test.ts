@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 
 /**
  * 발송 유틸 단위테스트(US-2). web-push 는 네트워크 호출이라 전면 목업한다
@@ -52,6 +52,15 @@ async function loadWebpush() {
     sendNotification: ReturnType<typeof vi.fn>;
   };
 }
+
+// 모듈 그래프를 미리 한 번 로드해 둔다.
+// ./send 는 lib/config/secrets → lib/db/schema(드리즐 전체)까지 끌고 오는데, 그 콜드
+// 로드가 5초에 육박해 첫 it() 이 기본 타임아웃(5000ms)에 아슬아슬하게 걸렸다(S2 에서
+// 의존이 늘며 생긴 문제). 여기서 데워 두면 각 테스트의 resetModules 후 재임포트는
+// 변환 캐시를 재사용해 수백 ms 로 떨어진다.
+beforeAll(async () => {
+  await import("./send");
+});
 
 beforeEach(() => {
   vi.resetModules();

@@ -43,8 +43,15 @@ export function MagicLinkForm() {
     });
     setSending(false);
     if (err) {
+      // Supabase 무료 프로젝트의 내장 메일은 **시간당 2통**이다. 이걸 "등록된 계정이
+      // 아닙니다"로 뭉뚱그리면 교사가 이메일을 잘못 적었다고 오해하고 계속 헤맨다
+      // (2026-08-31 실배포에서 실제로 겪음). 429 는 따로 안내한다.
+      const rateLimited =
+        err.status === 429 || /rate limit/i.test(err.message ?? "");
       setError(
-        "로그인 링크를 보내지 못했습니다. 등록된 교사 계정이 맞는지 확인해 주세요.",
+        rateLimited
+          ? "메일 발송 한도에 걸렸습니다. 무료 플랜은 시간당 2통까지라, 잠시 뒤(최대 1시간) 다시 시도해 주세요."
+          : "로그인 링크를 보내지 못했습니다. 등록된 교사 계정이 맞는지 확인해 주세요.",
       );
       return;
     }
