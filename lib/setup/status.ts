@@ -5,7 +5,7 @@ import * as schema from "@/lib/db/schema";
 import { siteUrl, cronSecret } from "@/lib/config/env";
 import { supabaseUrl } from "@/lib/config/public-env";
 import { resolveFeatures, type Features } from "@/lib/config/features";
-import { neisKeyIsFromEnv } from "@/lib/config/runtime-key";
+import { neisKeySource, type NeisKeySource } from "@/lib/config/runtime-key";
 import { isBootstrapped } from "./bootstrap";
 
 /**
@@ -17,7 +17,7 @@ import { isBootstrapped } from "./bootstrap";
  */
 export interface SystemStatus {
   features: Features;
-  neisFromEnv: boolean;
+  neisSource: NeisKeySource;
   cronSecretSet: boolean;
   bootstrapped: boolean;
   siteUrl: string | null;
@@ -30,15 +30,16 @@ export async function getSystemStatus(
   db: PostgresJsDatabase<typeof schema>,
   version: string | null,
 ): Promise<SystemStatus> {
-  const [features, bootstrapped, migrations] = await Promise.all([
+  const [features, bootstrapped, migrations, neisSource] = await Promise.all([
     resolveFeatures(),
     isBootstrapped(db),
     readMigrations(db),
+    neisKeySource(),
   ]);
 
   return {
     features,
-    neisFromEnv: neisKeyIsFromEnv(),
+    neisSource,
     cronSecretSet: cronSecret() !== null,
     bootstrapped,
     siteUrl: siteUrl(),

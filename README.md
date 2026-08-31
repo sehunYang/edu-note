@@ -163,7 +163,7 @@ Edu_Note는 학생의 **관찰기록·수행평가·활동 내역**과 **NEIS �
 
 <div align="center">
 
-### [![Vercel로 배포하기](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FsehunYang%2Fedu-note&project-name=edu-note&repository-name=edu-note&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22supabase%22%2C%22productSlug%22%3A%22supabase%22%2C%22protocol%22%3A%22storage%22%7D%5D&env=ALLOWED_EMAIL%2CNEIS_API_KEY&envDescription=ALLOWED_EMAIL%3A+%EB%A1%9C%EA%B7%B8%EC%9D%B8%EC%97%90+%EC%82%AC%EC%9A%A9%ED%95%A0+%EB%B3%B8%EC%9D%B8+%EC%9D%B4%EB%A9%94%EC%9D%BC.+NEIS_API_KEY%3A+%ED%95%99%EC%82%AC%EC%9D%BC%EC%A0%95%C2%B7%EA%B8%89%EC%8B%9D%EC%9D%84+%EB%B6%88%EB%9F%AC%EC%98%AC+%EB%82%98%EC%9D%B4%EC%8A%A4+%EC%9D%B8%EC%A6%9D%ED%82%A4%28%EB%B9%84%EC%9B%8C%EB%8F%84+%EB%90%A9%EB%8B%88%EB%8B%A4%29.&envLink=https%3A%2F%2Fgithub.com%2FsehunYang%2Fedu-note%2Fblob%2Fmain%2Fdocs%2FINSTALL.md)
+### [![Vercel로 배포하기](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FsehunYang%2Fedu-note&project-name=edu-note&repository-name=edu-note&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22supabase%22%2C%22productSlug%22%3A%22supabase%22%2C%22protocol%22%3A%22storage%22%7D%5D&env=ALLOWED_EMAIL&envDescription=%EB%A1%9C%EA%B7%B8%EC%9D%B8%EC%97%90+%EC%82%AC%EC%9A%A9%ED%95%A0+%EB%B3%B8%EC%9D%B8+%EC%9D%B4%EB%A9%94%EC%9D%BC%EC%9D%84+%EC%9E%85%EB%A0%A5%ED%95%98%EC%84%B8%EC%9A%94.+%EC%9D%B4+%EC%A3%BC%EC%86%8C%EB%A1%9C%EB%A7%8C+%EB%A1%9C%EA%B7%B8%EC%9D%B8%ED%95%A0+%EC%88%98+%EC%9E%88%EC%8A%B5%EB%8B%88%EB%8B%A4.+%28%EB%82%98%EC%9D%B4%EC%8A%A4+%EC%9D%B8%EC%A6%9D%ED%82%A4%EB%8A%94+%EB%82%98%EC%A4%91%EC%97%90+%EC%95%B1+%EC%95%88%EC%97%90%EC%84%9C+%EB%93%B1%EB%A1%9D%ED%95%A9%EB%8B%88%EB%8B%A4%29&envLink=https%3A%2F%2Fgithub.com%2FsehunYang%2Fedu-note%2Fblob%2Fmain%2Fdocs%2FINSTALL.md)
 
 **약 10분. 터미널도, 코딩도 없습니다.**
 
@@ -184,9 +184,7 @@ Edu_Note는 학생의 **관찰기록·수행평가·활동 내역**과 **NEIS �
       ↓
 ③  [Create] 클릭 → 내 데이터베이스가 자동으로 만들어집니다 (무료·서울)
       ↓
-④  화면의 칸 2개를 채웁니다
-        본인 이메일  ← 여기로 로그인합니다
-        나이스 인증키 ← 없으면 비워두세요. 나중에 넣을 수 있습니다
+④  칸 하나만 채웁니다 — 본인 이메일 (여기로 로그인합니다)
       ↓
 ⑤  [Deploy] 클릭 → 3~5분 기다립니다 ☕
       ↓

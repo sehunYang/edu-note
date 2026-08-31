@@ -54,7 +54,7 @@ export default async function SystemPage() {
             name="나이스 연동"
             what="학사일정·급식·이번 주 실제 시간표를 자동으로 가져옵니다."
           >
-            <NeisKeyForm enabled={status.features.neis} fromEnv={status.neisFromEnv} />
+            <NeisKeyForm source={status.neisSource} />
           </FeatureRow>
 
           <FeatureRow
