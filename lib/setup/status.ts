@@ -2,7 +2,11 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "@/lib/db/schema";
-import { siteUrl, cronSecret } from "@/lib/config/env";
+import { siteUrl, cronSecret, gitRepo } from "@/lib/config/env";
+import {
+  UPSTREAM_SYNC_WORKFLOW,
+  UPSTREAM_SYNC_WORKFLOW_PATH,
+} from "./workflow-template";
 import { supabaseUrl } from "@/lib/config/public-env";
 import { resolveFeatures, type Features } from "@/lib/config/features";
 import { neisKeySource, type NeisKeySource } from "@/lib/config/runtime-key";
@@ -24,6 +28,23 @@ export interface SystemStatus {
   supabaseUrl: string;
   migrations: { applied: number; latest: string | null } | null;
   version: string | null;
+  /** 업데이트 확인 워크플로를 만드는 GitHub 링크(저장소를 못 알아내면 null). */
+  workflowSetupUrl: string | null;
+}
+
+/**
+ * GitHub 의 "새 파일" 편집기를 경로·내용까지 채워서 여는 링크.
+ * 교사는 열고 [Commit changes] 만 누르면 된다 — 복사·붙여넣기가 없다.
+ */
+export function buildWorkflowSetupUrl(
+  repo: { owner: string; slug: string; branch: string } | null,
+): string | null {
+  if (!repo) return null;
+  const q = new URLSearchParams({
+    filename: UPSTREAM_SYNC_WORKFLOW_PATH,
+    value: UPSTREAM_SYNC_WORKFLOW,
+  });
+  return `https://github.com/${repo.owner}/${repo.slug}/new/${repo.branch}?${q}`;
 }
 
 export async function getSystemStatus(
@@ -46,6 +67,7 @@ export async function getSystemStatus(
     supabaseUrl,
     migrations,
     version,
+    workflowSetupUrl: buildWorkflowSetupUrl(gitRepo()),
   };
 }
 

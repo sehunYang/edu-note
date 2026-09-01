@@ -109,6 +109,48 @@ export default async function SystemPage() {
       </section>
 
       <section className="mt-8">
+        <h3 className="text-sm text-neutral-300">자동 업데이트 확인</h3>
+        <p className="mt-1 text-sm text-neutral-500">
+          새 버전이 나오면 저장소에 업데이트 요청(Pull Request)이 자동으로 올라오게 합니다.
+          받으실지는 그때 내용을 보고 정하시면 됩니다.
+        </p>
+        {status.workflowSetupUrl ? (
+          <>
+            <a
+              href={status.workflowSetupUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-block rounded-lg border border-hairline px-4 py-2 text-sm hover:bg-white/5"
+            >
+              GitHub 에서 켜기 →
+            </a>
+            <p className="mt-2 text-xs text-neutral-500">
+              링크를 열면 내용이 채워진 편집기가 뜹니다. 아래 <b className="font-medium">Commit
+              changes</b> 만 누르면 끝이고, <b className="font-medium">한 번만</b> 하면 됩니다.
+              이미 하셨다면 넘어가세요.
+              <br />
+              그다음 저장소 <b className="font-medium">Settings → Actions → General</b> 에서{" "}
+              <b className="font-medium">Allow GitHub Actions to create and approve pull
+              requests</b> 를 켜 주세요.
+            </p>
+          </>
+        ) : (
+          <p className="mt-2 text-xs text-neutral-500">
+            저장소 정보를 읽지 못해 링크를 만들 수 없습니다. 수동 설정 방법은{" "}
+            <a
+              href="https://github.com/sehunYang/edu-note/blob/main/docs/UPDATE.md"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2"
+            >
+              docs/UPDATE.md
+            </a>
+            를 보세요.
+          </p>
+        )}
+      </section>
+
+      <section className="mt-8">
         <h3 className="text-sm text-neutral-300">백업</h3>
         <p className="mt-1 text-sm text-neutral-500">
           업데이트 전이나 학기 말에 내려받아 두세요. 모든 기록이 JSON 한 파일로 나옵니다.

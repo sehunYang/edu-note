@@ -5,6 +5,19 @@
 
 ---
 
+## 먼저 · 자동 확인 켜기 (한 번만)
+
+Vercel 이 저장소를 복사할 때 **`.github` 폴더는 가져오지 못합니다**(GitHub 이 그
+폴더의 파일 푸시에 별도 권한을 요구합니다). 그래서 처음 한 번만 파일을 만들어야 합니다.
+
+앱에서 **세팅실 → 시스템 상태 → 자동 업데이트 확인 → `GitHub 에서 켜기`** →
+열린 편집기에서 **Commit changes**.
+
+그다음 저장소 **Settings → Actions → General** 에서
+**Allow GitHub Actions to create and approve pull requests** 체크.
+
+한 번만 하면 그 뒤로는 자동입니다.
+
 ## 어떻게 오나요
 
 주 1회, GitHub이 원본을 확인해 새 버전이 있으면 PR을 만들어 둡니다.

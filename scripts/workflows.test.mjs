@@ -4,18 +4,20 @@ import path from "node:path";
 import { load } from "js-yaml";
 
 /**
- * GitHub Actions 워크플로 파일 검증.
+ * GitHub Actions 워크플로 검증.
  *
  * 왜 있는가: 업데이트 전달 워크플로가 **유효하지 않은 YAML 인 채로 배포됐다**.
- * `run: |` 블록 안에 heredoc(<<'BODY')을 쓰면서 본문 줄의 들여쓰기가 0 이었고,
- * 그러면 YAML 리터럴 블록이 거기서 끊긴다. 파일이 통째로 무효라 GitHub 은
- * "Invalid workflow file" 로 표시하고 Actions 탭에 나타나지도 않는다.
- *
- * 당시 검증은 "탭 문자 없음 + 필수 키 존재"만 봤고 그게 통과시켰다. 워크플로는
- * 교사 전원의 업데이트 경로라, 조용히 죽으면 아무도 모른다. 그래서 실제 파서로
- * 확인한다.
+ * `run: |` 블록 안에 heredoc 을 쓰면서 본문 줄의 들여쓰기가 0 이었고, 그러면 YAML
+ * 리터럴 블록이 거기서 끊긴다. 파일이 통째로 무효라 GitHub 은 "Invalid workflow file"
+ * 로 표시하고 Actions 탭에 띄우지도 않는다. 당시 검증은 "탭 없음 + 필수 키 존재"만
+ * 봤고 그게 통과시켰다. 워크플로는 교사 전원의 업데이트 경로라 조용히 죽으면 아무도
+ * 모른다. 그래서 실제 파서로 확인한다.
  */
 const DIR = path.join(process.cwd(), ".github", "workflows");
+const WORKFLOW = path.join(DIR, "upstream-sync.yml");
+const SCRIPT = path.join(process.cwd(), "scripts", "upstream-sync.sh");
+const TEMPLATE = path.join(process.cwd(), "lib", "setup", "workflow-template.ts");
+
 const files = readdirSync(DIR).filter((f) => /\.ya?ml$/.test(f));
 
 describe("워크플로 파일", () => {
@@ -36,8 +38,6 @@ describe("워크플로 파일", () => {
       });
 
       it("run 블록 안에 heredoc 이 없다 — 블록을 끊어 파일을 무효로 만든다", () => {
-        // 본문 들여쓰기를 지키는 heredoc 도 가능하지만, 한 번 데인 패턴이라
-        // 아예 금지하고 들여쓴 echo 로 파일에 쓰는 방식만 쓴다.
         expect(text).not.toMatch(/<<-?\s*['"]?[A-Z]+['"]?\s*$/m);
       });
 
@@ -53,47 +53,19 @@ describe("워크플로 파일", () => {
 });
 
 describe("업데이트 전달 워크플로", () => {
-  // 파싱을 it 안에서 한다. describe 본문에서 던지면 수집 단계가 통째로 죽어
-  // "no tests" 만 보이고 무엇이 왜 깨졌는지 알 수 없다(위 파일 검증이 잡아 주긴 하지만
-  // 실패 메시지가 읽히는 편이 낫다).
+  // 파싱을 it 안에서 한다. describe 본문에서 던지면 수집 단계가 죽어 "no tests" 만
+  // 보이고 무엇이 왜 깨졌는지 알 수 없다.
   const read = () => {
-    const doc = load(readFileSync(path.join(DIR, "upstream-sync.yml"), "utf8"));
+    const doc = load(readFileSync(WORKFLOW, "utf8"));
     return { doc, triggers: doc.on ?? doc[true], job: doc.jobs.sync };
   };
 
   it("수동 실행 버튼이 있다 — 교사가 기다리지 않고 확인할 수 있어야 한다", () => {
-    const { triggers } = read();
-    expect(triggers).toHaveProperty("workflow_dispatch");
+    expect(read().triggers).toHaveProperty("workflow_dispatch");
   });
 
   it("정기 확인이 걸려 있다", () => {
-    const { triggers } = read();
-    expect(triggers.schedule?.[0]?.cron).toBeTruthy();
-  });
-
-  it("원본 저장소에서는 실제 작업을 하지 않는다", () => {
-    const { job } = read();
-    const runs = job.steps.map((s) => s.run ?? "").join("\n");
-    expect(runs).toContain("UPSTREAM_REPO");
-  });
-
-  it("원본에서 실행되면 이유를 남긴다 — 조용한 skip 은 왜 안 돌았는지 알 수 없다", () => {
-    // job 레벨 if 로 통째로 건너뛰면 회색 skip 만 남는다. 실제로 그렇게 만들었다가
-    // "아무 작업도 하지 않았다"는 혼란을 샀다.
-    const { job } = read();
-    expect(job.if).toBeUndefined();
-    const guard = job.steps.find((s) => s.id === "guard");
-    expect(guard).toBeTruthy();
-    expect(guard.run).toContain("::notice::");
-  });
-
-  it("가드 이후 모든 스텝이 가드 결과를 확인한다", () => {
-    const { job } = read();
-    const after = job.steps.filter((s) => s.id !== "guard");
-    const gated = after.filter((s) => (s.if ?? "").includes("steps.guard.outputs.upstream"));
-    // PR·이슈 스텝은 branch 스텝 결과에 의존하고, branch 자체가 가드를 확인하므로
-    // 연쇄로 보호된다. 체크아웃·fetch·branch 는 직접 확인해야 한다.
-    expect(gated.length).toBeGreaterThanOrEqual(3);
+    expect(read().triggers.schedule?.[0]?.cron).toBeTruthy();
   });
 
   it("PR 을 만들 권한을 선언한다", () => {
@@ -102,22 +74,57 @@ describe("업데이트 전달 워크플로", () => {
     expect(doc.permissions.contents).toBe("write");
   });
 
-  it("이력이 없는 복제본도 처리한다 (unrelated histories)", () => {
-    const { job } = read();
-    const runs = job.steps.map((s) => s.run ?? "").join("\n");
-    expect(runs).toContain("merge-base");
-    expect(runs).toContain("read-tree");
-  });
-
   it("전체 이력을 받아온다 — 얕은 체크아웃이면 병합 판정이 불가능하다", () => {
     const { job } = read();
     const checkout = job.steps.find((s) => (s.uses ?? "").startsWith("actions/checkout"));
     expect(checkout.with["fetch-depth"]).toBe(0);
   });
 
-  it("파괴적 마이그레이션을 표기 규칙으로 찾아 경고한다", () => {
+  it("로직은 scripts/upstream-sync.sh 를 호출한다", () => {
     const { job } = read();
     const runs = job.steps.map((s) => s.run ?? "").join("\n");
-    expect(runs).toContain("DESTRUCTIVE");
+    expect(runs).toContain("scripts/upstream-sync.sh");
+  });
+
+  it("짧다 — 교사가 클릭 한 번으로 만들 수 있어야 한다", () => {
+    // Vercel Deploy 버튼은 .github/ 를 전달하지 못한다. 그래서 교사가 이 파일을 직접
+    // 만들어야 하고, 앱은 내용을 URL 에 담아 GitHub 편집기를 열어 준다. 파일이 길면
+    // 그 URL 이 감당하지 못한다. 로직을 스크립트로 뺀 이유다.
+    expect(readFileSync(WORKFLOW, "utf8").length).toBeLessThan(1500);
+  });
+});
+
+describe("scripts/upstream-sync.sh — 실제 동기화 로직", () => {
+  const script = () => readFileSync(SCRIPT, "utf8");
+
+  it("원본 저장소에서는 작업하지 않고 이유를 남긴다", () => {
+    // 조용히 끝내면 "아무 일도 안 했다"는 혼란만 남는다(실제로 겪음).
+    expect(script()).toContain("GITHUB_REPOSITORY");
+    expect(script()).toContain("::notice::");
+  });
+
+  it("이력이 없는 복제본도 처리한다 (unrelated histories)", () => {
+    expect(script()).toContain("merge-base");
+    expect(script()).toContain("read-tree");
+  });
+
+  it("파괴적 마이그레이션을 표기 규칙으로 찾아 경고한다", () => {
+    expect(script()).toContain("DESTRUCTIVE");
+  });
+
+  it("PR 생성에 실패하면 켜야 할 설정을 알려준다", () => {
+    expect(script()).toContain("approve pull requests");
+  });
+});
+
+describe("앱에 내장된 워크플로 사본", () => {
+  it("실제 파일과 글자 단위로 같다", () => {
+    // 교사 저장소에는 .github 가 없어 디스크에서 읽을 수 없다. 그래서 앱이 문자열로
+    // 들고 있는데, 실제 파일과 어긋나면 교사가 낡은 워크플로를 설치하게 된다.
+    const onDisk = readFileSync(WORKFLOW, "utf8");
+    const embedded = readFileSync(TEMPLATE, "utf8");
+    const m = embedded.match(/export const UPSTREAM_SYNC_WORKFLOW = ("(?:[^"\\]|\\.)*");/);
+    expect(m).toBeTruthy();
+    expect(JSON.parse(m[1])).toBe(onDisk);
   });
 });

@@ -86,6 +86,23 @@ export function cronSecret(): string | null {
   return pick("CRON_SECRET");
 }
 
+// ── 소스 저장소 ───────────────────────────────────────────────────────────────
+
+/**
+ * 이 배포가 어느 GitHub 저장소에서 왔는지. Vercel 이 런타임에 넣어 준다
+ * (VERCEL_GIT_* — 프로젝트 설정의 "Enable access to System Environment Variables"
+ * 가 꺼져 있으면 없을 수 있어 null 을 허용한다).
+ *
+ * 쓰임: 시스템 상태 화면이 "업데이트 확인 워크플로 만들기" 링크를 교사의 저장소로
+ * 정확히 걸어 준다. 교사가 자기 저장소 주소를 직접 찾아 입력할 필요가 없다.
+ */
+export function gitRepo(): { owner: string; slug: string; branch: string } | null {
+  const owner = pick("VERCEL_GIT_REPO_OWNER");
+  const slug = pick("VERCEL_GIT_REPO_SLUG");
+  if (!owner || !slug) return null;
+  return { owner, slug, branch: pick("VERCEL_GIT_COMMIT_REF") ?? "main" };
+}
+
 // ── 사이트 주소 ───────────────────────────────────────────────────────────────
 
 /**
