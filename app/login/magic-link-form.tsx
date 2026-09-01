@@ -62,7 +62,7 @@ export function MagicLinkForm() {
   if (sent) {
     return (
       <div className="w-full text-center">
-        <p className="text-sm text-neutral-300">
+        <p className="text-sm text-neutral-700">
           <strong className="font-medium">{email}</strong> 으로 로그인 링크를 보냈습니다.
         </p>
         <p className="mt-2 text-xs text-neutral-500">

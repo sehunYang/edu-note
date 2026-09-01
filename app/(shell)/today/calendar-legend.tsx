@@ -35,7 +35,7 @@ export function CalendarLegend() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="inline-flex min-h-11 items-center gap-1 text-neutral-500 hover:text-neutral-300"
+        className="inline-flex min-h-11 items-center gap-1 text-neutral-500 hover:text-neutral-700"
       >
         <span aria-hidden="true">{open ? "▾" : "▸"}</span> 색상·표기 안내
       </button>

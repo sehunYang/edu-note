@@ -165,7 +165,7 @@ function Attendance2DTable({
                 <button
                   type="button"
                   onClick={() => setSel(null)}
-                  className="inline-flex min-h-[44px] items-center text-xs text-neutral-400 hover:text-neutral-200"
+                  className="inline-flex min-h-[44px] items-center text-xs text-neutral-400 hover:text-neutral-700"
                 >
                   닫기
                 </button>

@@ -21,7 +21,7 @@ export function FeatureOff({
 }) {
   return (
     <section className="mt-4 rounded-xl border border-hairline bg-black/20 p-4">
-      <h3 className="text-sm text-neutral-300">{title}</h3>
+      <h3 className="text-sm text-neutral-700">{title}</h3>
       <p className="mt-1 text-sm text-neutral-500">{description}</p>
       <p className="mt-2 text-xs text-neutral-500">{howTo}</p>
       {href && (
@@ -29,7 +29,7 @@ export function FeatureOff({
           href={href}
           target={href.startsWith("http") ? "_blank" : undefined}
           rel={href.startsWith("http") ? "noreferrer" : undefined}
-          className="mt-3 inline-block text-xs text-neutral-300 underline underline-offset-2"
+          className="mt-3 inline-block text-xs text-neutral-700 underline underline-offset-2"
         >
           {linkLabel ?? "설정 방법 보기"} →
         </a>

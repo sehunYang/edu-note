@@ -43,9 +43,9 @@ export default async function SetupPage() {
         </p>
 
         {!owner && (
-          <div className="mt-6 rounded-lg border border-amber-900/50 bg-amber-950/30 p-4 text-sm text-amber-200">
+          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             <b className="font-medium">먼저 할 일이 있습니다.</b>
-            <p className="mt-1 text-amber-200/80">
+            <p className="mt-1 text-amber-700">
               Vercel 프로젝트의 환경변수에 <code>ALLOWED_EMAIL</code> 을 본인 이메일로
               등록한 뒤 다시 배포해 주세요. 이 값이 로그인할 수 있는 유일한 계정을
               정합니다.

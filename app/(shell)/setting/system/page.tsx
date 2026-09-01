@@ -47,7 +47,7 @@ export default async function SystemPage() {
       </p>
 
       <section className="mt-6">
-        <h3 className="text-sm text-neutral-300">기능</h3>
+        <h3 className="text-sm text-neutral-700">기능</h3>
         <ul className="mt-3 space-y-4">
           <FeatureRow
             on={status.features.neis}
@@ -80,7 +80,7 @@ export default async function SystemPage() {
       </section>
 
       <section className="mt-8">
-        <h3 className="text-sm text-neutral-300">배포 정보</h3>
+        <h3 className="text-sm text-neutral-700">배포 정보</h3>
         <dl className="mt-3 space-y-2 text-sm">
           <Row label="이 앱 주소" value={shownUrl} />
           <Row label="데이터베이스" value={status.supabaseUrl || "미설정"} />
@@ -109,7 +109,7 @@ export default async function SystemPage() {
       </section>
 
       <section className="mt-8">
-        <h3 className="text-sm text-neutral-300">자동 업데이트 확인</h3>
+        <h3 className="text-sm text-neutral-700">자동 업데이트 확인</h3>
         <p className="mt-1 text-sm text-neutral-500">
           새 버전이 나오면 저장소에 업데이트 요청(Pull Request)이 자동으로 올라오게 합니다.
           받으실지는 그때 내용을 보고 정하시면 됩니다.
@@ -151,7 +151,7 @@ export default async function SystemPage() {
       </section>
 
       <section className="mt-8">
-        <h3 className="text-sm text-neutral-300">백업</h3>
+        <h3 className="text-sm text-neutral-700">백업</h3>
         <p className="mt-1 text-sm text-neutral-500">
           업데이트 전이나 학기 말에 내려받아 두세요. 모든 기록이 JSON 한 파일로 나옵니다.
         </p>
@@ -186,7 +186,7 @@ function FeatureRow({
         >
           {on ? "● 켜짐" : "○ 꺼짐"}
         </span>
-        <span className="text-sm text-neutral-200">{name}</span>
+        <span className="text-sm text-neutral-800">{name}</span>
       </div>
       <p className="mt-1 text-sm text-neutral-500">{what}</p>
       {children}
@@ -198,7 +198,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-0.5">
       <dt className="shrink-0 text-neutral-500">{label}</dt>
-      <dd className="min-w-0 break-all text-neutral-300">{value}</dd>
+      <dd className="min-w-0 break-all text-neutral-700">{value}</dd>
     </div>
   );
 }

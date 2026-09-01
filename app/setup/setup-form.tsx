@@ -48,7 +48,7 @@ export function SetupForm({ ownerEmail }: { ownerEmail: string | null }) {
 
   return (
     <form onSubmit={onSubmit} className="w-full">
-      <ol className="mb-6 space-y-3 text-left text-sm text-neutral-300">
+      <ol className="mb-6 space-y-3 text-left text-sm text-neutral-700">
         <li>
           <span className="mr-2 text-neutral-500">1.</span>
           <a
@@ -97,7 +97,7 @@ export function SetupForm({ ownerEmail }: { ownerEmail: string | null }) {
 
       <p className="mt-4 text-xs text-neutral-500">
         이 토큰은 저장되지 않습니다. 로그인 주소를 등록하고
-        {ownerEmail ? ` ${ownerEmail} 계정을 초대한 뒤` : " 소유자 계정을 초대한 뒤"} 즉시
+        {ownerEmail ? ` ${ownerEmail} 계정을 만든 뒤` : " 소유자 계정을 만든 뒤"} 즉시
         버려집니다. 설정이 끝나면 이 화면은 다시 열리지 않습니다.
       </p>
 
@@ -131,7 +131,7 @@ function Checklist({ result }: { result: BootstrapResult }) {
       {result.message && (
         <p
           className={`text-sm ${result.steps.length > 0 ? "mt-3 border-t border-hairline pt-3" : ""} ${
-            result.ok ? "text-neutral-300" : "text-red-400"
+            result.ok ? "text-neutral-700" : "text-red-400"
           }`}
         >
           {result.message}

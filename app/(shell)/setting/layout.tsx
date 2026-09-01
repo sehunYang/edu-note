@@ -52,7 +52,7 @@ export default async function SettingLayout({
       <div className="mt-3">
         <a
           href="/setting/system"
-          className="text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-300"
+          className="text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-700"
         >
           시스템 상태 · 인증키 등록 →
         </a>

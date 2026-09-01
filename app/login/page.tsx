@@ -48,10 +48,10 @@ export default async function LoginPage({
         {needsSetup && (
           <a
             href="/setup"
-            className="mt-6 block w-full rounded-lg border border-amber-900/50 bg-amber-950/30 p-4 text-left text-sm text-amber-200 hover:bg-amber-950/50"
+            className="mt-6 block w-full rounded-lg border border-amber-200 bg-amber-50 p-4 text-left text-sm text-amber-800 hover:bg-amber-100"
           >
             <b className="font-medium">설치를 마무리해 주세요 →</b>
-            <span className="mt-1 block text-amber-200/80">
+            <span className="mt-1 block text-amber-700">
               마지막 설정 한 단계가 남아 있습니다. 끝내야 로그인 메일이 이 주소로
               돌아옵니다.
             </span>
