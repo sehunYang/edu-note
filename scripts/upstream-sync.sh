@@ -48,6 +48,14 @@ else
   MODE="adopt"
 fi
 echo "모드: $MODE"
+# 로그를 펼치지 않아도 보이도록 실행 요약에 남긴다.
+{
+  echo "### 업데이트 확인"
+  echo ""
+  echo "- 대상: \`${GITHUB_REPOSITORY}\`"
+  echo "- 원본에 새 커밋: ${AHEAD}개"
+  echo "- 병합 방식: \`${MODE}\` ($([ "$MODE" = "merge" ] && echo "이력 공유" || echo "이력 없음 — 내용 채택"))"
+} >> "$GITHUB_STEP_SUMMARY"
 
 if [ "$MODE" = "merge" ]; then
   if ! git merge --no-edit "upstream/${UPSTREAM_BRANCH}"; then
@@ -70,6 +78,31 @@ else
     exit 0
   fi
   git commit --quiet -m "Edu_Note 업데이트 ($(date +%Y-%m-%d))"
+fi
+
+# .github/ 는 동기화에서 제외한다.
+#
+# GITHUB_TOKEN 은 워크플로 파일을 만들거나 고칠 수 없다 — GitHub 보안 정책이고,
+# workflow 의 permissions 로도 열 수 없다(개인 액세스 토큰이 필요하다). 그대로 밀면
+# push 자체가 "refusing to allow a GitHub App to create or update workflow" 로 거부돼
+# **업데이트 전체가 실패한다.** 원본의 워크플로가 한 글자만 달라져도 그렇게 된다.
+#
+# 그래서 원본 내용을 가져오되 .github/ 만 원래대로 되돌린다. 워크플로가 실제로
+# 바뀌었으면 PR 본문에 "다시 켜 주세요" 안내를 넣는다(교사가 시스템 상태 화면에서
+# 클릭 한 번으로 다시 만들 수 있다).
+WORKFLOW_CHANGED=""
+if ! git diff --quiet "$BASE" HEAD -- .github; then
+  WORKFLOW_CHANGED="1"
+  echo "::notice::원본의 자동화 파일(.github)이 바뀌었지만 이 업데이트에는 포함하지 않습니다. 앱의 세팅실 → 시스템 상태에서 다시 켜 주세요."
+fi
+if git cat-file -e "${BASE}:.github" > /dev/null 2>&1; then
+  git checkout "$BASE" -- .github
+else
+  rm -rf .github
+fi
+git add -A
+if ! git diff --cached --quiet HEAD; then
+  git commit --quiet -m "자동화 파일(.github)은 동기화 대상에서 제외"
 fi
 
 # 이번 업데이트에 파괴적 마이그레이션이 있는가(러너와 같은 표기 규칙).
@@ -97,12 +130,36 @@ if [ -n "$DESTRUCTIVE" ]; then
   echo "**머지 전에 세팅실 → 시스템 상태에서 백업을 내려받아 주세요.**" >> "$BODY"
   echo "" >> "$BODY"
 fi
+if [ -n "$WORKFLOW_CHANGED" ]; then
+  echo "> ℹ️ 자동 업데이트 파일 자체가 새 버전으로 바뀌었습니다. 이 PR 에는 포함되지 않으니, 머지 후 앱의 **세팅실 → 시스템 상태 → 자동 업데이트 확인** 에서 한 번 더 켜 주세요." >> "$BODY"
+  echo "" >> "$BODY"
+fi
 if [ "$MODE" = "adopt" ]; then
   echo "> 이 저장소는 원본의 git 이력을 물려받지 않아, 원본 내용을 그대로 가져오는 방식으로 업데이트합니다. 코드를 직접 고치신 적이 있다면 아래 diff 에서 그 부분이 되돌아가는지 확인해 주세요." >> "$BODY"
   echo "" >> "$BODY"
 fi
 echo "<sub>이 PR 은 주 1회 자동으로 만들어집니다. 자세한 내용은 docs/UPDATE.md 를 보세요.</sub>" >> "$BODY"
 
-if ! gh pr create --title "Edu_Note 업데이트 ($(date +%Y-%m-%d))" --body-file "$BODY" --base "$DEFAULT_BRANCH" --head "$BRANCH"; then
-  echo "::warning::PR 을 자동으로 만들지 못했습니다. 저장소 Settings → Actions → General 에서 'Allow GitHub Actions to create and approve pull requests' 를 켜 주세요. 브랜치 ${BRANCH} 는 이미 푸시돼 있어 직접 PR 을 열어도 됩니다."
+COMPARE="https://github.com/${GITHUB_REPOSITORY}/compare/${DEFAULT_BRANCH}...${BRANCH}?expand=1"
+
+if gh pr create --title "Edu_Note 업데이트 ($(date +%Y-%m-%d))" --body-file "$BODY" --base "$DEFAULT_BRANCH" --head "$BRANCH"; then
+  {
+    echo "## ✅ 업데이트 요청을 만들었습니다"
+    echo ""
+    echo "저장소의 **Pull requests** 탭에서 내용을 확인하고 Merge 하세요."
+  } >> "$GITHUB_STEP_SUMMARY"
+else
+  # PR 자동 생성은 저장소 설정 하나에 막힌다. 브랜치는 이미 올라가 있으므로,
+  # 링크 한 번으로 직접 열 수 있게 해 준다(로그를 뒤지지 않도록 요약에도 적는다).
+  echo "::warning::PR 을 자동으로 만들지 못했습니다. 아래 요약의 링크로 직접 여시거나, Settings → Actions → General 에서 'Allow GitHub Actions to create and approve pull requests' 를 켜 주세요."
+  {
+    echo "## 업데이트 준비 완료 — 마지막 한 걸음"
+    echo ""
+    echo "PR 을 자동으로 만들지 못했습니다. 아래 링크로 직접 열어 주세요."
+    echo ""
+    echo "### 👉 [업데이트 요청 열기]($COMPARE)"
+    echo ""
+    echo "다음부터 자동으로 만들어지게 하려면: 저장소 **Settings → Actions → General** →"
+    echo "**Allow GitHub Actions to create and approve pull requests** 체크."
+  } >> "$GITHUB_STEP_SUMMARY"
 fi

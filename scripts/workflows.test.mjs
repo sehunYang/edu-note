@@ -112,8 +112,23 @@ describe("scripts/upstream-sync.sh — 실제 동기화 로직", () => {
     expect(script()).toContain("DESTRUCTIVE");
   });
 
-  it("PR 생성에 실패하면 켜야 할 설정을 알려준다", () => {
+  it("PR 생성에 실패하면 켜야 할 설정과 직접 여는 링크를 알려준다", () => {
     expect(script()).toContain("approve pull requests");
+    expect(script()).toContain("/compare/");
+  });
+
+  it(".github 는 동기화에서 제외한다 — 포함하면 push 가 거부돼 업데이트가 통째로 실패한다", () => {
+    // GITHUB_TOKEN 은 워크플로 파일을 만들거나 고칠 수 없다(PAT 필요). 원본의 워크플로가
+    // 한 글자만 달라져도 push 가 "refusing to allow a GitHub App to create or update
+    // workflow" 로 거부된다.
+    const s = script();
+    expect(s).toContain("WORKFLOW_CHANGED");
+    expect(s).toMatch(/git checkout "\$BASE" -- \.github/);
+  });
+
+  it("실행 요약에 모드를 남긴다 — 로그를 펼치지 않아도 보여야 한다", () => {
+    expect(script()).toContain("GITHUB_STEP_SUMMARY");
+    expect(script()).toContain("병합 방식");
   });
 });
 
