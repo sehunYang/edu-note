@@ -28,6 +28,7 @@ const SCREENS = [
   "app/login/magic-link-form.tsx",
   "app/(shell)/setting/system/page.tsx",
   "app/(shell)/setting/system/neis-key-form.tsx",
+  "app/(shell)/setting/system/workflow-copy.tsx",
   "app/ui/feature-off.tsx",
 ];
 

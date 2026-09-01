@@ -5,6 +5,8 @@ import { getOwnerId } from "@/lib/auth/owner";
 import { getDb } from "@/lib/db";
 import { getSystemStatus } from "@/lib/setup/status";
 import { NeisKeyForm } from "./neis-key-form";
+import { WorkflowCopy } from "./workflow-copy";
+import { UPSTREAM_SYNC_WORKFLOW } from "@/lib/setup/workflow-template";
 
 export const metadata = { title: "시스템 상태" };
 export const dynamic = "force-dynamic";
@@ -133,6 +135,7 @@ export default async function SystemPage() {
               <b className="font-medium">Allow GitHub Actions to create and approve pull
               requests</b> 를 켜 주세요.
             </p>
+            <WorkflowCopy content={UPSTREAM_SYNC_WORKFLOW} />
           </>
         ) : (
           <p className="mt-2 text-xs text-neutral-500">
