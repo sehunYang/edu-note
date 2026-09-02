@@ -7,19 +7,12 @@
 수업 계획부터 출결·상담·생기부까지 — 학교 일을 한 곳에서.
 서버도, 코딩도 필요 없이 **내 계정에 내 것으로** 설치합니다.
 
+[![버전](https://img.shields.io/badge/version-1.0.0-brightgreen.svg)](https://github.com/sehunYang/edu-note/releases)
 [![라이선스: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![무료](https://img.shields.io/badge/비용-무료-brightgreen.svg)
 ![한국 고등학교](https://img.shields.io/badge/대상-고등학교%20교사-orange.svg)
 
 </div>
-
----
-
-> ### 🚧 지금은 준비 중입니다
-> Edu_Note는 만든 사람이 **1년 넘게 실제 수업에서 매일 쓰고 있는** 앱입니다.
-> 다만 "누구나 클릭 한 번으로 설치" 기능은 **v1.0에서 공개 예정**이며 지금 마무리 중입니다.
-> 아래 설치 버튼은 v1.0 릴리스와 함께 동작합니다.
-> 소식을 받고 싶으시면 이 저장소 오른쪽 위 **Watch → Releases only**를 눌러 주세요.
 
 ---
 
@@ -198,7 +191,7 @@ Edu_Note는 학생의 **관찰기록·수행평가·활동 내역**과 **NEIS �
 
 👉 **화면 사진과 함께 보는 자세한 설치 안내: [docs/INSTALL.md](docs/INSTALL.md)**
 
-<!-- TODO(v1.0): 설치 화면 스크린샷 3~4장을 docs/images/ 에 추가하고 여기에 삽입 -->
+<!-- 설치 화면 스크린샷은 아직 없다. 실제 설치를 한 번 더 할 일이 있을 때 담아 docs/images/ 에 추가하면 좋다(필수는 아니고, 글로도 따라올 수 있게 써 뒀다). -->
 
 ### 나이스 인증키는 어디서 받나요?
 

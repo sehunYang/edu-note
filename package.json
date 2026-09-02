@@ -1,6 +1,6 @@
 {
   "name": "edu-note",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
   "license": "MIT",
   "description": "Edu_Note — 고등학교 교사 1인용 교수-수업-평가-기록 일체화 플랫폼 (Edu_Flow Core)",
