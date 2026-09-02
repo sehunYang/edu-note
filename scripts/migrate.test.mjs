@@ -12,12 +12,19 @@ import path from "node:path";
 
 import {
   checksum,
+  legacyChecksum,
   listMigrations,
   isDestructive,
   resolveDatabaseUrl,
   decideRun,
   MIGRATIONS_DIR,
 } from "./migrate.mjs";
+
+// 줄바꿈을 문자 코드로 만든다 — 소스에 이스케이프를 쓰면 편집 도구를 거치며
+// 실제 줄바꿈으로 바뀌는 사고가 나기 쉽다(이 파일에서 실제로 겪었다).
+const CR = String.fromCharCode(13);
+const LF = String.fromCharCode(10);
+const CRLF = CR + LF;
 
 describe("checksum", () => {
   it("같은 내용은 같은 값, 다른 내용은 다른 값", () => {
@@ -27,6 +34,26 @@ describe("checksum", () => {
 
   it("공백 한 칸 차이도 잡아낸다 — 적용 후 파일 수정 탐지가 목적", () => {
     expect(checksum("select 1;")).not.toBe(checksum("select 1; "));
+  });
+
+  // 실제로 배포를 사흘간 막았던 버그다. Windows 체크아웃(CRLF)에서 baseline 을
+  // 기록하고 Linux(Vercel)에서 빌드하니 같은 파일이 다른 해시가 돼
+  // "28개가 바뀌었습니다"로 빌드가 계속 실패했다. 파일 내용의 정체성은 줄바꿈
+  // 방식과 무관해야 한다.
+  it("줄바꿈 방식이 달라도 같은 값 — 플랫폼이 달라도 같아야 한다", () => {
+    expect(checksum("a" + CRLF + "b" + CRLF)).toBe(checksum("a" + LF + "b" + LF));
+  });
+
+  it("여러 줄·한글이 섞여도 마찬가지", () => {
+    const lf = "-- 주석" + LF + "create table t();" + LF;
+    const crlf = lf.split(LF).join(CRLF);
+    expect(checksum(crlf)).toBe(checksum(lf));
+  });
+
+  it("legacyChecksum 은 정규화하지 않는다 — 옛 기록을 알아보는 용도", () => {
+    // 이 구분이 있어야 '줄바꿈만 다름'과 '진짜 변경'을 가를 수 있다.
+    expect(legacyChecksum("a" + CRLF + "b")).not.toBe(legacyChecksum("a" + LF + "b"));
+    expect(legacyChecksum("a" + LF + "b")).toBe(checksum("a" + LF + "b"));
   });
 });
 
@@ -72,6 +99,15 @@ describe("listMigrations", () => {
     expect(all[0].version).toBe("0000_init_full_schema");
     // version 중복은 곧 기록 충돌 — 절대 없어야 한다.
     expect(new Set(all.map((m) => m.version)).size).toBe(all.length);
+  });
+
+  it("체크섬이 체크아웃 방식에 흔들리지 않는다 — 같은 내용은 어디서든 같은 값", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "mig-"));
+    const body = "-- x" + LF + "create table t();" + LF;
+    writeFileSync(path.join(dir, "0001_lf.sql"), body);
+    writeFileSync(path.join(dir, "0002_crlf.sql"), body.split(LF).join(CRLF));
+    const [a, b] = listMigrations(dir);
+    expect(a.checksum).toBe(b.checksum);
   });
 });
 

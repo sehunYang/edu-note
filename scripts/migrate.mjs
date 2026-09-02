@@ -37,8 +37,28 @@ export const MIGRATIONS_DIR = fileURLToPath(
   new URL("../lib/db/migrations/", import.meta.url),
 );
 
-/** 파일 내용의 SHA-256 앞 16자. 적용 후 파일이 바뀌었는지 판별하는 용도. */
+/**
+ * 파일 내용의 SHA-256 앞 16자. 적용 후 파일이 바뀌었는지 판별하는 용도.
+ *
+ * ⚠ 줄바꿈을 정규화한 뒤 해시한다. 그러지 않으면 **플랫폼마다 다른 값**이 나온다 —
+ * Windows 체크아웃은 CRLF, Linux(Vercel 빌드)는 LF 라서 같은 파일이 다른 해시를
+ * 갖는다. 실제로 이것 때문에 Windows 에서 baseline 을 기록한 뒤 Vercel 빌드가
+ * "28개가 바뀌었습니다" 로 계속 실패했다(2026-09-02). 파일 내용의 정체성은
+ * 줄바꿈 방식과 무관해야 한다.
+ */
 export function checksum(text) {
+  return hash(text.replace(/\r\n/g, "\n"));
+}
+
+/**
+ * 정규화 이전 방식. Windows 에서 기록된 옛 체크섬을 알아보기 위해서만 쓴다 —
+ * 같은 내용인데 줄바꿈만 다른 경우를 '변경됨' 으로 오판하지 않기 위한 이행 장치.
+ */
+export function legacyChecksum(text) {
+  return hash(text);
+}
+
+function hash(text) {
   return createHash("sha256").update(text, "utf8").digest("hex").slice(0, 16);
 }
 
@@ -167,8 +187,36 @@ async function main() {
     const applied = new Map(rows.map((r) => [r.version, r.checksum]));
 
     // 이미 적용된 파일이 그 뒤에 수정됐는지 — 발견 시 중단.
-    const drifted = all.filter(
+    //
+    // 다만 '줄바꿈만 다른' 경우는 변경이 아니다. 옛 방식(정규화 전)으로 계산한 값과
+    // 일치하면 같은 내용이므로, 실패시키지 않고 기록만 새 방식으로 갱신한다.
+    const candidates = all.filter(
       (m) => applied.has(m.version) && applied.get(m.version) !== m.checksum,
+    );
+    const legacyOnly = candidates.filter(
+      (m) => applied.get(m.version) === legacyChecksum(m.text),
+    );
+    if (legacyOnly.length > 0) {
+      if (dryRun) {
+        // --dry-run 은 읽기 전용이라고 약속했다. 갱신 대상만 알린다.
+        log(
+          `체크섬 표기 방식 갱신 대상 ${legacyOnly.length}개 (줄바꿈만 다름 — 내용은 동일). --dry-run 이라 쓰지 않습니다.`,
+        );
+      } else {
+        log(
+          `체크섬 표기 방식 갱신: ${legacyOnly.length}개 (줄바꿈만 다름 — 내용은 동일)`,
+        );
+        for (const m of legacyOnly) {
+          await sql`
+            update schema_migrations set checksum = ${m.checksum}
+            where version = ${m.version}`;
+        }
+      }
+      for (const m of legacyOnly) applied.set(m.version, m.checksum);
+    }
+
+    const drifted = candidates.filter(
+      (m) => applied.get(m.version) !== m.checksum,
     );
     if (drifted.length > 0) {
       console.error(
