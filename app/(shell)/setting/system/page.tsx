@@ -113,8 +113,8 @@ export default async function SystemPage() {
       <section className="mt-8">
         <h3 className="text-sm text-neutral-700">자동 업데이트 확인</h3>
         <p className="mt-1 text-sm text-neutral-500">
-          새 버전이 나오면 저장소에 업데이트 요청(Pull Request)이 자동으로 올라오게 합니다.
-          받으실지는 그때 내용을 보고 정하시면 됩니다.
+          매일 새벽에 새 버전을 확인해 <b className="font-medium">알아서 받아서 배포</b>합니다.
+          데이터가 사라질 수 있는 변경일 때만 확인을 요청합니다.
         </p>
         {status.workflowSetupUrl ? (
           <>
