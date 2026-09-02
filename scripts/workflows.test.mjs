@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { load } from "js-yaml";
 
@@ -138,6 +139,33 @@ describe("scripts/upstream-sync.sh — 실제 동기화 로직", () => {
     // adopt 에서는 내용을 직접 비교한다.
     const s = script();
     expect(s).toContain("':(exclude).github'");
+  });
+});
+
+/**
+ * 워크플로 파일 잠금.
+ *
+ * 교사의 저장소에서는 이 파일이 **원격으로 갱신될 수 없다** — GITHUB_TOKEN 은
+ * .github/workflows/ 를 만들거나 고칠 수 없다(개인 액세스 토큰이 필요하다).
+ * 그런데 동기화는 원본 내용을 통째로 채택하므로, 원본의 이 파일이 한 글자라도
+ * 달라지면 그 차이가 push 에 포함돼 거부되고 **업데이트 전체가 실패한다.**
+ *
+ * 실제로 checkout 을 v4→v5 로 올렸다가 이미 배포된 설치본의 업데이트를 막았다
+ * (2026-09-03). 스크립트에 .github 제외를 넣어 앞으로는 안전하지만, **그 수정을
+ * 아직 받지 못한 설치본은 여전히 막힌다.** 그래서 지금은 바꾸면 안 된다.
+ *
+ * 바꿔야 할 때가 오면: 이 해시를 갱신하고, 기존 설치본이 앱의 "시스템 상태 →
+ * GitHub 에서 켜기" 로 다시 켜야 한다는 것을 릴리스 노트에 적을 것.
+ */
+const WORKFLOW_LOCK =
+  "306a82a1d05b691a27afc3cd7603527d247d43aed005251ad3b1ea8339252af5";
+
+describe("워크플로 파일 잠금", () => {
+  it("배포된 설치본과 바이트 단위로 같다 — 바뀌면 그들의 업데이트가 막힌다", () => {
+    const actual = createHash("sha256")
+      .update(readFileSync(WORKFLOW, "utf8"), "utf8")
+      .digest("hex");
+    expect(actual).toBe(WORKFLOW_LOCK);
   });
 });
 

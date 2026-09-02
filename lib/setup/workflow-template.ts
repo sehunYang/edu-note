@@ -17,4 +17,4 @@ import "server-only";
  */
 export const UPSTREAM_SYNC_WORKFLOW_PATH = ".github/workflows/upstream-sync.yml";
 
-export const UPSTREAM_SYNC_WORKFLOW = "name: 업데이트 확인\n\non:\n  schedule:\n    - cron: \"0 0 * * 1\"\n  workflow_dispatch:\n\npermissions:\n  contents: write\n  pull-requests: write\n\njobs:\n  sync:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n        with:\n          fetch-depth: 0\n      - run: bash scripts/upstream-sync.sh\n        env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}\n";
+export const UPSTREAM_SYNC_WORKFLOW = "name: 업데이트 확인\n\non:\n  schedule:\n    - cron: \"0 0 * * 1\"\n  workflow_dispatch:\n\npermissions:\n  contents: write\n  pull-requests: write\n\njobs:\n  sync:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - run: bash scripts/upstream-sync.sh\n        env:\n          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}\n";
