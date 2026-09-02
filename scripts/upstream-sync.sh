@@ -27,10 +27,45 @@ git remote add upstream "https://github.com/${UPSTREAM_REPO}.git" 2> /dev/null |
 git fetch --quiet upstream "$UPSTREAM_BRANCH"
 
 BASE="$(git rev-parse HEAD)"
-AHEAD="$(git rev-list --count "HEAD..upstream/${UPSTREAM_BRANCH}")"
-echo "원본에 이 저장소에 없는 커밋: ${AHEAD}개"
-if [ "$AHEAD" = "0" ]; then
+
+# 원본과 공통 조상이 있는가?
+#
+# Vercel Deploy 버튼이 만든 저장소는 원본을 '복사'한 것이라 **git 이력을 물려받지
+# 않는다**(2026-09-01 실측 확인 — 실제 배포본이 adopt 였다). 그러면 일반 병합이
+# "refusing to merge unrelated histories" 로 무조건 실패하므로 경로를 나눈다.
+if git merge-base HEAD "upstream/${UPSTREAM_BRANCH}" > /dev/null 2>&1; then
+  MODE="merge"
+else
+  MODE="adopt"
+fi
+echo "모드: $MODE"
+
+# 업데이트가 있는지 판정한다. 판정 기준이 모드마다 다르다.
+#  - merge: 원본에만 있는 커밋 수를 센다.
+#  - adopt: 이력이 없으니 커밋 수는 의미가 없다(늘 원본 전체 수가 나온다).
+#           내용을 직접 비교한다. .github 는 어차피 동기화하지 않으므로 뺀다.
+if [ "$MODE" = "merge" ]; then
+  AHEAD="$(git rev-list --count "HEAD..upstream/${UPSTREAM_BRANCH}")"
+  echo "원본에만 있는 커밋: ${AHEAD}개"
+  UPTODATE=$([ "$AHEAD" = "0" ] && echo 1 || echo "")
+  FOUND="새 커밋 ${AHEAD}개"
+else
+  if git diff --quiet HEAD "upstream/${UPSTREAM_BRANCH}" -- . ':(exclude).github'; then
+    UPTODATE=1
+  else
+    UPTODATE=""
+  fi
+  FOUND="원본과 내용이 다릅니다"
+fi
+
+if [ -n "$UPTODATE" ]; then
   echo "이미 최신입니다. 만들 PR 이 없습니다."
+  {
+    echo "### 업데이트 확인"
+    echo ""
+    echo "- 대상: \`${GITHUB_REPOSITORY}\`"
+    echo "- 결과: **이미 최신입니다.** 받을 업데이트가 없습니다."
+  } >> "$GITHUB_STEP_SUMMARY"
   exit 0
 fi
 
@@ -39,22 +74,13 @@ git config user.name "edu-note-updater"
 git config user.email "actions@github.com"
 git checkout -B "$BRANCH"
 
-# 원본과 공통 조상이 있는가?
-# Vercel 이 만든 저장소는 원본을 '복사'한 것이라 git 이력을 물려받지 않을 수 있다.
-# 그러면 일반 병합이 "refusing to merge unrelated histories" 로 무조건 실패한다.
-if git merge-base HEAD "upstream/${UPSTREAM_BRANCH}" > /dev/null 2>&1; then
-  MODE="merge"
-else
-  MODE="adopt"
-fi
-echo "모드: $MODE"
 # 로그를 펼치지 않아도 보이도록 실행 요약에 남긴다.
 {
   echo "### 업데이트 확인"
   echo ""
   echo "- 대상: \`${GITHUB_REPOSITORY}\`"
-  echo "- 원본에 새 커밋: ${AHEAD}개"
-  echo "- 병합 방식: \`${MODE}\` ($([ "$MODE" = "merge" ] && echo "이력 공유" || echo "이력 없음 — 내용 채택"))"
+  echo "- 발견: ${FOUND}"
+  echo "- 방식: \`${MODE}\` ($([ "$MODE" = "merge" ] && echo "원본과 이력 공유" || echo "이력 없음 — 원본 내용을 그대로 채택"))"
 } >> "$GITHUB_STEP_SUMMARY"
 
 if [ "$MODE" = "merge" ]; then

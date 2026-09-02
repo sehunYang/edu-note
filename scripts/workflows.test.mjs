@@ -126,9 +126,18 @@ describe("scripts/upstream-sync.sh — 실제 동기화 로직", () => {
     expect(s).toMatch(/git checkout "\$BASE" -- \.github/);
   });
 
-  it("실행 요약에 모드를 남긴다 — 로그를 펼치지 않아도 보여야 한다", () => {
-    expect(script()).toContain("GITHUB_STEP_SUMMARY");
-    expect(script()).toContain("병합 방식");
+  it("실행 요약에 결과를 남긴다 — 로그를 펼치지 않아도 보여야 한다", () => {
+    const s = script();
+    expect(s).toContain("GITHUB_STEP_SUMMARY");
+    expect(s).toContain("${MODE}");
+  });
+
+  it("adopt 모드에서는 커밋 수를 세지 않는다 — 이력이 없어 늘 원본 전체 수가 나온다", () => {
+    // 실측(2026-09-01): Vercel 이 만든 저장소는 이력을 물려받지 않아 adopt 였고,
+    // "원본에 이 저장소에 없는 커밋: 129개" 라는 의미 없는 숫자가 매번 나왔다.
+    // adopt 에서는 내용을 직접 비교한다.
+    const s = script();
+    expect(s).toContain("':(exclude).github'");
   });
 });
 
