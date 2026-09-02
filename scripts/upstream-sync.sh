@@ -141,8 +141,35 @@ done
 
 git push --force origin "$BRANCH"
 
+# ── 반영: 평소에는 자동, 데이터가 바뀔 때만 사람이 판단 ────────────────────────
+#
+# 안전장치가 이미 두 겹 있다.
+#  1) 빌드가 실패하면 Vercel 이 새 버전을 올리지 않는다 — 기존 버전이 계속 돈다.
+#  2) 마이그레이션 실패도 빌드 실패다(scripts/migrate.mjs 가 fail-closed).
+# 그래서 되돌릴 수 없는 위험은 사실상 하나, **데이터가 사라지는 마이그레이션**뿐이다.
+# 그것만 사람이 보고 결정하게 하고 나머지는 자동으로 반영한다.
+#
+# PR 을 만들지 않고 기본 브랜치로 바로 미는 이유: PR 자동 생성은 저장소 설정 하나에
+# 막히는데(실제로 막혔다), 반영은 그 설정과 무관하게 늘 되어야 하기 때문이다.
+if [ -z "$DESTRUCTIVE" ] && git push origin "HEAD:${DEFAULT_BRANCH}"; then
+  git push origin --delete "$BRANCH" > /dev/null 2>&1 || true
+  echo "자동으로 반영했습니다. 곧 새 버전이 배포됩니다."
+  {
+    echo "## ✅ 자동으로 반영했습니다"
+    echo ""
+    echo "몇 분 뒤 Vercel 이 새 버전을 배포합니다. 기존 데이터는 그대로 유지됩니다."
+    if [ -n "$WORKFLOW_CHANGED" ]; then
+      echo ""
+      echo "> ℹ️ 자동 업데이트 파일 자체가 새 버전으로 바뀌었습니다. 앱의 **세팅실 →"
+      echo "> 시스템 상태 → 자동 업데이트 확인** 에서 한 번 더 켜 주세요."
+    fi
+  } >> "$GITHUB_STEP_SUMMARY"
+  exit 0
+fi
+
+# 여기까지 왔다면 파괴적 변경이 있거나 자동 반영이 막힌 경우다 — 사람이 판단한다.
 BODY=pr-body.md
-echo "새 버전이 나왔습니다. 아래 **Merge pull request** 를 누르면 반영됩니다." > "$BODY"
+echo "이 업데이트는 **자동으로 반영하지 않았습니다.** 내용을 확인하고 Merge 해 주세요." > "$BODY"
 echo "" >> "$BODY"
 echo "- 몇 분 뒤 Vercel 이 새 버전을 배포합니다." >> "$BODY"
 echo "- 데이터베이스 변경이 있으면 배포 중에 자동으로 적용됩니다." >> "$BODY"

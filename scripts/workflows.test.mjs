@@ -65,8 +65,11 @@ describe("업데이트 전달 워크플로", () => {
     expect(read().triggers).toHaveProperty("workflow_dispatch");
   });
 
-  it("정기 확인이 걸려 있다", () => {
-    expect(read().triggers.schedule?.[0]?.cron).toBeTruthy();
+  it("매일 확인한다 — 학교 시스템 형식이 바뀌면 하루 안에 고쳐진다", () => {
+    // 원본이 먼저 알릴 수 없으므로 확인 주기가 곧 반영 지연이다.
+    const cron = read().triggers.schedule?.[0]?.cron;
+    expect(cron).toBeTruthy();
+    expect(cron.split(" ")[2]).toBe("*"); // 날짜 필드가 * = 매일
   });
 
   it("PR 을 만들 권한을 선언한다", () => {
@@ -127,6 +130,18 @@ describe("scripts/upstream-sync.sh — 실제 동기화 로직", () => {
     expect(s).toMatch(/git checkout "\$BASE" -- \.github/);
   });
 
+  it("파괴적 변경이 없으면 자동으로 반영한다", () => {
+    // 빌드 실패 시 Vercel 이 새 버전을 올리지 않으므로, 되돌릴 수 없는 위험은
+    // 데이터가 사라지는 마이그레이션뿐이다. 그것만 사람이 판단하게 한다.
+    const s = script();
+    expect(s).toMatch(/if \[ -z "\$DESTRUCTIVE" \]/);
+    expect(s).toContain('HEAD:${DEFAULT_BRANCH}');
+  });
+
+  it("파괴적 변경이 있으면 자동 반영하지 않고 PR 로 남긴다", () => {
+    expect(script()).toContain("자동으로 반영하지 않았습니다");
+  });
+
   it("실행 요약에 결과를 남긴다 — 로그를 펼치지 않아도 보여야 한다", () => {
     const s = script();
     expect(s).toContain("GITHUB_STEP_SUMMARY");
@@ -163,7 +178,7 @@ describe("scripts/upstream-sync.sh — 실제 동기화 로직", () => {
  * 붙는다. 워크플로 자체는 여전히 원격 갱신이 불가능하므로 이 잠금은 유지한다.
  */
 const WORKFLOW_LOCK =
-  "21bab10c7532784f76caa79daac1fb01e9c0b976f507834907216d217999c18e";
+  "6f420d02dfbfb35edd6a9ed3efed83d1fa48d252da68129932916142226f8218";
 
 describe("워크플로 파일 잠금", () => {
   it("배포된 설치본과 바이트 단위로 같다 — 바뀌면 그들의 업데이트가 막힌다", () => {
