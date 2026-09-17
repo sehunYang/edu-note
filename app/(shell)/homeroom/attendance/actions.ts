@@ -8,6 +8,9 @@ import {
   deleteAttendance,
   updateAttendanceRecord,
   addFieldTrip,
+  updateFieldTrip,
+  deleteFieldTrip,
+  recomputeEscalation,
   addAbsenceRange,
   setFieldTripSubmitted,
   writeAudit,
@@ -158,7 +161,48 @@ export async function addFieldTripAction(formData: FormData): Promise<void> {
   // 담임반 서버 가드(record/absence와 동일 불변식, 연도 무관).
   if (!(await isOwnerHomeroomStudent(db, ownerId, studentYearId))) return;
   await addFieldTrip(db, ownerId, studentYearId, startDate, endDate);
+  // 마감·티어를 지금 계산해 목록에 바로 보이게 한다(새벽 cron 을 기다리지 않는다).
+  await recomputeEscalation(db, ownerId);
   revalidatePath("/homeroom/attendance");
+  revalidatePath("/today");
+}
+
+/**
+ * 교외체험학습 수정(학생·기간). 자동 생성된 인정결석은 옛 기간을 걷어내고 새 기간으로
+ * 다시 만들어 출결 화면(오늘 입력·월별·학생별·NEIS 집계)에 그대로 반영된다.
+ */
+export async function updateFieldTripAction(formData: FormData): Promise<void> {
+  const ownerId = await getOwnerId();
+  const id = String(formData.get("id") ?? "").trim();
+  const studentYearId = String(formData.get("studentYearId") ?? "").trim();
+  const startDate = String(formData.get("startDate") ?? "").trim();
+  const endRaw = String(formData.get("endDate") ?? "").trim();
+  const endDate = endRaw || null;
+  if (!id || !studentYearId || !DATE_RE.test(startDate)) return;
+  if (endDate && (!DATE_RE.test(endDate) || endDate < startDate)) return;
+  const db = getDb();
+  if (!(await isOwnerHomeroomStudent(db, ownerId, studentYearId))) return;
+  const res = await updateFieldTrip(db, ownerId, id, { studentYearId, startDate, endDate });
+  if (!res) return;
+  // 사후보고서 마감일은 종료일에서 파생된다 — 새벽 cron 을 기다리지 않고 지금 다시
+  // 계산해 목록의 마감·티어가 바로 새 기간을 따르게 한다.
+  await recomputeEscalation(db, ownerId);
+  revalidatePath("/homeroom/attendance");
+  revalidatePath("/today");
+}
+
+/**
+ * 교외체험학습 삭제. 보고서·추적행·자동 생성 인정결석을 함께 지운다. 추적행이 함께
+ * 사라지므로 recomputeEscalation 은 필요 없다(수정과 달리 남는 마감이 없다).
+ */
+export async function deleteFieldTripAction(formData: FormData): Promise<void> {
+  const ownerId = await getOwnerId();
+  const id = String(formData.get("id") ?? "").trim();
+  if (!id) return;
+  const db = getDb();
+  await deleteFieldTrip(db, ownerId, id);
+  revalidatePath("/homeroom/attendance");
+  revalidatePath("/today");
 }
 
 /**

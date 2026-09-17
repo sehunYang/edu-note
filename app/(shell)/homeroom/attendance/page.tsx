@@ -24,6 +24,7 @@ import {
 } from "./attendance-tables-client";
 import { FieldTripSection } from "./field-trip-client";
 import { AttendanceDateJump } from "./date-jump-client";
+import { isValidYmd } from "@/lib/domain/ymd";
 import type { AttendanceReason } from "@/lib/domain/types";
 import { Button } from "@/app/ui/button";
 import { EmptyState } from "@/app/ui/empty-state";
@@ -99,7 +100,7 @@ export default async function AttendancePage({
   const now = new Date();
   const year = now.getFullYear();
   const sp = await searchParams;
-  const date = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : todayStr();
+  const date = sp.date && isValidYmd(sp.date) ? sp.date : todayStr();
   const view: View = VIEWS.some((v) => v.key === sp.view)
     ? (sp.view as View)
     : "today";
@@ -190,7 +191,8 @@ export default async function AttendancePage({
                 </EmptyState>
               </div>
             ) : (
-              <AttendancePeriodClient students={students} date={date} />
+              /* key=date: 날짜를 옮기면 입력 상태(특히 결석 종료일)를 새 날짜 기준으로 비운다. */
+              <AttendancePeriodClient key={date} students={students} date={date} />
             )}
           </section>
 

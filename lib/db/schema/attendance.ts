@@ -36,6 +36,11 @@ export const attendanceRecords = pgTable(
     noteField: text("note_field"), // 자유텍스트(공개 DTO 절대 미포함)
     // 교시(지각/조퇴 기점·결과 다중선택). QC v3 Part B (0020). nullable.
     periods: integer("periods").array(),
+    // 이 출결을 만든 교외체험(0064). null=수동 입력. 체험 수정·삭제가 자기 출결만
+    // 찾아 바꾸는 근거 — 비고 문자열은 교사가 똑같이 적을 수 있어 연결로 못 쓴다.
+    fieldTripId: uuid("field_trip_id").references(() => fieldTripReports.id, {
+      onDelete: "cascade",
+    }),
     ...timestamps(),
   },
   (t) => [

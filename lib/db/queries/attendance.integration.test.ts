@@ -17,6 +17,8 @@ import {
   setReportSubmitted,
   listAttendanceByDate,
   addFieldTrip,
+  updateFieldTrip,
+  deleteFieldTrip,
   addAbsenceRange,
   updateAttendanceRecord,
   listUnsubmittedAttendance,
@@ -285,6 +287,214 @@ describe.skipIf(!RUN)("출결 — reportRequired + report_tracking", () => {
     expect(trip.startDate).toBe("2099-06-15");
     expect(trip.endDate).toBe("2099-06-15"); // 당일=start=end
     expect(trip.tripDate).toBe("2099-06-15"); // 미러
+  });
+
+  it("updateFieldTrip 은 옛 기간 자동 출결을 걷어내고 새 기간으로 다시 만든다", async () => {
+    // 07-06(월)~07-10(금) 전부 수업일.
+    await db.insert(schoolDayCalendar).values(
+      ["06", "07", "08", "09", "10"].map((d) => ({
+        ownerId: owner,
+        date: `2099-07-${d}`,
+        isSchoolDay: true,
+      })),
+    );
+    const { id, createdRecords } = await addFieldTrip(db, owner, s1, "2099-07-06", "2099-07-08");
+    expect(createdRecords).toBe(3);
+    // 새 기간 안에 수동 인정결석(비고 다름)을 미리 둔다 — 수정이 이것을 덮거나 지우면 안 된다.
+    await upsertAttendance(db, owner, {
+      studentYearId: s1,
+      date: "2099-07-09",
+      reason: "accepted",
+      kind: "absent",
+      noteField: "가족행사",
+    });
+
+    // 남는 날(07-08)의 행에 교사가 손댄 흔적 — 수정 뒤에도 살아 있어야 한다.
+    await db
+      .update(attendanceRecords)
+      .set({ reportSubmitted: true })
+      .where(
+        and(eq(attendanceRecords.studentYearId, s1), eq(attendanceRecords.date, "2099-07-08")),
+      );
+
+    const res = await updateFieldTrip(db, owner, id, {
+      studentYearId: s1,
+      startDate: "2099-07-08",
+      endDate: "2099-07-10",
+    });
+    // 새 기간 밖 07-06·07-07 만 삭제, 07-08 은 유지, 07-10 생성(07-09 는 수동행 보존 → 생성 0).
+    expect(res).toEqual({ deletedRecords: 2, createdRecords: 1 });
+
+    const rows = await db
+      .select({
+        date: attendanceRecords.date,
+        noteField: attendanceRecords.noteField,
+        fieldTripId: attendanceRecords.fieldTripId,
+        reportSubmitted: attendanceRecords.reportSubmitted,
+      })
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.ownerId, owner),
+          eq(attendanceRecords.studentYearId, s1),
+          gte(attendanceRecords.date, "2099-07-06"),
+          lte(attendanceRecords.date, "2099-07-10"),
+        ),
+      )
+      .orderBy(attendanceRecords.date);
+    expect(rows.map((r) => r.date)).toEqual(["2099-07-08", "2099-07-09", "2099-07-10"]);
+    expect(rows[0]).toMatchObject({ fieldTripId: id, reportSubmitted: true }); // 손댄 흔적 보존
+    expect(rows[1]).toMatchObject({ noteField: "가족행사", fieldTripId: null }); // 수동행
+    expect(rows[2]).toMatchObject({ noteField: "체험학습", fieldTripId: id });
+
+    const [trip] = await db
+      .select({
+        startDate: fieldTripReports.startDate,
+        endDate: fieldTripReports.endDate,
+        tripDate: fieldTripReports.tripDate,
+      })
+      .from(fieldTripReports)
+      .where(eq(fieldTripReports.id, id));
+    expect(trip).toEqual({
+      startDate: "2099-07-08",
+      endDate: "2099-07-10",
+      tripDate: "2099-07-08", // 미러 유지
+    });
+
+    // 남의 owner 는 학생 소유 검증(assertStudentOwner)에서 막힌다 — 아무것도 바꾸지 않는다.
+    await expect(
+      updateFieldTrip(db, randomUUID(), id, { studentYearId: s1, startDate: "2099-07-06" }),
+    ).rejects.toThrow("학생을 찾을 수 없습니다.");
+    // 없는 체험 id 는 null.
+    expect(
+      await updateFieldTrip(db, owner, randomUUID(), { studentYearId: s1, startDate: "2099-07-06" }),
+    ).toBeNull();
+  });
+
+  it("deleteFieldTrip 은 보고서·추적행·자동 출결을 함께 지우고 수동 출결은 남긴다", async () => {
+    await db.insert(schoolDayCalendar).values([
+      { ownerId: owner, date: "2099-07-13", isSchoolDay: true },
+      { ownerId: owner, date: "2099-07-14", isSchoolDay: true },
+    ]);
+    // 체험 등록 전에 있던 수동 인정결석(07-13) — 비고까지 '체험학습'으로 똑같이 적었어도
+    // 체험이 만든 행이 아니므로(field_trip_id null) 삭제 때 남아야 한다.
+    await upsertAttendance(db, owner, {
+      studentYearId: s1,
+      date: "2099-07-13",
+      reason: "accepted",
+      kind: "absent",
+      noteField: "체험학습",
+    });
+    const { id, createdRecords } = await addFieldTrip(db, owner, s1, "2099-07-13", "2099-07-14");
+    expect(createdRecords).toBe(1); // 07-14 만 생성
+
+    expect(await deleteFieldTrip(db, randomUUID(), id)).toBeNull(); // 남의 것
+    const res = await deleteFieldTrip(db, owner, id);
+    expect(res).toEqual({ deletedRecords: 1 });
+
+    const trips = await db
+      .select({ id: fieldTripReports.id })
+      .from(fieldTripReports)
+      .where(eq(fieldTripReports.id, id));
+    expect(trips).toHaveLength(0);
+    const tracking = await db
+      .select({ id: reportTracking.id })
+      .from(reportTracking)
+      .where(eq(reportTracking.fieldTripId, id));
+    expect(tracking).toHaveLength(0);
+    const rows = await db
+      .select({ date: attendanceRecords.date, noteField: attendanceRecords.noteField })
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.ownerId, owner),
+          eq(attendanceRecords.studentYearId, s1),
+          gte(attendanceRecords.date, "2099-07-13"),
+          lte(attendanceRecords.date, "2099-07-14"),
+        ),
+      );
+    expect(rows).toEqual([{ date: "2099-07-13", noteField: "체험학습" }]);
+  });
+
+  it("겹치는 체험 두 건 중 하나를 지우면 다른 체험의 날이 다시 채워진다", async () => {
+    await db.insert(schoolDayCalendar).values(
+      ["20", "21", "22", "23", "24"].map((d) => ({
+        ownerId: owner,
+        date: `2099-07-${d}`,
+        isSchoolDay: true,
+      })),
+    );
+    const a = await addFieldTrip(db, owner, s1, "2099-07-20", "2099-07-22");
+    const b = await addFieldTrip(db, owner, s1, "2099-07-22", "2099-07-24");
+    expect(a.createdRecords).toBe(3);
+    expect(b.createdRecords).toBe(2); // 07-22 는 A 의 행이 이미 있어 생성 안 됨
+
+    const res = await deleteFieldTrip(db, owner, a.id);
+    expect(res).toEqual({ deletedRecords: 3 });
+
+    const rows = await db
+      .select({ date: attendanceRecords.date, fieldTripId: attendanceRecords.fieldTripId })
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.ownerId, owner),
+          eq(attendanceRecords.studentYearId, s1),
+          gte(attendanceRecords.date, "2099-07-20"),
+          lte(attendanceRecords.date, "2099-07-24"),
+        ),
+      )
+      .orderBy(attendanceRecords.date);
+    // A 의 07-20·21 은 사라지고, 07-22 는 B 것으로 다시 생겼다.
+    expect(rows).toEqual([
+      { date: "2099-07-22", fieldTripId: b.id },
+      { date: "2099-07-23", fieldTripId: b.id },
+      { date: "2099-07-24", fieldTripId: b.id },
+    ]);
+  });
+
+  it("updateFieldTrip 으로 학생을 바꾸면 옛 학생의 출결은 사라지고 새 학생에게 생긴다", async () => {
+    const [p2] = await db
+      .insert(persons)
+      .values({ ownerId: owner, displayName: "박체험" })
+      .returning({ id: persons.id });
+    const [{ id: s2 }] = await db
+      .insert(studentYears)
+      .values({
+        ownerId: owner,
+        personId: p2.id,
+        schoolYear: YEAR,
+        sid: "20705",
+        grade: 2,
+        classNo: 7,
+        number: 5,
+        name: "박체험",
+      })
+      .returning({ id: studentYears.id });
+    await db.insert(schoolDayCalendar).values([
+      { ownerId: owner, date: "2099-07-27", isSchoolDay: true },
+      { ownerId: owner, date: "2099-07-28", isSchoolDay: true },
+    ]);
+    const { id } = await addFieldTrip(db, owner, s1, "2099-07-27", "2099-07-28");
+
+    const res = await updateFieldTrip(db, owner, id, {
+      studentYearId: s2,
+      startDate: "2099-07-27",
+      endDate: "2099-07-28",
+    });
+    expect(res).toEqual({ deletedRecords: 2, createdRecords: 2 });
+
+    const rows = await db
+      .select({ studentYearId: attendanceRecords.studentYearId, fieldTripId: attendanceRecords.fieldTripId })
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.ownerId, owner),
+          gte(attendanceRecords.date, "2099-07-27"),
+          lte(attendanceRecords.date, "2099-07-28"),
+        ),
+      );
+    expect(rows).toHaveLength(2);
+    for (const r of rows) expect(r).toEqual({ studentYearId: s2, fieldTripId: id });
   });
 
   it("addAbsenceRange 는 수업일만 결석 생성 (AC-4.4)", async () => {

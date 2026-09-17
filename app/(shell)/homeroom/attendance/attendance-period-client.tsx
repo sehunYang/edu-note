@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { recordAttendanceAction, addAbsenceRangeAction } from "./actions";
 import { Button } from "@/app/ui/button";
 import { SaveStatus, useSaveStatus } from "@/app/ui/save-status";
+import { shiftYmd } from "@/lib/domain/ymd";
 
 /**
  * 출결 입력 클라이언트 (QC v3 Part B, AC-7.x). 교시 체크 UI.
@@ -109,6 +110,10 @@ export function AttendancePeriodClient({
   const showPivot = kind === "late" || kind === "early_leave";
   const showMulti = kind === "absent_period";
 
+  function fillRangeEnd() {
+    if (!rangeEnd) setRangeEnd(shiftYmd(date, 1));
+  }
+
   return (
     <form onSubmit={onSubmit} className="mt-3 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -211,10 +216,16 @@ export function AttendancePeriodClient({
             결석 기간(종료일 비우면 당일만)
           </legend>
           <span className="text-xs text-neutral-500">{date} ~</span>
+          {/* 종료일 칸을 누르면 입력 중인 날짜의 다음날이 기본으로 채워진다 — 예전엔
+              브라우저 달력이 "오늘"에서 열려, 지난 날짜를 입력할 때마다 달을 되짚어야
+              했다. pointerdown 은 달력 팝업이 열리기 전에 발화하므로 팝업이 그 날짜
+              부터 열린다. focus 에는 걸지 않는다 — Tab 으로 지나가기만 해도 채워지면
+              당일 결석이 모르는 새 이틀이 된다. */}
           <input aria-label="결석 종료일"
             type="date"
             value={rangeEnd}
             min={date}
+            onPointerDown={fillRangeEnd}
             onChange={(e) => setRangeEnd(e.target.value)}
             className="min-w-0 max-w-full rounded border border-neutral-300 px-2 py-1 text-sm"
           />

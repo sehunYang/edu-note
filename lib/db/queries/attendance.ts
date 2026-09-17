@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lt, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, lt, lte, ne, or, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import {
@@ -230,6 +230,8 @@ async function createAbsenceRangeRecords(
   end: string,
   reason: AttendanceReason,
   noteField: string | null,
+  /** 이 출결을 만든 교외체험(0064). 결석 기간 입력 등 수동 경로는 null. */
+  fieldTripId: string | null = null,
 ): Promise<number> {
   const days = await schoolDaysInRange(db, ownerId, start, end);
   const reportRequired = isReportRequired({ kind: "absent", reason, noteField });
@@ -248,6 +250,7 @@ async function createAbsenceRangeRecords(
         reportRequired,
         noteField,
         periods,
+        fieldTripId,
       })
       .onConflictDoNothing({
         target: [
@@ -299,7 +302,8 @@ export async function addFieldTrip(
     startDate,
     end,
     "accepted",
-    "체험학습", // QC v6 ③ — 비고란에 '체험학습' 자동 기입(정리 용이). reason='accepted' 유지.
+    FIELD_TRIP_NOTE, // QC v6 ③ — 비고란에 '체험학습' 자동 기입(정리 용이). reason='accepted' 유지.
+    trip.id, // 소속 체험(0064) — 수정·삭제가 이 FK 로 자기 출결을 찾는다.
   );
 
   await writeAudit(db, ownerId, "field_trip_add", trip.id, {
@@ -309,6 +313,183 @@ export async function addFieldTrip(
     createdRecords,
   });
   return { id: trip.id, createdRecords };
+}
+
+/**
+ * 교외체험 자동 생성 출결의 비고 문구 — 표시용. 소속은 attendance_records.field_trip_id
+ * 가 가리키며(0064), 수정·삭제는 그 FK 로만 자기 출결을 찾는다(비고는 교사가 똑같이
+ * 적을 수 있어 연결로 쓰지 않는다).
+ */
+export const FIELD_TRIP_NOTE = "체험학습";
+
+async function getFieldTrip(db: DB, ownerId: string, id: string) {
+  const [trip] = await db
+    .select({
+      id: fieldTripReports.id,
+      studentYearId: fieldTripReports.studentYearId,
+      tripDate: fieldTripReports.tripDate,
+      startDate: fieldTripReports.startDate,
+      endDate: fieldTripReports.endDate,
+    })
+    .from(fieldTripReports)
+    .where(and(eq(fieldTripReports.id, id), eq(fieldTripReports.ownerId, ownerId)))
+    .limit(1);
+  return trip ?? null;
+}
+
+/**
+ * [start,end] 와 겹치는 같은 학생의 다른 체험들이 빠진 날을 다시 채운다.
+ * 체험 두 건이 날짜를 겹치면 그 날의 결석 행은 먼저 만든 쪽 하나뿐이라, 그쪽을
+ * 지우거나 줄이면 나중 체험에 구멍이 생긴다 — 그 구멍을 여기서 메운다.
+ */
+async function refillOverlappingTrips(
+  db: DB,
+  ownerId: string,
+  studentYearId: string,
+  start: string,
+  end: string,
+  excludeId: string,
+): Promise<void> {
+  const others = await db
+    .select({
+      id: fieldTripReports.id,
+      tripDate: fieldTripReports.tripDate,
+      startDate: fieldTripReports.startDate,
+      endDate: fieldTripReports.endDate,
+    })
+    .from(fieldTripReports)
+    .where(
+      and(
+        eq(fieldTripReports.ownerId, ownerId),
+        eq(fieldTripReports.studentYearId, studentYearId),
+        ne(fieldTripReports.id, excludeId),
+        lte(sql`coalesce(${fieldTripReports.startDate}, ${fieldTripReports.tripDate})`, end),
+        gte(sql`coalesce(${fieldTripReports.endDate}, ${fieldTripReports.tripDate})`, start),
+      ),
+    );
+  for (const t of others) {
+    await createAbsenceRangeRecords(
+      db,
+      ownerId,
+      studentYearId,
+      t.startDate ?? t.tripDate,
+      t.endDate ?? t.tripDate,
+      "accepted",
+      FIELD_TRIP_NOTE,
+      t.id,
+    );
+  }
+}
+
+export interface FieldTripUpdate {
+  studentYearId: string;
+  startDate: string;
+  /** null/생략 = 당일. */
+  endDate?: string | null;
+}
+
+/**
+ * 교외체험학습 수정(학생·기간). 이 체험이 만든 출결 중 새 기간 밖(또는 학생이 바뀐)
+ * 행만 지우고 새 기간의 빠진 날만 채운다 — 남는 날의 행은 그대로라 교사가 손본
+ * 교시·제출 표시가 살아남는다. 수동 입력(field_trip_id null)은 건드리지 않고, 새
+ * 기간에 이미 수동 행이 있으면 보존한다(createAbsenceRangeRecords 의 onConflictDoNothing).
+ * 한 트랜잭션 — 중간에 실패하면 옛 출결도 그대로다. 없거나 남의 것이면 null.
+ */
+export async function updateFieldTrip(
+  db: DB,
+  ownerId: string,
+  id: string,
+  input: FieldTripUpdate,
+): Promise<{ deletedRecords: number; createdRecords: number } | null> {
+  await assertStudentOwner(db, ownerId, input.studentYearId);
+  return db.transaction(async (tx) => {
+    const prev = await getFieldTrip(tx, ownerId, id);
+    if (!prev) return null;
+    const end = input.endDate ?? input.startDate;
+    const prevStart = prev.startDate ?? prev.tripDate;
+    const prevEnd = prev.endDate ?? prev.tripDate;
+
+    const removed = await tx
+      .delete(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.ownerId, ownerId),
+          eq(attendanceRecords.fieldTripId, id),
+          or(
+            ne(attendanceRecords.studentYearId, input.studentYearId),
+            lt(attendanceRecords.date, input.startDate),
+            gt(attendanceRecords.date, end),
+          ),
+        ),
+      )
+      .returning({ id: attendanceRecords.id });
+    await tx
+      .update(fieldTripReports)
+      .set({
+        studentYearId: input.studentYearId,
+        tripDate: input.startDate, // start_date 미러(0031 불변식)
+        startDate: input.startDate,
+        endDate: end,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(fieldTripReports.id, id), eq(fieldTripReports.ownerId, ownerId)));
+    const createdRecords = await createAbsenceRangeRecords(
+      tx,
+      ownerId,
+      input.studentYearId,
+      input.startDate,
+      end,
+      "accepted",
+      FIELD_TRIP_NOTE,
+      id,
+    );
+    await refillOverlappingTrips(tx, ownerId, prev.studentYearId, prevStart, prevEnd, id);
+
+    await writeAudit(tx, ownerId, "field_trip_update", id, {
+      from: { studentYearId: prev.studentYearId, startDate: prevStart, endDate: prevEnd },
+      to: { studentYearId: input.studentYearId, startDate: input.startDate, endDate: end },
+      deletedRecords: removed.length,
+      createdRecords,
+    });
+    return { deletedRecords: removed.length, createdRecords };
+  });
+}
+
+/**
+ * 교외체험학습 삭제. 이 체험이 만든 출결(field_trip_id)과 추적행(report_tracking)은
+ * FK cascade 로 함께 사라진다. 수동 입력은 남는다. 한 트랜잭션. 없거나 남의 것이면 null.
+ */
+export async function deleteFieldTrip(
+  db: DB,
+  ownerId: string,
+  id: string,
+): Promise<{ deletedRecords: number } | null> {
+  return db.transaction(async (tx) => {
+    const prev = await getFieldTrip(tx, ownerId, id);
+    if (!prev) return null;
+    const linked = await tx
+      .select({ id: attendanceRecords.id })
+      .from(attendanceRecords)
+      .where(and(eq(attendanceRecords.ownerId, ownerId), eq(attendanceRecords.fieldTripId, id)));
+    await tx
+      .delete(fieldTripReports)
+      .where(and(eq(fieldTripReports.id, id), eq(fieldTripReports.ownerId, ownerId)));
+    await refillOverlappingTrips(
+      tx,
+      ownerId,
+      prev.studentYearId,
+      prev.startDate ?? prev.tripDate,
+      prev.endDate ?? prev.tripDate,
+      id,
+    );
+    await writeAudit(tx, ownerId, "field_trip_delete", id, {
+      studentYearId: prev.studentYearId,
+      startDate: prev.startDate ?? prev.tripDate,
+      endDate: prev.endDate ?? prev.tripDate,
+      deletedRecords: linked.length,
+    });
+    return { deletedRecords: linked.length };
+  });
 }
 
 /**
