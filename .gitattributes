@@ -1,0 +1,2 @@
+# 줄바꿈을 LF 로 고정 — Windows 체크아웃에서 CRLF 로 바뀌면 마이그레이션 체크섬이 흔들린다(4181ee8).
+* text=auto eol=lf
