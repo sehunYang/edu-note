@@ -20,6 +20,7 @@ import {
   distinctStudentS3Owners,
 } from "@/lib/push/cron-brief";
 import { syncNeisTimetables } from "@/lib/integrations/neis-timetable-sync";
+import { syncNeisMeals } from "@/lib/integrations/neis-meal-sync";
 import { cronSecret } from "@/lib/config/env";
 import { neisEnabled } from "@/lib/config/features";
 import { claimDailyRun } from "@/lib/config/secrets";
@@ -96,6 +97,17 @@ export async function GET(request: NextRequest) {
       : { skipped: "neis-disabled" };
   } catch (e) {
     neisSync = { error: e instanceof Error ? e.message : "neis sync 실패" };
+  }
+
+  // ── 0-b단계: NEIS 급식 갱신(이번 달~다음 달) — 월 단위로 올라오는 급식을 매일 받아둔다.
+  // 시간표와 동일하게 격리(실패가 브리핑을 막지 않음).
+  let mealSync: unknown = null;
+  try {
+    mealSync = (await neisEnabled())
+      ? await syncNeisMeals(db, today)
+      : { skipped: "neis-disabled" };
+  } catch (e) {
+    mealSync = { error: e instanceof Error ? e.message : "meal sync 실패" };
   }
 
   const skipped = { teacherNotSchoolDay: 0, teacherEmpty: 0, studentNotSchoolDay: 0 };
@@ -198,6 +210,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     neisSync,
+    mealSync,
     teacherBriefings,
     studentReminders,
     skipped,

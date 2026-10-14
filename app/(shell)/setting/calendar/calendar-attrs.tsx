@@ -99,7 +99,14 @@ export function CalendarAttrs({ events }: { events: CalendarEventAttrView[] }) {
         </div>
         {syncState && syncState.ok && (
           <p role="status" className="mt-3 rounded border border-green-200 bg-green-50 p-2 text-xs text-green-800">
-            ✅ 수업일 {syncState.schoolDays}일 · 이벤트 {syncState.events}건 동기화
+            ✅ 수업일 {syncState.schoolDays}일 · 이벤트 {syncState.events}건 · 급식{" "}
+            {syncState.meals}일 동기화
+          </p>
+        )}
+        {syncState && syncState.ok && syncState.mealError && (
+          <p role="status" className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+            ⚠️ 급식 조회 실패({syncState.mealError}) — 학사일정만 반영됐습니다. 잠시 후 다시
+            시도하세요.
           </p>
         )}
         {syncState && !syncState.ok && (

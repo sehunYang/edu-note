@@ -176,7 +176,14 @@ export async function resolveSchoolAction(
 // ── C3 학사일정 sync + 키워드 보정 (AC-3.1~3.4) ──
 
 export type CalendarSyncState =
-  | { ok: true; schoolDays: number; events: number }
+  | {
+      ok: true;
+      schoolDays: number;
+      events: number;
+      meals: number;
+      /** 급식 조회 실패 사유(학사일정은 성공). null = 급식도 성공. */
+      mealError: string | null;
+    }
   | { ok: false; message: string }
   | null;
 
@@ -207,12 +214,24 @@ export async function calendarSyncAction(
       sched.data,
       meal.ok ? meal.data : [],
     );
+    // 급식 실패는 학사일정 sync 를 막지 않되, 조용히 삼키지 않고 화면·감사로그에 남긴다.
+    const mealError = meal.ok ? null : meal.error;
     await writeAudit(db, ownerId, "sync_neis", null, {
       schoolDays: res.schoolDays,
       events: res.events,
+      meals: res.meals,
+      mealError,
     });
     revalidatePath("/setting/calendar");
-    return { ok: true, schoolDays: res.schoolDays, events: res.events };
+    revalidatePath("/today");
+    revalidatePath("/");
+    return {
+      ok: true,
+      schoolDays: res.schoolDays,
+      events: res.events,
+      meals: res.meals,
+      mealError,
+    };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "동기화 실패" };
   }

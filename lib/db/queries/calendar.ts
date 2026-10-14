@@ -149,6 +149,24 @@ export async function syncSchoolCalendar(
   }
 
   // 3) meal_cache — 날짜별로 묶어 payload upsert
+  const mealCount = await upsertMealCache(db, ownerId, meals);
+
+  return {
+    schoolDays: dayRows.length,
+    events: eventRows.length,
+    meals: mealCount,
+  };
+}
+
+/**
+ * NEIS 급식을 날짜별로 묶어 meal_cache 에 멱등 upsert. 반환 = upsert 행수(날짜 수).
+ * 학사일정 sync(위)와 daily-brief 크론의 급식 갱신(neis-meal-sync)이 공용으로 쓴다.
+ */
+export async function upsertMealCache(
+  db: DB,
+  ownerId: string,
+  meals: NeisMealEntry[],
+): Promise<number> {
   const byDate = new Map<string, NeisMealEntry[]>();
   for (const m of meals) {
     const arr = byDate.get(m.date) ?? [];
@@ -176,12 +194,7 @@ export async function syncSchoolCalendar(
         set: { payload: dsql`excluded.payload`, updatedAt: new Date() },
       });
   }
-
-  return {
-    schoolDays: dayRows.length,
-    events: eventRows.length,
-    meals: mealRows.length,
-  };
+  return mealRows.length;
 }
 
 // ── 조회 ──
