@@ -113,15 +113,43 @@ describe.skipIf(!RUN)("출결 — reportRequired + report_tracking", () => {
     expect(await trackingCount(r.id)).toBe(0);
   });
 
-  it("인정 사유 조퇴는 신고서 불필요 (AC-4.1 반전)", async () => {
+  it("인정 사유 조퇴는 신고서 필요 + tracking 생성", async () => {
     const r = await upsertAttendance(db, owner, {
       studentYearId: s1,
       date: "2099-03-04",
       reason: "accepted",
       kind: "early_leave",
     });
+    expect(r.reportRequired).toBe(true);
+    expect(await trackingCount(r.id)).toBe(1);
+  });
+
+  it("교외체험 인정결석은 수정·재입력해도 날짜별 신고서가 생기지 않는다", async () => {
+    await db
+      .insert(schoolDayCalendar)
+      .values({ ownerId: owner, date: "2099-08-03", isSchoolDay: true });
+    await addFieldTrip(db, owner, s1, "2099-08-03");
+    const [rec] = await listAttendanceByDate(db, owner, "2099-08-03");
+    expect(rec.fieldTripId).not.toBeNull();
+    expect(rec.reportRequired).toBe(false);
+
+    const u = await updateAttendanceRecord(db, owner, rec.id, {
+      reason: "accepted",
+      kind: "absent",
+      noteField: "체험학습 비고 수정",
+    });
+    expect(u?.reportRequired).toBe(false);
+    expect(await trackingCount(rec.id)).toBe(0);
+
+    const r = await upsertAttendance(db, owner, {
+      studentYearId: s1,
+      date: "2099-08-03",
+      reason: "accepted",
+      kind: "absent",
+    });
+    expect(r.id).toBe(rec.id);
     expect(r.reportRequired).toBe(false);
-    expect(await trackingCount(r.id)).toBe(0);
+    expect(await trackingCount(rec.id)).toBe(0);
   });
 
   it("비고 '생리통' 결과는 신고서 필요", async () => {
@@ -668,6 +696,40 @@ describe.skipIf(!RUN)("출결 — reportRequired + report_tracking", () => {
         (r) => r.source === "attendance" && r.studentYearId === hStudent,
       );
       expect(attForHStudent).toHaveLength(0);
+    });
+
+    it("마감 지난 인정 출결도 질병결석과 같이 제출불가", async () => {
+      await db.insert(schoolDayCalendar).values(
+        ["2098-04-06", "2098-04-07", "2098-04-08", "2098-04-09", "2098-04-10", "2098-04-13", "2098-04-14"].map(
+          (date) => ({ ownerId: owner, date, isSchoolDay: true }),
+        ),
+      );
+      const accepted = await upsertAttendance(db, owner, {
+        studentYearId: hStudent,
+        date: "2098-04-06",
+        reason: "accepted",
+        kind: "late",
+      });
+      const illness = await upsertAttendance(db, owner, {
+        studentYearId: hStudent,
+        date: "2098-04-06",
+        reason: "illness",
+        kind: "absent",
+      });
+      const rows = await listUnsubmittedAttendance(
+        db,
+        owner,
+        HR_YEAR,
+        new Date("2098-04-14T12:00:00Z"),
+      );
+      expect(rows.find((r) => r.id === accepted.id)?.tier).toBe("expired");
+      expect(rows.find((r) => r.id === illness.id)?.tier).toBe("expired");
+      await db.delete(attendanceRecords).where(
+        and(
+          eq(attendanceRecords.ownerId, owner),
+          eq(attendanceRecords.date, "2098-04-06"),
+        ),
+      );
     });
 
     it("attendance 미제출도 같은 목록에 머지 + (date,sid) 정렬", async () => {

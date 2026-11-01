@@ -62,6 +62,8 @@ export interface AttendanceRow {
   reportSubmitted: boolean;
   noteField: string | null;
   periods: number[] | null;
+  /** 이 출결을 만든 교외체험(0064). null=수동 입력. */
+  fieldTripId: string | null;
 }
 
 /**
@@ -133,10 +135,25 @@ export async function upsertAttendance(
   input: UpsertAttendanceInput,
 ): Promise<AttendanceRow> {
   await assertStudentOwner(db, ownerId, input.studentYearId);
+  // 같은 키의 기존 행이 교외체험 소속이면 갱신 후에도 소속이 유지된다(아래 set 에 없음)
+  // — 그 행의 서류는 계속 사후보고서가 맡으므로 판정에 소속을 넘긴다.
+  const [existing] = await db
+    .select({ fieldTripId: attendanceRecords.fieldTripId })
+    .from(attendanceRecords)
+    .where(
+      and(
+        eq(attendanceRecords.ownerId, ownerId),
+        eq(attendanceRecords.studentYearId, input.studentYearId),
+        eq(attendanceRecords.date, input.date),
+        eq(attendanceRecords.kind, input.kind),
+      ),
+    )
+    .limit(1);
   const reportRequired = isReportRequired({
     kind: input.kind,
     reason: input.reason,
     noteField: input.noteField,
+    fieldTripId: existing?.fieldTripId,
   });
 
   // 영향받은 교시 산정(저장 시점에 도메인 규칙으로 파생).
@@ -192,6 +209,7 @@ function toRow(r: typeof attendanceRecords.$inferSelect): AttendanceRow {
     reportSubmitted: r.reportSubmitted,
     noteField: r.noteField,
     periods: r.periods,
+    fieldTripId: r.fieldTripId,
   };
 }
 
@@ -234,7 +252,12 @@ async function createAbsenceRangeRecords(
   fieldTripId: string | null = null,
 ): Promise<number> {
   const days = await schoolDaysInRange(db, ownerId, start, end);
-  const reportRequired = isReportRequired({ kind: "absent", reason, noteField });
+  const reportRequired = isReportRequired({
+    kind: "absent",
+    reason,
+    noteField,
+    fieldTripId,
+  });
   let created = 0;
   for (const date of days) {
     // 결석=하루 전체 교시(periods 파생).
@@ -272,7 +295,7 @@ async function createAbsenceRangeRecords(
 /**
  * 교외체험학습 추가(AC-4.2). 사후보고서 추적 행 + 기간 내 수업일마다 인정결석
  * 출결 자동 생성. endDate null=당일. trip_date=start_date 미러, 마감 기준=end_date.
- * 인정결석(reason='accepted')은 신고서 불필요(사후보고서가 곧 보고) — report_required=false.
+ * 체험이 만든 인정결석은 날짜별 신고서 불필요(사후보고서가 곧 보고) — report_required=false.
  */
 export async function addFieldTrip(
   db: DB,
@@ -542,10 +565,22 @@ export async function updateAttendanceRecord(
   recordId: string,
   input: UpdateAttendanceInput,
 ): Promise<AttendanceRow | null> {
+  const [existing] = await db
+    .select({ fieldTripId: attendanceRecords.fieldTripId })
+    .from(attendanceRecords)
+    .where(
+      and(
+        eq(attendanceRecords.id, recordId),
+        eq(attendanceRecords.ownerId, ownerId),
+      ),
+    )
+    .limit(1);
+  if (!existing) return null;
   const reportRequired = isReportRequired({
     kind: input.kind,
     reason: input.reason,
     noteField: input.noteField,
+    fieldTripId: existing.fieldTripId,
   });
   const [row] = await db
     .update(attendanceRecords)
@@ -622,6 +657,7 @@ export async function listAttendanceByDate(
       reportSubmitted: attendanceRecords.reportSubmitted,
       noteField: attendanceRecords.noteField,
       periods: attendanceRecords.periods,
+      fieldTripId: attendanceRecords.fieldTripId,
       sid: studentYears.sid,
       name: studentYears.name,
     })
@@ -639,6 +675,7 @@ export async function listAttendanceByDate(
     reportSubmitted: r.reportSubmitted,
     noteField: r.noteField,
     periods: r.periods,
+    fieldTripId: r.fieldTripId,
     sid: r.sid,
     name: r.name,
   }));
@@ -709,6 +746,7 @@ function toStudentRow(r: {
   reportSubmitted: boolean;
   noteField: string | null;
   periods: number[] | null;
+  fieldTripId: string | null;
   sid: string;
   name: string;
 }): AttendanceStudentRow {
@@ -722,6 +760,7 @@ function toStudentRow(r: {
     reportSubmitted: r.reportSubmitted,
     noteField: r.noteField,
     periods: r.periods,
+    fieldTripId: r.fieldTripId,
     sid: r.sid,
     name: r.name,
   };
@@ -737,6 +776,7 @@ const STUDENT_ROW_COLUMNS = {
   reportSubmitted: attendanceRecords.reportSubmitted,
   noteField: attendanceRecords.noteField,
   periods: attendanceRecords.periods,
+  fieldTripId: attendanceRecords.fieldTripId,
   sid: studentYears.sid,
   name: studentYears.name,
 } as const;
@@ -964,6 +1004,7 @@ export async function listUnsubmittedAttendance(
         reportSubmitted: false,
         noteField: null,
         periods: null,
+        fieldTripId: r.id,
         sid: r.sid,
         name: r.name,
         deadlineDate: deadline,

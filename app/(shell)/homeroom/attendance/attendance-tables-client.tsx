@@ -301,7 +301,9 @@ export function EditableAttendanceTable({
                       </button>
                     </form>
                   ) : (
-                    <span className="text-xs text-neutral-300">불필요</span>
+                    <span className="text-xs text-neutral-300">
+                      {r.fieldTripId ? "사후보고서" : "불필요"}
+                    </span>
                   )}
                 </td>
                 <td className="py-2 text-right">
