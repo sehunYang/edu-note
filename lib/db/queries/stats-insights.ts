@@ -533,8 +533,9 @@ export async function getWorkProgress(
       : Promise.resolve([{ total: 0, finalized: 0 }]),
     db
       .select({
-        total: sql<number>`count(*) filter (where ${attendanceRecords.reportRequired})::int`,
-        submitted: sql<number>`count(*) filter (where ${attendanceRecords.reportRequired} and ${attendanceRecords.reportSubmitted})::int`,
+        // 결석 기간 묶음(0066)은 서류 1건 — 묶음 id 로 한 번만 센다.
+        total: sql<number>`count(distinct coalesce(${attendanceRecords.absenceGroupId}, ${attendanceRecords.id})) filter (where ${attendanceRecords.reportRequired})::int`,
+        submitted: sql<number>`count(distinct coalesce(${attendanceRecords.absenceGroupId}, ${attendanceRecords.id})) filter (where ${attendanceRecords.reportRequired} and ${attendanceRecords.reportSubmitted})::int`,
       })
       .from(attendanceRecords)
       .where(eq(attendanceRecords.ownerId, ownerId)),

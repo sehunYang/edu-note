@@ -97,6 +97,20 @@ describe("buildAttendanceTally", () => {
     ]);
     expect(ga.unsubmittedReports).toBe(1);
   });
+
+  it("결석 기간 묶음은 일수는 다 세고 미제출 서류는 1건으로 센다(0066)", () => {
+    const day = (absenceGroupId: string | null) => ({
+      studentYearId: "a",
+      kind: "absent" as const,
+      reason: "illness" as const,
+      reportRequired: true,
+      reportSubmitted: false,
+      absenceGroupId,
+    });
+    const [ga] = buildAttendanceTally(STUDENTS, [day("g1"), day("g1"), day("g1"), day(null)]);
+    expect(ga.counts.absent.illness).toBe(4);
+    expect(ga.unsubmittedReports).toBe(2); // 기간 1건 + 하루 1건
+  });
 });
 
 describe("sumTallies", () => {

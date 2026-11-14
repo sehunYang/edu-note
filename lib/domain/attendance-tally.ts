@@ -56,6 +56,8 @@ export interface TallyRecord {
   periods?: number[] | null;
   reportRequired?: boolean;
   reportSubmitted?: boolean;
+  /** 결석 기간 묶음(0066). 같은 묶음의 미제출은 서류 1건으로 센다. */
+  absenceGroupId?: string | null;
 }
 
 export interface TallyStudent {
@@ -118,6 +120,8 @@ export function buildAttendanceTally(
     });
   }
 
+  // 결석 기간 묶음은 서류 1건 — 같은 묶음의 미제출은 한 번만 센다.
+  const countedGroups = new Set<string>();
   for (const rec of records) {
     const t = byStudent.get(rec.studentYearId);
     // 명단 밖 학생(전출 등)의 기록은 버린다 — 표는 현재 명단 기준이다.
@@ -125,7 +129,13 @@ export function buildAttendanceTally(
     const w = recordWeight(rec);
     t.counts[rec.kind][rec.reason] += w;
     t.total += w;
-    if (rec.reportRequired && !rec.reportSubmitted) t.unsubmittedReports += 1;
+    if (rec.reportRequired && !rec.reportSubmitted) {
+      if (rec.absenceGroupId) {
+        if (countedGroups.has(rec.absenceGroupId)) continue;
+        countedGroups.add(rec.absenceGroupId);
+      }
+      t.unsubmittedReports += 1;
+    }
   }
 
   return students.map((s) => byStudent.get(s.studentYearId)!);

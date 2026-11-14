@@ -104,6 +104,8 @@ export type AuditEvent =
   | "field_trip_update"
   | "field_trip_delete"
   | "attendance_update"
+  // 연속 결석 서류 묶기(0066 후속)
+  | "attendance_absence_join"
   // QC v4 공지실 (US-5)
   | "teacher_note_reorder"
   // QC v5 오늘의학교 캘린더 메모 (c7)

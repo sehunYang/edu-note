@@ -291,6 +291,11 @@ export function EditableAttendanceTable({
                         value={(!r.reportSubmitted).toString()}
                       />
                       <button
+                        title={
+                          r.absenceGroupId
+                            ? "기간 결석은 서류 1건 — 기간 전체에 함께 적용됩니다"
+                            : undefined
+                        }
                         className={`rounded border px-2 py-0.5 text-xs ${
                           r.reportSubmitted
                             ? "border-emerald-300 bg-emerald-50 text-emerald-700"
@@ -298,6 +303,7 @@ export function EditableAttendanceTable({
                         }`}
                       >
                         {r.reportSubmitted ? "제출됨" : "미제출"}
+                        {r.absenceGroupId ? " · 기간" : ""}
                       </button>
                     </form>
                   ) : (
@@ -340,6 +346,8 @@ export function EditableAttendanceTable({
 }
 
 export interface UnsubmittedRow extends AttendanceStudentRow {
+  /** 기간 서류(결석 기간 묶음·다일 교외체험)의 마지막 날. 하루짜리면 null. */
+  endDate: string | null;
   deadlineDate: string | null;
   remainingSchoolDays: number | null;
   tier: SubmissionTier;
@@ -412,6 +420,10 @@ export function UnsubmittedTable({ rows }: { rows: UnsubmittedRow[] }) {
                 <Link href={dateHref(r.date)} className="hover:underline">
                   {r.date}
                 </Link>
+                {/* 기간 서류는 1건 — 마지막 날까지 보여 주고, 마감도 그 날 기준이다. */}
+                {r.endDate ? (
+                  <span className="text-neutral-500"> ~ {r.endDate}</span>
+                ) : null}
               </td>
               <td className="py-2">
                 <span className={`rounded px-1.5 py-0.5 text-xs ${ATTENDANCE_KIND_CHIP[r.kind]}`}>

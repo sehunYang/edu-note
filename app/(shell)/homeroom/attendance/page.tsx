@@ -8,6 +8,7 @@ import {
   searchAttendanceByStudent,
   listUnsubmittedAttendance,
   listFieldTrips,
+  listAbsenceJoinCandidates,
   getAttendanceTally,
   resolveSemesterRange,
 } from "@/lib/db/queries";
@@ -147,7 +148,7 @@ export default async function AttendancePage({
       : null;
 
   // 뷰별 데이터(교외체험 등록도 별도 탭이므로 해당 탭에서만 로드).
-  const [records, monthRows, studentRows, unsubmitted, fieldTrips] =
+  const [records, monthRows, studentRows, unsubmitted, fieldTrips, joinCandidates] =
     await Promise.all([
       view === "today" ? listAttendanceByDate(db, ownerId, date) : Promise.resolve([]),
       view === "month" ? listAttendanceByMonth(db, ownerId, year, month, reasonFilter) : Promise.resolve([]),
@@ -158,6 +159,10 @@ export default async function AttendancePage({
         ? listUnsubmittedAttendance(db, ownerId, year)
         : Promise.resolve([]),
       view === "fieldtrip" ? listFieldTrips(db, ownerId) : Promise.resolve([]),
+      // 오늘 입력 — 앞·뒤 수업일의 묶을 수 있는 결석(체크박스 안내용).
+      view === "today"
+        ? listAbsenceJoinCandidates(db, ownerId, date)
+        : Promise.resolve([]),
     ]);
   // 담임반 명단으로 오늘 뷰도 필터(공유 쿼리는 owner 전체 반환).
   const studentIdSet = new Set(students.map((s) => s.id));
@@ -192,7 +197,12 @@ export default async function AttendancePage({
               </div>
             ) : (
               /* key=date: 날짜를 옮기면 입력 상태(특히 결석 종료일)를 새 날짜 기준으로 비운다. */
-              <AttendancePeriodClient key={date} students={students} date={date} />
+              <AttendancePeriodClient
+                key={date}
+                students={students}
+                date={date}
+                joinCandidates={joinCandidates}
+              />
             )}
           </section>
 
