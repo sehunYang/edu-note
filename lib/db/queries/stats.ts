@@ -83,7 +83,8 @@ export async function getOwnerStats(
     db
       .select({
         total: N,
-        unsubmitted: sql<number>`count(*) filter (where ${attendanceRecords.reportRequired} and not ${attendanceRecords.reportSubmitted})::int`,
+        // 결석 기간 묶음(0066)은 서류 1건 — 묶음 id 로 한 번만 센다.
+        unsubmitted: sql<number>`count(distinct coalesce(${attendanceRecords.absenceGroupId}, ${attendanceRecords.id})) filter (where ${attendanceRecords.reportRequired} and not ${attendanceRecords.reportSubmitted})::int`,
       })
       .from(attendanceRecords)
       .where(eq(attendanceRecords.ownerId, ownerId)),

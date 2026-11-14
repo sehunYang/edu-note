@@ -41,6 +41,9 @@ export const attendanceRecords = pgTable(
     fieldTripId: uuid("field_trip_id").references(() => fieldTripReports.id, {
       onDelete: "cascade",
     }),
+    // 결석 기간 입력 묶음(0066). 같은 기간 입력으로 만든 행이 공유한다 — 서류는 묶음당
+    // 1건, 마감은 묶음의 마지막 날 기준. null=하루씩 입력한 행.
+    absenceGroupId: uuid("absence_group_id"),
     ...timestamps(),
   },
   (t) => [

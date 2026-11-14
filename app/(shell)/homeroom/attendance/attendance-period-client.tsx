@@ -4,6 +4,7 @@ import { recordAttendanceAction, addAbsenceRangeAction } from "./actions";
 import { Button } from "@/app/ui/button";
 import { SaveStatus, useSaveStatus } from "@/app/ui/save-status";
 import { shiftYmd } from "@/lib/domain/ymd";
+import type { AbsenceJoinCandidate, AbsenceJoinResult } from "@/lib/db/queries";
 
 /**
  * 출결 입력 클라이언트 (QC v3 Part B, AC-7.x). 교시 체크 UI.
@@ -26,12 +27,34 @@ function periodLabel(p: number): string {
   return p === 0 ? "조회" : `${p}교시`;
 }
 
+const REASON_TEXT: Record<string, string> = {
+  illness: "질병",
+  accepted: "인정",
+  unaccepted: "미인정",
+  etc: "기타",
+};
+
+/** "11-13" 또는 "11-10~11-13" — 연도는 뺀다(입력 화면은 늘 이번 학기 안이다). */
+function spanText(first: string, last: string): string {
+  return first === last ? first.slice(5) : `${first.slice(5)}~${last.slice(5)}`;
+}
+
+/** 저장 메시지 꼬리 — 앞·뒤 결석과 서류를 묶었으면 그 기간과 마감. */
+function joinedText(j: AbsenceJoinResult | null | undefined): string {
+  if (!j) return "";
+  const due = j.deadlineDate ? `, 마감 ${j.deadlineDate.slice(5)}` : "";
+  return ` · ${spanText(j.firstDate, j.lastDate)} 서류 1건으로 묶음${due}`;
+}
+
 export function AttendancePeriodClient({
   students,
   date,
+  joinCandidates = [],
 }: {
   students: HomeroomStudent[];
   date: string;
+  /** 앞·뒤 수업일의 묶을 수 있는 결석(listAbsenceJoinCandidates). 체크박스 안내용. */
+  joinCandidates?: AbsenceJoinCandidate[];
 }) {
   const [studentId, setStudentId] = useState("");
   const [kind, setKind] = useState<
@@ -43,6 +66,8 @@ export function AttendancePeriodClient({
   const [selected, setSelected] = useState<number[]>([]);
   // 결석 기간 종료일(선택). 비어 있으면 단일 날짜(date)만 기록.
   const [rangeEnd, setRangeEnd] = useState("");
+  // 앞·뒤 수업일의 같은 사유 결석과 서류 묶기(기본 켬). 끄면 따로 서류 1건.
+  const [joinAdjacent, setJoinAdjacent] = useState(true);
   const [pending, startTransition] = useTransition();
   const [saved, markSaved] = useSaveStatus();
 
@@ -63,9 +88,23 @@ export function AttendancePeriodClient({
     );
   }
 
+  // 지금 고른 학생·사유로 이어질 결석. 뒤쪽(다음 수업일)은 하루 입력일 때만 이웃이다 —
+  // 종료일을 넣으면 뒤쪽 이웃이 달라지므로(저장 시 서버가 다시 판단) 앞쪽만 안내한다.
+  const visibleJoins =
+    kind === "absent" && studentId
+      ? joinCandidates.filter(
+          (c) =>
+            c.studentYearId === studentId &&
+            c.reason === reason &&
+            (c.side === "prev" || !rangeEnd || rangeEnd <= date),
+        )
+      : [];
+
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!studentId) return;
+    // 후보가 보였으면 교사의 선택을, 안 보였으면 기본(켬)을 보낸다.
+    const joinValue = visibleJoins.length > 0 && !joinAdjacent ? "0" : "1";
 
     // 결석 + 종료일 지정 = 기간 입력(수업일마다 자동 생성).
     if (kind === "absent" && rangeEnd && rangeEnd > date) {
@@ -75,13 +114,15 @@ export function AttendancePeriodClient({
       fd.set("endDate", rangeEnd);
       fd.set("reason", reason);
       fd.set("noteField", noteField);
+      fd.set("joinAdjacent", joinValue);
       const label = studentLabel(studentId);
       startTransition(async () => {
-        await addAbsenceRangeAction(fd);
-        markSaved(`${label} ${date}~${rangeEnd} 결석 기록됨`);
+        const res = await addAbsenceRangeAction(fd);
+        markSaved(`${label} ${date}~${rangeEnd} 결석 기록됨${joinedText(res?.joined)}`);
         setNoteField("");
         setRangeEnd("");
         setStudentId("");
+        setJoinAdjacent(true);
       });
       return;
     }
@@ -94,10 +135,12 @@ export function AttendancePeriodClient({
     fd.set("noteField", noteField);
     fd.set("pivotPeriod", String(pivotPeriod));
     for (const p of selected) fd.append("periods", String(p));
+    fd.set("joinAdjacent", joinValue);
     const label = studentLabel(studentId);
     startTransition(async () => {
-      await recordAttendanceAction(fd);
-      markSaved(`${label} ${KIND_TEXT[kind]} 기록됨`);
+      const res = await recordAttendanceAction(fd);
+      markSaved(`${label} ${KIND_TEXT[kind]} 기록됨${joinedText(res?.joined)}`);
+      setJoinAdjacent(true);
       setNoteField("");
       setSelected([]);
       setPivotPeriod(0);
@@ -213,7 +256,7 @@ export function AttendancePeriodClient({
       {kind === "absent" && (
         <fieldset className="flex flex-wrap items-center gap-2 text-sm">
           <legend className="mr-2 text-xs text-neutral-500">
-            결석 기간(종료일 비우면 당일만)
+            결석 기간(종료일 비우면 당일만 · 기간은 서류 1건, 마감은 종료일 기준)
           </legend>
           <span className="text-xs text-neutral-500">{date} ~</span>
           {/* 종료일 칸을 누르면 입력 중인 날짜의 다음날이 기본으로 채워진다 — 예전엔
@@ -230,6 +273,24 @@ export function AttendancePeriodClient({
             className="min-w-0 max-w-full rounded border border-neutral-300 px-2 py-1 text-sm"
           />
         </fieldset>
+      )}
+
+      {/* 따로 입력한 연속 결석(어제 몸살로 결석, 오늘도 결석)은 결석계 1장이다 —
+          이어지는 결석이 있으면 묶기를 기본으로 켜 두고, 별개의 결석이면 끌 수 있게 한다.
+          이미 서류를 낸 결석은 후보로 나오지 않는다(그 서류엔 새 날짜가 없다). */}
+      {visibleJoins.length > 0 && (
+        <label className="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+          <input
+            type="checkbox"
+            checked={joinAdjacent}
+            onChange={(e) => setJoinAdjacent(e.target.checked)}
+          />
+          {visibleJoins
+            .map((c) => `${spanText(c.firstDate, c.lastDate)} ${REASON_TEXT[c.reason] ?? ""}결석`)
+            .join(" · ")}
+          과 서류 1건으로 묶기
+          <span className="text-xs text-neutral-500">(마감은 마지막 날 기준)</span>
+        </label>
       )}
     </form>
   );

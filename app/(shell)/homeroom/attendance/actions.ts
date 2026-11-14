@@ -18,6 +18,7 @@ import {
   DEFAULT_PERIOD_LIST,
 } from "@/lib/db/queries";
 import { absentPeriods } from "@/lib/domain/attendance";
+import type { AbsenceJoinResult } from "@/lib/db/queries";
 import type { AttendanceReason, AttendanceKind } from "@/lib/domain/types";
 
 /**
@@ -37,7 +38,19 @@ const KINDS: readonly AttendanceKind[] = [
   "absent",
 ];
 
-export async function recordAttendanceAction(formData: FormData): Promise<void> {
+/** 입력 결과 — 앞·뒤 결석과 서류를 묶었으면 그 기간(저장 메시지용). */
+export interface AttendanceSaveResult {
+  joined: AbsenceJoinResult | null;
+}
+
+/** 체크박스 "앞·뒤 결석과 서류 묶기". 칸이 없으면(후보가 안 보였으면) 기본 켬. */
+function joinAdjacentFrom(formData: FormData): boolean {
+  return String(formData.get("joinAdjacent") ?? "1") !== "0";
+}
+
+export async function recordAttendanceAction(
+  formData: FormData,
+): Promise<AttendanceSaveResult | void> {
   const ownerId = await getOwnerId();
   const studentYearId = String(formData.get("studentYearId") ?? "").trim();
   const date = String(formData.get("date") ?? "").trim();
@@ -68,6 +81,7 @@ export async function recordAttendanceAction(formData: FormData): Promise<void> 
     noteField,
     pivotPeriod,
     selectedPeriods,
+    joinAdjacent: joinAdjacentFrom(formData),
   });
   await writeAudit(db, ownerId, "attendance_period_record", row.id, {
     studentYearId,
@@ -79,6 +93,7 @@ export async function recordAttendanceAction(formData: FormData): Promise<void> 
   });
   revalidatePath("/homeroom/attendance");
   revalidatePath("/today");
+  return { joined: row.joined };
 }
 
 export async function toggleReportSubmittedAction(formData: FormData): Promise<void> {
@@ -125,7 +140,9 @@ export async function updateAttendanceAction(formData: FormData): Promise<void> 
 }
 
 /** 결석 기간 입력(AC-4.4). 범위 내 수업일마다 결석 자동 생성. */
-export async function addAbsenceRangeAction(formData: FormData): Promise<void> {
+export async function addAbsenceRangeAction(
+  formData: FormData,
+): Promise<AttendanceSaveResult | void> {
   const ownerId = await getOwnerId();
   const studentYearId = String(formData.get("studentYearId") ?? "").trim();
   const startDate = String(formData.get("startDate") ?? "").trim();
@@ -143,9 +160,19 @@ export async function addAbsenceRangeAction(formData: FormData): Promise<void> {
   const db = getDb();
   // 담임반 서버 가드(record와 동일, 연도 무관).
   if (!(await isOwnerHomeroomStudent(db, ownerId, studentYearId))) return;
-  await addAbsenceRange(db, ownerId, studentYearId, startDate, endDate, reason, noteField);
+  const res = await addAbsenceRange(
+    db,
+    ownerId,
+    studentYearId,
+    startDate,
+    endDate,
+    reason,
+    noteField,
+    { joinAdjacent: joinAdjacentFrom(formData) },
+  );
   revalidatePath("/homeroom/attendance");
   revalidatePath("/today");
+  return { joined: res.joined };
 }
 
 /** 교외체험학습 추가(AC-4.2). 기간 내 수업일마다 인정결석 자동 생성 + 사후보고서 추적. */

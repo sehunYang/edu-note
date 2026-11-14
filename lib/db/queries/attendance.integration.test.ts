@@ -20,6 +20,7 @@ import {
   updateFieldTrip,
   deleteFieldTrip,
   addAbsenceRange,
+  deleteAttendance,
   updateAttendanceRecord,
   listUnsubmittedAttendance,
   isOwnerHomeroomStudent,
@@ -798,6 +799,134 @@ describe.skipIf(!RUN)("출결 — reportRequired + report_tracking", () => {
       expect(firstPage[0].id).not.toBe(secondPage[0].id);
       // 두 페이지를 합치면 전체 목록의 앞 2건과 일치(소스별 slice 가 아님).
       expect([firstPage[0].id, secondPage[0].id]).toEqual([all[0].id, all[1].id]);
+    });
+
+    it("결석 기간 입력은 서류 1건 — 마감은 마지막 날 기준, 제출은 기간 전체(0066)", async () => {
+      // 06-01(월)~06-03(수) 질병결석, 마감 = 06-03 이후 5번째 수업일 = 06-10.
+      const days = ["2098-06-01", "2098-06-02", "2098-06-03", "2098-06-04", "2098-06-05", "2098-06-08", "2098-06-09", "2098-06-10"];
+      await db.insert(schoolDayCalendar).values(
+        days.map((date) => ({ ownerId: owner, date, isSchoolDay: true })),
+      );
+      const res = await addAbsenceRange(db, owner, hStudent, "2098-06-01", "2098-06-03", "illness");
+      expect(res.createdRecords).toBe(3);
+      expect(res.absenceGroupId).not.toBeNull();
+
+      const recs = await db
+        .select({ id: attendanceRecords.id, date: attendanceRecords.date })
+        .from(attendanceRecords)
+        .where(
+          and(
+            eq(attendanceRecords.ownerId, owner),
+            eq(attendanceRecords.absenceGroupId, res.absenceGroupId!),
+          ),
+        );
+      expect(recs).toHaveLength(3);
+      const byDate = Object.fromEntries(recs.map((r) => [r.date, r.id]));
+      // 추적행은 마지막 날 1개뿐.
+      expect(await trackingCount(byDate["2098-06-01"])).toBe(0);
+      expect(await trackingCount(byDate["2098-06-02"])).toBe(0);
+      expect(await trackingCount(byDate["2098-06-03"])).toBe(1);
+
+      const asOf = new Date("2098-06-04T12:00:00Z");
+      const listed = (await listUnsubmittedAttendance(db, owner, HR_YEAR, asOf)).filter(
+        (r) => r.absenceGroupId === res.absenceGroupId,
+      );
+      expect(listed).toHaveLength(1);
+      expect(listed[0].date).toBe("2098-06-01");
+      expect(listed[0].endDate).toBe("2098-06-03");
+      expect(listed[0].deadlineDate).toBe("2098-06-10");
+
+      // 마지막 날을 지우면 추적·마감이 남은 마지막 날(06-02)로 옮겨 간다.
+      await deleteAttendance(db, owner, byDate["2098-06-03"]);
+      expect(await trackingCount(byDate["2098-06-02"])).toBe(1);
+      const after = (await listUnsubmittedAttendance(db, owner, HR_YEAR, asOf)).filter(
+        (r) => r.absenceGroupId === res.absenceGroupId,
+      );
+      expect(after[0].endDate).toBe("2098-06-02");
+      expect(after[0].deadlineDate).toBe("2098-06-09");
+
+      // 아무 날에서 제출 처리해도 기간 전체가 제출됨 → 목록에서 사라진다.
+      await setReportSubmitted(db, owner, byDate["2098-06-01"], true);
+      const left = await db
+        .select({ submitted: attendanceRecords.reportSubmitted })
+        .from(attendanceRecords)
+        .where(eq(attendanceRecords.absenceGroupId, res.absenceGroupId!));
+      expect(left.every((r) => r.submitted)).toBe(true);
+      const gone = (await listUnsubmittedAttendance(db, owner, HR_YEAR, asOf)).filter(
+        (r) => r.absenceGroupId === res.absenceGroupId,
+      );
+      expect(gone).toHaveLength(0);
+    });
+
+    it("따로 입력한 연속 결석도 같은 사유·미제출이면 서류 1건으로 묶인다", async () => {
+      // 07-02 다음 수업일은 07-05(주말 건너뜀). 07-08 이후 5수업일 = 07-15.
+      const days = ["2098-07-01", "2098-07-02", "2098-07-05", "2098-07-06", "2098-07-07", "2098-07-08", "2098-07-09", "2098-07-12", "2098-07-13", "2098-07-14", "2098-07-15"];
+      await db.insert(schoolDayCalendar).values(
+        days.map((date) => ({ ownerId: owner, date, isSchoolDay: true })),
+      );
+      const absent = (date: string, noteField: string, joinAdjacent = true) =>
+        upsertAttendance(db, owner, {
+          studentYearId: hStudent,
+          date,
+          reason: "illness",
+          kind: "absent",
+          noteField,
+          joinAdjacent,
+        });
+
+      // 어제 '몸살 감기' → 오늘 '감기'(비고가 달라도 같은 결석).
+      const d1 = await absent("2098-07-01", "몸살 감기");
+      expect(d1.joined).toBeNull();
+      const d2 = await absent("2098-07-02", "감기");
+      expect(d2.joined).toMatchObject({ firstDate: "2098-07-01", lastDate: "2098-07-02" });
+      expect(await trackingCount(d1.id)).toBe(0);
+      expect(await trackingCount(d2.id)).toBe(1);
+
+      // 주말 지나 월·화를 기간으로 입력 → 기존 묶음에 이어진다.
+      const r = await addAbsenceRange(db, owner, hStudent, "2098-07-05", "2098-07-06", "illness", null, {
+        joinAdjacent: true,
+      });
+      expect(r.joined).toMatchObject({
+        absenceGroupId: d2.joined!.absenceGroupId,
+        firstDate: "2098-07-01",
+        lastDate: "2098-07-06",
+      });
+      const asOf = new Date("2098-07-06T12:00:00Z");
+      const listed = (await listUnsubmittedAttendance(db, owner, HR_YEAR, asOf)).filter(
+        (x) => x.absenceGroupId === d2.joined!.absenceGroupId,
+      );
+      expect(listed).toHaveLength(1);
+      expect(listed[0]).toMatchObject({ date: "2098-07-01", endDate: "2098-07-06" });
+
+      // 서류를 받은 뒤의 결석은 새 서류 — 제출된 묶음에 붙지 않는다.
+      await setReportSubmitted(db, owner, d1.id, true);
+      const d7 = await absent("2098-07-07", "감기");
+      expect(d7.joined).toBeNull();
+      expect(d7.absenceGroupId).toBeNull();
+
+      // 교사가 묶기를 끄면 따로 1건이다.
+      const d8 = await absent("2098-07-08", "감기", false);
+      expect(d8.joined).toBeNull();
+      expect(await trackingCount(d8.id)).toBe(1);
+
+      // 사유가 다르면 묶지 않는다(07-08 질병 뒤 07-09 인정).
+      const d9 = await upsertAttendance(db, owner, {
+        studentYearId: hStudent,
+        date: "2098-07-09",
+        reason: "accepted",
+        kind: "absent",
+        joinAdjacent: true,
+      });
+      expect(d9.joined).toBeNull();
+
+      // 빠진 날을 나중에 채워도 묶인다: 07-13 을 먼저 입력하고 07-12 를 채우면 뒤쪽 이웃
+      // (07-13)과 묶여 마감이 07-13 기준이 된다. 07-12 의 앞 수업일(07-09)은 인정이라 제외.
+      const d13 = await absent("2098-07-13", "열");
+      expect(d13.joined).toBeNull();
+      const d12 = await absent("2098-07-12", "열");
+      expect(d12.joined).toMatchObject({ firstDate: "2098-07-12", lastDate: "2098-07-13" });
+      expect(await trackingCount(d12.id)).toBe(0);
+      expect(await trackingCount(d13.id)).toBe(1);
     });
   });
 });

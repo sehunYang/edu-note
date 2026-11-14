@@ -1,4 +1,5 @@
-import { and, asc, desc, eq, gt, gte, lt, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, lte, ne, or, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import * as schema from "../schema";
 import {
@@ -10,6 +11,11 @@ import { studentYears } from "../schema/identity";
 import { homeroomMembers } from "../schema/classes";
 import { schoolDayCalendar } from "../schema/misc";
 import { isReportRequired } from "@/lib/domain/attendance-rules";
+import {
+  collapseAbsenceGroups,
+  groupAnchor,
+  isJoinableAbsence,
+} from "@/lib/domain/attendance-group";
 import {
   absentPeriods,
   submissionTier,
@@ -50,6 +56,11 @@ export interface UpsertAttendanceInput {
   selectedPeriods?: number[];
   /** 교시 목록(조회=0 포함). 미지정 시 기본값 사용. */
   periodList?: number[];
+  /**
+   * 바로 앞·뒤 수업일의 같은 사유 미제출 결석과 서류를 묶는다(결석일 때만). 기본 끔 —
+   * 입력 화면이 교사의 선택을 넘긴다.
+   */
+  joinAdjacent?: boolean;
 }
 
 export interface AttendanceRow {
@@ -64,6 +75,8 @@ export interface AttendanceRow {
   periods: number[] | null;
   /** 이 출결을 만든 교외체험(0064). null=수동 입력. */
   fieldTripId: string | null;
+  /** 결석 기간 입력 묶음(0066). 같은 묶음은 서류 1건·마감은 마지막 날 기준. null=하루 입력. */
+  absenceGroupId: string | null;
 }
 
 /**
@@ -126,6 +139,57 @@ async function syncTracking(
 }
 
 /**
+ * 결석 기간 묶음(0066)의 신고서 추적을 정리한다. 묶음은 서류 1건이라 추적행도 1개 —
+ * 서류가 필요한 행 중 가장 늦은 날짜의 행(앵커)에만 둔다. 추적행의 출결 날짜가 곧 마감
+ * 기준일이므로(recomputeEscalation·pg_cron 모두) 마감이 기간의 마지막 날을 따른다.
+ * 묶음의 행을 수정·삭제해 앵커가 바뀌면 추적행도 새 앵커로 옮긴다.
+ */
+async function syncGroupTracking(
+  db: DB,
+  ownerId: string,
+  absenceGroupId: string,
+): Promise<void> {
+  const rows = await db
+    .select({
+      id: attendanceRecords.id,
+      date: attendanceRecords.date,
+      reportRequired: attendanceRecords.reportRequired,
+    })
+    .from(attendanceRecords)
+    .where(
+      and(
+        eq(attendanceRecords.ownerId, ownerId),
+        eq(attendanceRecords.absenceGroupId, absenceGroupId),
+      ),
+    );
+  const anchor = groupAnchor(rows);
+  const otherIds = rows.filter((r) => r.id !== anchor?.id).map((r) => r.id);
+  if (otherIds.length > 0) {
+    await db
+      .delete(reportTracking)
+      .where(
+        and(
+          eq(reportTracking.ownerId, ownerId),
+          inArray(reportTracking.attendanceRecordId, otherIds),
+        ),
+      );
+  }
+  if (anchor) await syncTracking(db, ownerId, anchor.id, true);
+}
+
+/** 출결 1행의 추적 동기화 — 묶음 소속이면 묶음 단위로, 아니면 행 단위로. */
+async function syncRecordTracking(
+  db: DB,
+  ownerId: string,
+  recordId: string,
+  required: boolean,
+  absenceGroupId: string | null,
+): Promise<void> {
+  if (absenceGroupId) await syncGroupTracking(db, ownerId, absenceGroupId);
+  else await syncTracking(db, ownerId, recordId, required);
+}
+
+/**
  * 출결 기록 upsert(같은 학생·날짜·성격이면 갱신). reportRequired 파생 저장 +
  * report_tracking 동기화. 생성/갱신된 행 반환.
  */
@@ -133,12 +197,16 @@ export async function upsertAttendance(
   db: DB,
   ownerId: string,
   input: UpsertAttendanceInput,
-): Promise<AttendanceRow> {
+): Promise<AttendanceRow & { joined: AbsenceJoinResult | null }> {
   await assertStudentOwner(db, ownerId, input.studentYearId);
   // 같은 키의 기존 행이 교외체험 소속이면 갱신 후에도 소속이 유지된다(아래 set 에 없음)
   // — 그 행의 서류는 계속 사후보고서가 맡으므로 판정에 소속을 넘긴다.
+  // 묶음(0066) 소속도 갱신 후 유지된다 — 추적은 묶음 단위로 다시 맞춘다.
   const [existing] = await db
-    .select({ fieldTripId: attendanceRecords.fieldTripId })
+    .select({
+      fieldTripId: attendanceRecords.fieldTripId,
+      absenceGroupId: attendanceRecords.absenceGroupId,
+    })
     .from(attendanceRecords)
     .where(
       and(
@@ -194,8 +262,16 @@ export async function upsertAttendance(
     })
     .returning();
 
-  await syncTracking(db, ownerId, row.id, reportRequired);
-  return toRow(row);
+  await syncRecordTracking(db, ownerId, row.id, reportRequired, row.absenceGroupId);
+  const joined =
+    input.joinAdjacent && row.kind === "absent"
+      ? await joinAdjacentAbsences(db, ownerId, row.id)
+      : null;
+  return {
+    ...toRow(row),
+    ...(joined ? { absenceGroupId: joined.absenceGroupId } : {}),
+    joined,
+  };
 }
 
 function toRow(r: typeof attendanceRecords.$inferSelect): AttendanceRow {
@@ -210,6 +286,7 @@ function toRow(r: typeof attendanceRecords.$inferSelect): AttendanceRow {
     noteField: r.noteField,
     periods: r.periods,
     fieldTripId: r.fieldTripId,
+    absenceGroupId: r.absenceGroupId,
   };
 }
 
@@ -250,6 +327,8 @@ async function createAbsenceRangeRecords(
   noteField: string | null,
   /** 이 출결을 만든 교외체험(0064). 결석 기간 입력 등 수동 경로는 null. */
   fieldTripId: string | null = null,
+  /** 결석 기간 묶음(0066). 주면 새로 만든 행이 서류 1건·마지막 날 마감을 공유한다. */
+  absenceGroupId: string | null = null,
 ): Promise<number> {
   const days = await schoolDaysInRange(db, ownerId, start, end);
   const reportRequired = isReportRequired({
@@ -274,6 +353,7 @@ async function createAbsenceRangeRecords(
         noteField,
         periods,
         fieldTripId,
+        absenceGroupId,
       })
       .onConflictDoNothing({
         target: [
@@ -285,10 +365,12 @@ async function createAbsenceRangeRecords(
       })
       .returning({ id: attendanceRecords.id });
     if (row) {
-      await syncTracking(db, ownerId, row.id, reportRequired);
+      // 묶음은 행마다가 아니라 다 만든 뒤 한 번에 — 추적행은 마지막 날 1개뿐이다.
+      if (!absenceGroupId) await syncTracking(db, ownerId, row.id, reportRequired);
       created += 1;
     }
   }
+  if (absenceGroupId) await syncGroupTracking(db, ownerId, absenceGroupId);
   return created;
 }
 
@@ -518,6 +600,8 @@ export async function deleteFieldTrip(
 /**
  * 결석 기간 입력(AC-4.4). [start,end] 의 수업일마다 결석 출결 자동 생성(멱등).
  * reason 은 호출자 지정(예: illness). 생성 건수 반환.
+ * 새로 만든 행은 한 묶음(0066)이다 — 교외체험처럼 서류는 1건이고 마감은 기간의
+ * 마지막 날 기준. 이미 있던 같은 날의 행(수동 입력)은 묶음에 들지 않고 그대로 둔다.
  */
 export async function addAbsenceRange(
   db: DB,
@@ -527,8 +611,14 @@ export async function addAbsenceRange(
   endDate: string,
   reason: AttendanceReason,
   noteField?: string | null,
-): Promise<{ createdRecords: number }> {
+  opts?: { joinAdjacent?: boolean },
+): Promise<{
+  createdRecords: number;
+  absenceGroupId: string | null;
+  joined: AbsenceJoinResult | null;
+}> {
   await assertStudentOwner(db, ownerId, studentYearId);
+  let absenceGroupId: string | null = randomUUID();
   const createdRecords = await createAbsenceRangeRecords(
     db,
     ownerId,
@@ -537,6 +627,8 @@ export async function addAbsenceRange(
     endDate,
     reason,
     noteField ?? null,
+    null,
+    absenceGroupId,
   );
   await writeAudit(db, ownerId, "attendance_record", null, {
     studentYearId,
@@ -544,8 +636,309 @@ export async function addAbsenceRange(
     endDate,
     reason,
     createdRecords,
+    absenceGroupId: createdRecords > 0 ? absenceGroupId : null,
   });
-  return { createdRecords };
+  if (createdRecords === 0) return { createdRecords, absenceGroupId: null, joined: null };
+  let joined: AbsenceJoinResult | null = null;
+  if (opts?.joinAdjacent) {
+    const [seed] = await db
+      .select({ id: attendanceRecords.id })
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.ownerId, ownerId),
+          eq(attendanceRecords.absenceGroupId, absenceGroupId),
+        ),
+      )
+      .limit(1);
+    if (seed) joined = await joinAdjacentAbsences(db, ownerId, seed.id);
+    if (joined) absenceGroupId = joined.absenceGroupId;
+  }
+  return { createdRecords, absenceGroupId, joined };
+}
+
+export interface AbsenceJoinResult {
+  /** 합쳐진 묶음 id. */
+  absenceGroupId: string;
+  /** 묶음의 첫날·마지막 날(서류 1건이 다루는 기간). */
+  firstDate: string;
+  lastDate: string;
+  /** 마지막 날 기준 서류 마감(수업일 5일). 캘린더가 거기까지 없으면 null. */
+  deadlineDate: string | null;
+  /** 이번에 새로 이어 붙인 앞·뒤 날짜(정렬). */
+  joinedDates: string[];
+}
+
+/**
+ * 따로 입력한 연속 결석을 서류 1건으로 묶는다 (0066 후속).
+ *
+ * 예: 어제 '몸살 감기' 질병결석을 입력했고 오늘도 같은 사유로 결석 — 결석계는 두 장이
+ * 아니라 한 장(기간 어제~오늘)이고 마감은 오늘 기준이어야 한다.
+ *
+ * seed 출결(이미 묶음이면 그 묶음 전체)의 바로 앞 수업일·바로 뒤 수업일에 있는 같은
+ * 학생 결석 중 isJoinableAbsence 를 만족하는 것을 찾아, 그 결석(묶음이면 묶음 전체)과
+ * seed 를 한 묶음으로 합친다. 한 단계만 본다 — 이웃이 이미 묶음이면 그 묶음이 통째로
+ * 들어오므로 연속 입력은 저절로 이어진다. 합칠 게 없으면 아무것도 바꾸지 않고 null.
+ * 추적행은 합친 묶음의 마지막 날로 옮겨져 마감이 그 날을 따른다(syncGroupTracking).
+ */
+export async function joinAdjacentAbsences(
+  db: DB,
+  ownerId: string,
+  seedRecordId: string,
+): Promise<AbsenceJoinResult | null> {
+  const cols = {
+    id: attendanceRecords.id,
+    studentYearId: attendanceRecords.studentYearId,
+    date: attendanceRecords.date,
+    kind: attendanceRecords.kind,
+    reason: attendanceRecords.reason,
+    reportRequired: attendanceRecords.reportRequired,
+    reportSubmitted: attendanceRecords.reportSubmitted,
+    fieldTripId: attendanceRecords.fieldTripId,
+    absenceGroupId: attendanceRecords.absenceGroupId,
+  } as const;
+  const [seed] = await db
+    .select(cols)
+    .from(attendanceRecords)
+    .where(and(eq(attendanceRecords.id, seedRecordId), eq(attendanceRecords.ownerId, ownerId)))
+    .limit(1);
+  if (!seed) return null;
+  // seed 자체가 묶을 수 있는 결석이 아니면(제출됨·서류 불필요·체험 등) 손대지 않는다.
+  if (!isJoinableAbsence(seed, seed)) return null;
+
+  const seedRows = seed.absenceGroupId
+    ? await db
+        .select(cols)
+        .from(attendanceRecords)
+        .where(
+          and(
+            eq(attendanceRecords.ownerId, ownerId),
+            eq(attendanceRecords.absenceGroupId, seed.absenceGroupId),
+          ),
+        )
+    : [seed];
+  const seedFirst = seedRows.reduce((m, r) => (r.date < m ? r.date : m), seed.date);
+  const seedLast = seedRows.reduce((m, r) => (r.date > m ? r.date : m), seed.date);
+
+  // 바로 앞·뒤 수업일(주말·공휴일 건너뜀). 이웃 수업일 하나씩만 필요하므로 그 둘레만 읽는다.
+  const [prevRow] = await db
+    .select({ date: schoolDayCalendar.date })
+    .from(schoolDayCalendar)
+    .where(
+      and(
+        eq(schoolDayCalendar.ownerId, ownerId),
+        eq(schoolDayCalendar.isSchoolDay, true),
+        lt(schoolDayCalendar.date, seedFirst),
+      ),
+    )
+    .orderBy(desc(schoolDayCalendar.date))
+    .limit(1);
+  const after = await db
+    .select({ date: schoolDayCalendar.date })
+    .from(schoolDayCalendar)
+    .where(
+      and(
+        eq(schoolDayCalendar.ownerId, ownerId),
+        eq(schoolDayCalendar.isSchoolDay, true),
+        gt(schoolDayCalendar.date, seedLast),
+      ),
+    )
+    .orderBy(asc(schoolDayCalendar.date))
+    .limit(ATTENDANCE_REPORT_DEADLINE_SCHOOL_DAYS + 1);
+  const neighborDays = [prevRow?.date, after[0]?.date].filter(
+    (d): d is string => !!d,
+  );
+  if (neighborDays.length === 0) return null;
+
+  const neighbors = (
+    await db
+      .select(cols)
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.ownerId, ownerId),
+          eq(attendanceRecords.studentYearId, seed.studentYearId),
+          eq(attendanceRecords.kind, "absent"),
+          inArray(attendanceRecords.date, neighborDays),
+        ),
+      )
+  ).filter((r) => isJoinableAbsence(seed, r));
+  if (neighbors.length === 0) return null;
+
+  // 이웃이 묶음이면 묶음 전체를 데려온다. 묶음 id 는 seed 것을 우선 재사용한다.
+  const neighborGroupIds = [
+    ...new Set(neighbors.map((n) => n.absenceGroupId).filter((g): g is string => !!g)),
+  ];
+  const neighborGroupRows =
+    neighborGroupIds.length > 0
+      ? await db
+          .select(cols)
+          .from(attendanceRecords)
+          .where(
+            and(
+              eq(attendanceRecords.ownerId, ownerId),
+              inArray(attendanceRecords.absenceGroupId, neighborGroupIds),
+            ),
+          )
+      : [];
+  const target = seed.absenceGroupId ?? neighborGroupIds[0] ?? randomUUID();
+  const all = new Map<string, { id: string; date: string }>();
+  for (const r of [...seedRows, ...neighbors, ...neighborGroupRows]) all.set(r.id, r);
+  const seedIds = new Set(seedRows.map((r) => r.id));
+
+  await db
+    .update(attendanceRecords)
+    .set({ absenceGroupId: target, updatedAt: new Date() })
+    .where(
+      and(
+        eq(attendanceRecords.ownerId, ownerId),
+        inArray(attendanceRecords.id, [...all.keys()]),
+      ),
+    );
+  await syncGroupTracking(db, ownerId, target);
+
+  const dates = [...all.values()].map((r) => r.date).sort();
+  const firstDate = dates[0];
+  const lastDate = dates[dates.length - 1];
+  const joinedDates = [...all.values()]
+    .filter((r) => !seedIds.has(r.id))
+    .map((r) => r.date)
+    .sort();
+  // 마감 = 마지막 날 이후 5번째 수업일. 마지막 날이 seed 뒤쪽 이웃 묶음이면 다시 읽는다.
+  const deadlineBase = lastDate;
+  const deadlineRows =
+    deadlineBase === seedLast
+      ? after
+      : await db
+          .select({ date: schoolDayCalendar.date })
+          .from(schoolDayCalendar)
+          .where(
+            and(
+              eq(schoolDayCalendar.ownerId, ownerId),
+              eq(schoolDayCalendar.isSchoolDay, true),
+              gt(schoolDayCalendar.date, deadlineBase),
+            ),
+          )
+          .orderBy(asc(schoolDayCalendar.date))
+          .limit(ATTENDANCE_REPORT_DEADLINE_SCHOOL_DAYS);
+  const deadlineDate = nthSchoolDayAfter(
+    deadlineRows.map((r) => r.date),
+    deadlineBase,
+    ATTENDANCE_REPORT_DEADLINE_SCHOOL_DAYS,
+  );
+
+  await writeAudit(db, ownerId, "attendance_absence_join", target, {
+    studentYearId: seed.studentYearId,
+    seedRecordId,
+    firstDate,
+    lastDate,
+    joinedDates,
+  });
+  return { absenceGroupId: target, firstDate, lastDate, deadlineDate, joinedDates };
+}
+
+export interface AbsenceJoinCandidate {
+  studentYearId: string;
+  /** 이웃 결석 날짜(묶음이면 그 묶음의 첫날~마지막 날). */
+  firstDate: string;
+  lastDate: string;
+  reason: AttendanceReason;
+  /** 입력 날짜 기준 위치 — prev=바로 앞 수업일, next=바로 뒤 수업일. */
+  side: "prev" | "next";
+}
+
+/**
+ * 입력 화면 미리보기용 — date 바로 앞·뒤 수업일에 있는, 묶을 수 있는 결석.
+ * 교사가 학생·사유를 고르면 "11-13 질병결석과 서류 1건으로 묶기"를 보여 주는 데 쓴다.
+ * 실제 묶기 판단은 저장할 때 joinAdjacentAbsences 가 다시 한다(이건 안내일 뿐).
+ */
+export async function listAbsenceJoinCandidates(
+  db: DB,
+  ownerId: string,
+  date: string,
+): Promise<AbsenceJoinCandidate[]> {
+  const [prevRow] = await db
+    .select({ date: schoolDayCalendar.date })
+    .from(schoolDayCalendar)
+    .where(
+      and(
+        eq(schoolDayCalendar.ownerId, ownerId),
+        eq(schoolDayCalendar.isSchoolDay, true),
+        lt(schoolDayCalendar.date, date),
+      ),
+    )
+    .orderBy(desc(schoolDayCalendar.date))
+    .limit(1);
+  const [nextRow] = await db
+    .select({ date: schoolDayCalendar.date })
+    .from(schoolDayCalendar)
+    .where(
+      and(
+        eq(schoolDayCalendar.ownerId, ownerId),
+        eq(schoolDayCalendar.isSchoolDay, true),
+        gt(schoolDayCalendar.date, date),
+      ),
+    )
+    .orderBy(asc(schoolDayCalendar.date))
+    .limit(1);
+  const days = [prevRow?.date, nextRow?.date].filter((d): d is string => !!d);
+  if (days.length === 0) return [];
+
+  const rows = (
+    await db
+      .select({
+        id: attendanceRecords.id,
+        studentYearId: attendanceRecords.studentYearId,
+        date: attendanceRecords.date,
+        kind: attendanceRecords.kind,
+        reason: attendanceRecords.reason,
+        reportRequired: attendanceRecords.reportRequired,
+        reportSubmitted: attendanceRecords.reportSubmitted,
+        fieldTripId: attendanceRecords.fieldTripId,
+        absenceGroupId: attendanceRecords.absenceGroupId,
+      })
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.ownerId, ownerId),
+          eq(attendanceRecords.kind, "absent"),
+          inArray(attendanceRecords.date, days),
+        ),
+      )
+  ).filter((r) => isJoinableAbsence(r, r));
+
+  // 묶음이면 기간 전체를 보여 준다("11-10~11-13 질병결석과 묶기").
+  const groupIds = [
+    ...new Set(rows.map((r) => r.absenceGroupId).filter((g): g is string => !!g)),
+  ];
+  const span = new Map<string, { first: string; last: string }>();
+  if (groupIds.length > 0) {
+    const gs = await db
+      .select({
+        g: attendanceRecords.absenceGroupId,
+        first: sql<string>`min(${attendanceRecords.date})::text`,
+        last: sql<string>`max(${attendanceRecords.date})::text`,
+      })
+      .from(attendanceRecords)
+      .where(
+        and(
+          eq(attendanceRecords.ownerId, ownerId),
+          inArray(attendanceRecords.absenceGroupId, groupIds),
+        ),
+      )
+      .groupBy(attendanceRecords.absenceGroupId);
+    for (const g of gs) if (g.g) span.set(g.g, { first: g.first, last: g.last });
+  }
+  return rows.map((r) => {
+    const sp = r.absenceGroupId ? span.get(r.absenceGroupId) : undefined;
+    return {
+      studentYearId: r.studentYearId,
+      firstDate: sp?.first ?? r.date,
+      lastDate: sp?.last ?? r.date,
+      reason: r.reason as AttendanceReason,
+      side: r.date < date ? ("prev" as const) : ("next" as const),
+    };
+  });
 }
 
 export interface UpdateAttendanceInput {
@@ -566,7 +959,10 @@ export async function updateAttendanceRecord(
   input: UpdateAttendanceInput,
 ): Promise<AttendanceRow | null> {
   const [existing] = await db
-    .select({ fieldTripId: attendanceRecords.fieldTripId })
+    .select({
+      fieldTripId: attendanceRecords.fieldTripId,
+      absenceGroupId: attendanceRecords.absenceGroupId,
+    })
     .from(attendanceRecords)
     .where(
       and(
@@ -602,7 +998,7 @@ export async function updateAttendanceRecord(
     )
     .returning();
   if (!row) return null;
-  await syncTracking(db, ownerId, row.id, reportRequired);
+  await syncRecordTracking(db, ownerId, row.id, reportRequired, existing.absenceGroupId);
   await writeAudit(db, ownerId, "attendance_update", row.id, {
     reason: input.reason,
     kind: input.kind,
@@ -611,33 +1007,56 @@ export async function updateAttendanceRecord(
   return toRow(row);
 }
 
-/** 신고서 제출 여부 마킹. */
+/**
+ * 신고서 제출 여부 마킹. 결석 기간 묶음(0066)의 행이면 서류가 1건이므로 묶음 전체를
+ * 함께 바꾼다 — 기간 중 어느 날에서 눌러도 같은 결과다.
+ */
 export async function setReportSubmitted(
   db: DB,
   ownerId: string,
   attendanceRecordId: string,
   submitted: boolean,
 ): Promise<void> {
-  await db
-    .update(attendanceRecords)
-    .set({ reportSubmitted: submitted, updatedAt: new Date() })
+  const [rec] = await db
+    .select({ absenceGroupId: attendanceRecords.absenceGroupId })
+    .from(attendanceRecords)
     .where(
       and(
         eq(attendanceRecords.id, attendanceRecordId),
         eq(attendanceRecords.ownerId, ownerId),
       ),
+    )
+    .limit(1);
+  if (!rec) return;
+  await db
+    .update(attendanceRecords)
+    .set({ reportSubmitted: submitted, updatedAt: new Date() })
+    .where(
+      and(
+        eq(attendanceRecords.ownerId, ownerId),
+        rec.absenceGroupId
+          ? eq(attendanceRecords.absenceGroupId, rec.absenceGroupId)
+          : eq(attendanceRecords.id, attendanceRecordId),
+      ),
     );
 }
 
-/** 출결 기록 삭제(연결된 tracking 은 FK cascade). */
+/**
+ * 출결 기록 삭제(연결된 tracking 은 FK cascade). 결석 기간 묶음(0066)의 마지막 날을
+ * 지우면 추적행도 함께 사라지므로, 남은 날 중 마지막 날로 추적을 옮긴다(마감도 당겨진다).
+ */
 export async function deleteAttendance(
   db: DB,
   ownerId: string,
   id: string,
 ): Promise<void> {
-  await db
+  const [removed] = await db
     .delete(attendanceRecords)
-    .where(and(eq(attendanceRecords.id, id), eq(attendanceRecords.ownerId, ownerId)));
+    .where(and(eq(attendanceRecords.id, id), eq(attendanceRecords.ownerId, ownerId)))
+    .returning({ absenceGroupId: attendanceRecords.absenceGroupId });
+  if (removed?.absenceGroupId) {
+    await syncGroupTracking(db, ownerId, removed.absenceGroupId);
+  }
 }
 
 /** 특정 날짜의 출결 기록(학생 정보 포함, 학번순). */
@@ -658,6 +1077,7 @@ export async function listAttendanceByDate(
       noteField: attendanceRecords.noteField,
       periods: attendanceRecords.periods,
       fieldTripId: attendanceRecords.fieldTripId,
+      absenceGroupId: attendanceRecords.absenceGroupId,
       sid: studentYears.sid,
       name: studentYears.name,
     })
@@ -676,6 +1096,7 @@ export async function listAttendanceByDate(
     noteField: r.noteField,
     periods: r.periods,
     fieldTripId: r.fieldTripId,
+    absenceGroupId: r.absenceGroupId,
     sid: r.sid,
     name: r.name,
   }));
@@ -747,6 +1168,7 @@ function toStudentRow(r: {
   noteField: string | null;
   periods: number[] | null;
   fieldTripId: string | null;
+  absenceGroupId: string | null;
   sid: string;
   name: string;
 }): AttendanceStudentRow {
@@ -761,6 +1183,7 @@ function toStudentRow(r: {
     noteField: r.noteField,
     periods: r.periods,
     fieldTripId: r.fieldTripId,
+    absenceGroupId: r.absenceGroupId,
     sid: r.sid,
     name: r.name,
   };
@@ -777,6 +1200,7 @@ const STUDENT_ROW_COLUMNS = {
   noteField: attendanceRecords.noteField,
   periods: attendanceRecords.periods,
   fieldTripId: attendanceRecords.fieldTripId,
+  absenceGroupId: attendanceRecords.absenceGroupId,
   sid: studentYears.sid,
   name: studentYears.name,
 } as const;
@@ -857,6 +1281,11 @@ export async function searchAttendanceByStudent(
 }
 
 export type UnsubmittedAttendanceRow = AttendanceStudentRow & {
+  /**
+   * 기간 서류의 마지막 날 — 결석 기간 묶음(0066)·다일 교외체험. 하루짜리면 null.
+   * date 는 첫날이고, 마감은 이 날(없으면 date) 기준이다.
+   */
+  endDate: string | null;
   deadlineDate: string | null;
   remainingSchoolDays: number | null;
   tier: SubmissionTier;
@@ -969,21 +1398,25 @@ export async function listUnsubmittedAttendance(
   // (4) 양쪽 homeroom 필터 + tier 계산 → UnsubmittedAttendanceRow + dedupe 키.
   type Merged = UnsubmittedAttendanceRow & { _dedupeKey: string };
 
-  const attMapped: Merged[] = attRows
-    .filter((r) => ids.has(r.studentYearId))
-    .map((r) => {
-      const deadline = deadlineFor(r.date, ATTENDANCE_REPORT_DEADLINE_SCHOOL_DAYS);
-      const { remaining, tier } = tierFor(deadline, "attendance");
-      return {
-        ...toStudentRow(r),
-        deadlineDate: deadline,
-        remainingSchoolDays: remaining,
-        tier,
-        source: "attendance" as const,
-        _dedupeKey:
-          r.reportTrackingId ?? `${r.studentYearId}|attendance|${r.id}`,
-      };
-    });
+  // 결석 기간 묶음(0066)은 서류 1건 — 묶음의 미제출 행들을 한 줄로 접는다.
+  // 대표 행 = 첫날(날짜·제출 처리 id), 마감 기준 = 마지막 날.
+  const attGroups = collapseAbsenceGroups(
+    attRows.filter((r) => ids.has(r.studentYearId)),
+  );
+  const attMapped: Merged[] = attGroups.map(({ first: r, lastDate }) => {
+    const deadline = deadlineFor(lastDate, ATTENDANCE_REPORT_DEADLINE_SCHOOL_DAYS);
+    const { remaining, tier } = tierFor(deadline, "attendance");
+    return {
+      ...toStudentRow(r),
+      endDate: lastDate !== r.date ? lastDate : null,
+      deadlineDate: deadline,
+      remainingSchoolDays: remaining,
+      tier,
+      source: "attendance" as const,
+      _dedupeKey:
+        r.reportTrackingId ?? `${r.studentYearId}|attendance|${r.id}`,
+    };
+  });
 
   const tripMapped: Merged[] = tripRows
     .filter((r) => ids.has(r.studentYearId))
@@ -994,6 +1427,7 @@ export async function listUnsubmittedAttendance(
       );
       const { remaining, tier } = tierFor(deadline, "fieldTrip");
       const date = r.startDate ?? r.tripDate;
+      const end = r.endDate ?? date;
       return {
         id: r.id,
         studentYearId: r.studentYearId,
@@ -1005,8 +1439,10 @@ export async function listUnsubmittedAttendance(
         noteField: null,
         periods: null,
         fieldTripId: r.id,
+        absenceGroupId: null,
         sid: r.sid,
         name: r.name,
+        endDate: end !== date ? end : null,
         deadlineDate: deadline,
         remainingSchoolDays: remaining,
         tier,
@@ -1070,6 +1506,7 @@ export async function getAttendanceTally(
         periods: attendanceRecords.periods,
         reportRequired: attendanceRecords.reportRequired,
         reportSubmitted: attendanceRecords.reportSubmitted,
+        absenceGroupId: attendanceRecords.absenceGroupId,
       })
       .from(attendanceRecords)
       .where(
@@ -1101,6 +1538,7 @@ export async function getAttendanceTally(
       periods: r.periods,
       reportRequired: r.reportRequired,
       reportSubmitted: r.reportSubmitted,
+      absenceGroupId: r.absenceGroupId,
     })),
   );
 
